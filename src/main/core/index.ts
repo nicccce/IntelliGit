@@ -1,0 +1,1 @@
+export { SidecarManager } from './SidecarManager'
