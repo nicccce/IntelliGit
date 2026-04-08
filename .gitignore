@@ -42,3 +42,6 @@ sidecar/intelligit-sidecar.exe
 # 忽略放置在 resources 目录下准备打包的二进制文件
 resources/intelligit-sidecar
 resources/intelligit-sidecar.exe
+
+# sidecar test
+/sidecar/test/
