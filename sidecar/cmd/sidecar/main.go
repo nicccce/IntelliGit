@@ -21,24 +21,19 @@ func main() {
 			continue
 		}
 
-		req, err := protocol.DecodeRequest(line)
-		if err != nil {
-			writeResponse(writer, &protocol.Response{
-				JSONRPC: "2.0",
+		var req protocol.Request
+		if err := json.Unmarshal([]byte(line), &req); err != nil {
+			_ = encoder.Encode(protocol.Response{
 				ID:      "",
-				Error: &protocol.ErrorObject{
-					Code:    -32700,
-					Message: fmt.Sprintf("请求 JSON 解析失败: %v", err),
-				},
+				Success: false,
+				Error:   fmt.Sprintf("请求 JSON 解析失败: %v", err),
 			})
 			continue
 		}
 
-		resp := dispatcher.Handle(req)
-		writeResponse(writer, resp)
-
-		if req.Method == "shutdown" || req.Method == "git/shutdown" {
-			return
+		resp := handler.Handle(req)
+		if err := encoder.Encode(resp); err != nil {
+			fmt.Fprintf(os.Stderr, "响应写入失败: %v\n", err)
 		}
 	}
 
