@@ -43,16 +43,67 @@ func (d *Dispatcher) Handle(req *protocol.Request) *protocol.Response {
 		return d.ok(req.ID, map[string]string{"message": "pong"})
 	case "shutdown":
 		return d.ok(req.ID, map[string]string{"message": "bye"})
+// Handle 将请求路由到对应命令处理逻辑。
+func Handle(req protocol.Request) protocol.Response {
+	switch req.Command {
+	//1.获取仓库状态
+	case "status":
+		return handleStatus(req)
+	//2.获取提交历史
+	case "log":
+		return handleLog(req)
+	//3.提交变更
+	case "commit":
+		return handleCommit(req)
+	//4.获取远程仓库信息
+	case "remote":
+		return handleRemote(req)
+	//5.获取分支信息
+	case "branch":
+		return handleBranch(req)
+	//6.获取文件差异
+	case "diff":
+		return handleDiff(req)
+	default:
+		return protocol.Response{
+			ID:      req.ID,
+			Success: false,
+			Error:   fmt.Sprintf("不支持的命令: %s", req.Command),
+		}
+	}
+}
+
+func handleStatus(req protocol.Request) protocol.Response {
+	repoPath := getRepoPath(req.Payload)
+
+	repo, err := git.Open(repoPath)
+	if err != nil {
+		return fail(req.ID, err)
 	}
 
 	repoPath, err := getString(req.Params, "repoPath")
+	status, err := repo.Status()
 	if err != nil {
 		return d.fail(req.ID, -32602, err.Error())
 	}
+		return fail(req.ID, err)
+	}
+
+	return protocol.Response{
+		ID:      req.ID,
+		Success: true,
+		Data:    status,
+	}
+}
+
+func handleLog(req protocol.Request) protocol.Response {
+	repoPath := getRepoPath(req.Payload)
+	maxEntries := getMaxEntries(req.Payload)
 
 	repo, err := git.Open(repoPath)
 	if err != nil {
 		return d.fail(req.ID, -32010, err.Error())
+		return fail(req.ID, err)
 	}
 
 	switch command {
@@ -177,44 +228,64 @@ func normalizeMethod(method string) (string, error) {
 		return "", fmt.Errorf("method 不合法: %s（缺少 command）", method)
 	}
 	return command, nil
+	logs, err := repo.Log(maxEntries)
+	if err != nil {
+		return fail(req.ID, err)
+	}
+
+	return protocol.Response{
+		ID:      req.ID,
+		Success: true,
+		Data:    logs,
+	}
 }
 
-func getString(payload map[string]interface{}, key string) (string, error) {
+func getRepoPath(payload map[string]interface{}) string {
 	if payload == nil {
-		return "", fmt.Errorf("缺少 payload")
+		return "."
 	}
-	raw, ok := payload[key]
+	v, ok := payload["repoPath"]
 	if !ok {
-		return "", fmt.Errorf("payload 缺少字段: %s", key)
+		return "."
 	}
-	value, ok := raw.(string)
-	if !ok || value == "" {
-		return "", fmt.Errorf("payload.%s 必须为非空字符串", key)
+	s, ok := v.(string)
+	if !ok || s == "" {
+		return "."
 	}
-	return value, nil
+	return s
 }
 
-func getIntDefault(payload map[string]interface{}, key string, defaultVal int) (int, error) {
+func getMaxEntries(payload map[string]interface{}) int {
 	if payload == nil {
-		return defaultVal, nil
+		return 20
 	}
-	raw, ok := payload[key]
-	if !ok || raw == nil {
-		return defaultVal, nil
+	v, ok := payload["maxEntries"]
+	if !ok {
+		return 20
 	}
 
-	switch v := raw.(type) {
-	case float64:
-		return int(v), nil
-	case int:
-		return v, nil
-	case string:
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, fmt.Errorf("payload.%s 不是合法数字", key)
+	// encoding/json 默认会把数字解到 float64
+	if n, ok := v.(float64); ok {
+		if n <= 0 {
+			return 20
 		}
-		return n, nil
-	default:
-		return 0, fmt.Errorf("payload.%s 类型错误", key)
+		return int(n)
+	}
+
+	if n, ok := v.(int); ok {
+		if n <= 0 {
+			return 20
+		}
+		return n
+	}
+
+	return 20
+}
+
+func fail(id string, err error) protocol.Response {
+	return protocol.Response{
+		ID:      id,
+		Success: false,
+		Error:   err.Error(),
 	}
 }
