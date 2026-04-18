@@ -23,9 +23,12 @@ func main() {
 		req, err := protocol.DecodeRequest(line)
 		if err != nil {
 			writeResponse(writer, &protocol.Response{
+				JSONRPC: "2.0",
 				ID:      "",
-				Success: false,
-				Error:   fmt.Sprintf("请求 JSON 解析失败: %v", err),
+				Error: &protocol.ErrorObject{
+					Code:    -32700,
+					Message: fmt.Sprintf("请求 JSON 解析失败: %v", err),
+				},
 			})
 			continue
 		}
@@ -33,7 +36,7 @@ func main() {
 		resp := dispatcher.Handle(req)
 		writeResponse(writer, resp)
 
-		if req.Command == "shutdown" {
+		if req.Method == "shutdown" || req.Method == "git/shutdown" {
 			return
 		}
 	}

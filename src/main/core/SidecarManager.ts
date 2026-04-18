@@ -91,12 +91,17 @@ export class SidecarManager {
       }
 
       const id = this.generateId()
-      const request: SidecarRequest = { id, command, payload }
+      const request: SidecarRequest = {
+        jsonrpc: '2.0',
+        id,
+        method: `git/${command}`,
+        params: payload
+      }
 
       // 超时处理
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
-        reject(new Error(`请求超时 (id=${id}, command=${command})`))
+        reject(new Error(`请求超时 (id=${id}, method=${request.method})`))
       }, DEFAULT_TIMEOUT_MS)
 
       this.pendingRequests.set(id, { resolve, reject, timer })

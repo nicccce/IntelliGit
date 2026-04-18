@@ -20,9 +20,12 @@ export function registerGitHandlers(sidecarManager: SidecarManager): void {
       try {
         if (!sidecarManager.isRunning) {
           return {
+            jsonrpc: '2.0',
             id: '',
-            success: false,
-            error: 'Sidecar 进程未运行。请确保 Go 二进制文件已放置在 resources/ 目录下。'
+            error: {
+              code: -32001,
+              message: 'Sidecar 进程未运行。请确保 Go 二进制文件已放置在 resources/ 目录下。'
+            }
           }
         }
         const response = await sidecarManager.send(command, payload)
@@ -31,9 +34,12 @@ export function registerGitHandlers(sidecarManager: SidecarManager): void {
         const message = err instanceof Error ? err.message : String(err)
         console.error(`[IPC] git:command 处理失败:`, message)
         return {
+          jsonrpc: '2.0',
           id: '',
-          success: false,
-          error: message
+          error: {
+            code: -32000,
+            message
+          }
         }
       }
     }
