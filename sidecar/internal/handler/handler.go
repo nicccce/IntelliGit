@@ -127,3 +127,20 @@ func fail(id string, err error) protocol.Response {
 		Error:   err.Error(),
 	}
 }
+
+// 以下命令暂未实现，先保留统一失败响应，确保主链路可编译可运行。
+func handleCommit(req protocol.Request) protocol.Response {
+	return protocol.Response{ID: req.ID, Success: false, Error: "commit 命令暂未实现"}
+}
+
+func handleRemote(req protocol.Request) protocol.Response {
+	return protocol.Response{ID: req.ID, Success: false, Error: "remote 命令暂未实现"}
+}
+
+func handleBranch(req protocol.Request) protocol.Response {
+	return protocol.Response{ID: req.ID, Success: false, Error: "branch 命令暂未实现"}
+}
+
+func handleDiff(req protocol.Request) protocol.Response {
+	return protocol.Response{ID: req.ID, Success: false, Error: "diff 命令暂未实现"}
+}

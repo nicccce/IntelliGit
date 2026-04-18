@@ -31,6 +31,9 @@ func main() {
 			continue
 		}
 
+		// 兼容 command/payload 与 JSON-RPC method/params 两种请求格式
+		req.Normalize()
+
 		resp := handler.Handle(req)
 		if err := encoder.Encode(resp); err != nil {
 			fmt.Fprintf(os.Stderr, "响应写入失败: %v\n", err)
