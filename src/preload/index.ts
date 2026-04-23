@@ -6,12 +6,24 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { ElectronAPI, SidecarResponse } from '../shared/types'
+import type { ElectronAPI, SidecarResponse, SidecarNotification } from '../shared/types'
 
 /** 暴露给渲染进程的安全 API */
 const electronAPI: ElectronAPI = {
   invokeGit: (command: string, payload?: Record<string, unknown>): Promise<SidecarResponse> => {
     return ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMAND, command, payload)
+  },
+
+  onSidecarNotification: (callback: (notification: SidecarNotification) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, notification: SidecarNotification): void => {
+      callback(notification)
+    }
+    ipcRenderer.on(IPC_CHANNELS.SIDECAR_NOTIFICATION, handler)
+
+    // 返回取消监听函数
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.SIDECAR_NOTIFICATION, handler)
+    }
   }
 }
 

@@ -2,16 +2,24 @@
  * @file SidecarManager — Go Sidecar 进程管理器
  * @description 负责启动 / 重启 / 销毁 Go 侧车进程，并封装基于 stdin/stdout 的
  *              双向 JSON 通信协议。每条请求通过唯一 ID 与响应配对，支持超时。
+ *              支持 Notification 事件通知（如进度推送），并提供 ES6 Proxy 无感调用。
  */
 
 import { ChildProcess, spawn } from 'child_process'
 import { join } from 'path'
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import type { SidecarRequest, SidecarResponse } from '../../shared/types'
+import { EventEmitter } from 'events'
+import type { SidecarRequest, SidecarResponse, SidecarNotification } from '../../shared/types'
 
 /** 默认请求超时时间（毫秒） */
 const DEFAULT_TIMEOUT_MS = 30_000
+
+/** 自动重启配置 */
+const RESTART_CONFIG = {
+  maxRetries: 3,
+  baseDelayMs: 1000 // 指数退避基础延迟
+}
 
 /** 待处理请求的回调 */
 interface PendingRequest {
@@ -20,11 +28,13 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>
 }
 
-export class SidecarManager {
+export class SidecarManager extends EventEmitter {
   private process: ChildProcess | null = null
   private pendingRequests = new Map<string, PendingRequest>()
   private buffer = '' // 用于拼接 stdout 分片数据
   private requestCounter = 0
+  private restartCount = 0
+  private intentionalStop = false // 标记是否为主动关闭
 
   // ─── 生命周期 ────────────────────────────────────────────────────────
 
@@ -35,6 +45,7 @@ export class SidecarManager {
       return
     }
 
+    this.intentionalStop = false
     const binaryPath = this.resolveBinaryPath()
     console.log(`[SidecarManager] 启动 Sidecar: ${binaryPath}`)
 
@@ -42,7 +53,7 @@ export class SidecarManager {
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
-    // ── stdout：按行解析 JSON 响应 ─────────────────────────────────────
+    // ── stdout：按行解析 JSON 响应 / 通知 ───────────────────────────────
     this.process.stdout?.on('data', (chunk: Buffer) => {
       this.buffer += chunk.toString('utf-8')
       this.processBuffer()
@@ -64,12 +75,21 @@ export class SidecarManager {
       console.warn(`[SidecarManager] 进程退出 code=${code} signal=${signal}`)
       this.rejectAllPending(new Error(`Sidecar 进程异常退出 (code=${code})`))
       this.process = null
+
+      // 非主动关闭时尝试自动重启
+      if (!this.intentionalStop) {
+        this.tryAutoRestart()
+      }
     })
+
+    // 成功启动后重置重启计数
+    this.restartCount = 0
   }
 
   /** 优雅关闭 Sidecar 进程 */
   stop(): void {
     if (!this.process) return
+    this.intentionalStop = true
     console.log('[SidecarManager] 正在关闭 Sidecar...')
     this.process.kill('SIGTERM')
     this.rejectAllPending(new Error('Sidecar 已关闭'))
@@ -91,17 +111,12 @@ export class SidecarManager {
       }
 
       const id = this.generateId()
-      const request: SidecarRequest = {
-        jsonrpc: '2.0',
-        id,
-        method: `git/${command}`,
-        params: payload
-      }
+      const request: SidecarRequest = { id, command, payload }
 
       // 超时处理
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
-        reject(new Error(`请求超时 (id=${id}, method=${request.method})`))
+        reject(new Error(`请求超时 (id=${id}, command=${command})`))
       }, DEFAULT_TIMEOUT_MS)
 
       this.pendingRequests.set(id, { resolve, reject, timer })
@@ -115,6 +130,44 @@ export class SidecarManager {
           reject(new Error(`写入 stdin 失败: ${err.message}`))
         }
       })
+    })
+  }
+
+  /**
+   * 创建 ES6 Proxy，实现"无感"调用。
+   *
+   * @example
+   * ```ts
+   * const git = sidecarManager.createProxy()
+   *
+   * // 像调用本地异步函数一样使用
+   * const status = await git['staging.status']({ path: '/repo' })
+   * const log = await git['commit.log']({ max: 20 })
+   * ```
+   *
+   * 也可以使用点号风格的别名:
+   * ```ts
+   * const result = await git.invoke('staging.status', { path: '/repo' })
+   * ```
+   */
+  createProxy(): Record<string, (payload?: Record<string, unknown>) => Promise<unknown>> {
+    return new Proxy({} as Record<string, (payload?: Record<string, unknown>) => Promise<unknown>>, {
+      get: (_target, method: string) => {
+        if (method === 'invoke') {
+          return (command: string, payload?: Record<string, unknown>) => {
+            return this.send(command, payload).then((res) => {
+              if (!res.success) throw new Error(res.error ?? '未知错误')
+              return res.data
+            })
+          }
+        }
+        return (payload?: Record<string, unknown>) => {
+          return this.send(method, payload).then((res) => {
+            if (!res.success) throw new Error(res.error ?? '未知错误')
+            return res.data
+          })
+        }
+      }
     })
   }
 
@@ -143,12 +196,29 @@ export class SidecarManager {
       if (!trimmed) continue
 
       try {
-        const response: SidecarResponse = JSON.parse(trimmed)
-        this.handleResponse(response)
+        const msg = JSON.parse(trimmed)
+        if (this.isNotification(msg)) {
+          this.handleNotification(msg as SidecarNotification)
+        } else {
+          this.handleResponse(msg as SidecarResponse)
+        }
       } catch {
         console.warn('[SidecarManager] 无法解析 stdout 行:', trimmed)
       }
     }
+  }
+
+  /** 判断消息是否为 Notification */
+  private isNotification(msg: Record<string, unknown>): boolean {
+    return msg.type === 'notification'
+  }
+
+  /** 处理 Notification 消息：通过 EventEmitter 分发 */
+  private handleNotification(notification: SidecarNotification): void {
+    // 发出通用事件
+    this.emit('notification', notification)
+    // 发出具体事件（如 'progress'）
+    this.emit(notification.event, notification.data)
   }
 
   /** 根据 ID 匹配挂起的请求 */
@@ -176,5 +246,28 @@ export class SidecarManager {
   /** 生成自增唯一请求 ID */
   private generateId(): string {
     return `req_${Date.now()}_${++this.requestCounter}`
+  }
+
+  /** 尝试自动重启（指数退避） */
+  private tryAutoRestart(): void {
+    if (this.restartCount >= RESTART_CONFIG.maxRetries) {
+      console.error(
+        `[SidecarManager] 已达最大重启次数 (${RESTART_CONFIG.maxRetries})，停止重启`
+      )
+      this.emit('crash', { restartCount: this.restartCount })
+      return
+    }
+
+    const delay = RESTART_CONFIG.baseDelayMs * Math.pow(2, this.restartCount)
+    this.restartCount++
+    console.warn(
+      `[SidecarManager] ${delay}ms 后尝试第 ${this.restartCount} 次重启...`
+    )
+
+    setTimeout(() => {
+      if (!this.intentionalStop && !this.process) {
+        this.start()
+      }
+    }, delay)
   }
 }
