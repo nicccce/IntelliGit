@@ -45,3 +45,6 @@ resources/intelligit-sidecar.exe
 
 # sidecar test
 /sidecar/test/
+
+# docs local files
+/docs/lxy/
