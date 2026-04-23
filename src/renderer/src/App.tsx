@@ -7,8 +7,15 @@
 import { useState, useCallback } from 'react'
 import { useGitStore } from './store'
 import { useKeyboardShortcut } from './hooks'
+import MainApp from './MainApp'
 
 function App(): React.JSX.Element {
+  const mode = window.electronAPI.mode
+
+  if (mode !== 'test') {
+    return <MainApp />
+  }
+
   const [command, setCommand] = useState('')
   const [payloadStr, setPayloadStr] = useState('{}')
   const { loading, history, error, executeCommand, clearHistory } = useGitStore()

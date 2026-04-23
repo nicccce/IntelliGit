@@ -17,6 +17,13 @@ $ npm install
 ### Development
 
 ```bash
+# 启动正式前端界面
+$ npm run dev:main
+
+# 启动测试指令界面
+$ npm run dev:test
+
+# 默认开发模式（正式前端）
 $ npm run dev
 ```
 
