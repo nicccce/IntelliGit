@@ -12,7 +12,8 @@ import type { ElectronAPI, SidecarResponse } from '../shared/types'
 const electronAPI: ElectronAPI = {
   invokeGit: (command: string, payload?: Record<string, unknown>): Promise<SidecarResponse> => {
     return ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMAND, command, payload)
-  }
+  },
+  mode: process.env.ELECTRON_MODE || 'main'
 }
 
 // Use contextBridge to safely expose APIs

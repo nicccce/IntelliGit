@@ -51,4 +51,6 @@ export const IPC_CHANNELS = {
 export interface ElectronAPI {
   /** 调用 Git 命令并等待结果 */
   invokeGit: (command: string, payload?: Record<string, unknown>) => Promise<SidecarResponse>
+  /** 当前运行模式 */
+  mode: string
 }
