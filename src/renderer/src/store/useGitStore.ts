@@ -47,7 +47,7 @@ export const useGitStore = create<GitStoreState>((set) => ({
         payload,
         response,
         timestamp: Date.now(),
-        success: response.success
+        success: !response.error
       }
       set((state) => ({
         loading: false,

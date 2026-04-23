@@ -8,24 +8,33 @@
 
 /** 发往 Sidecar 的请求体 */
 export interface SidecarRequest {
+  /** JSON-RPC 协议版本 */
+  jsonrpc: '2.0'
   /** 唯一请求 ID，用于匹配异步响应 */
   id: string
-  /** Git 命令名称，如 "status" / "log" / "commit" */
-  command: string
-  /** 命令携带的载荷 */
-  payload?: Record<string, unknown>
+  /** 方法名，如 "git/status" */
+  method: string
+  /** 方法参数 */
+  params?: Record<string, unknown>
+}
+
+/** JSON-RPC 错误对象 */
+export interface JsonRpcError {
+  code: number
+  message: string
+  data?: unknown
 }
 
 /** Sidecar 返回的响应体 */
 export interface SidecarResponse {
+  /** JSON-RPC 协议版本 */
+  jsonrpc: '2.0'
   /** 对应请求的 ID */
   id: string
-  /** 是否成功 */
-  success: boolean
-  /** 成功时的数据 */
-  data?: unknown
-  /** 失败时的错误信息 */
-  error?: string
+  /** 成功结果 */
+  result?: unknown
+  /** 失败错误 */
+  error?: JsonRpcError
 }
 
 // ─── IPC 通道常量 ─────────────────────────────────────────────────────────────

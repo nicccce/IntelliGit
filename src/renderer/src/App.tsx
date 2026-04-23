@@ -27,6 +27,15 @@ function App(): React.JSX.Element {
     executeCommand(command.trim(), payload)
   }, [command, payloadStr, executeCommand])
 
+  const handleQuickCommand = useCallback(
+    (quickCommand: string, defaultPayload: Record<string, unknown>) => {
+      setCommand(quickCommand)
+      setPayloadStr(JSON.stringify(defaultPayload, null, 2))
+      executeCommand(quickCommand, defaultPayload)
+    },
+    [executeCommand]
+  )
+
   // Ctrl+Enter 快捷键发送
   useKeyboardShortcut('Enter', handleSubmit, { ctrl: true })
 
@@ -79,6 +88,22 @@ function App(): React.JSX.Element {
             />
           </div>
 
+          <div className="quick-actions">
+            <button
+              className="btn btn-secondary"
+              onClick={() => handleQuickCommand('status', { repoPath: '.' })}
+              disabled={loading}
+            >
+              一键执行 status
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => handleQuickCommand('log', { repoPath: '.', maxEntries: 20 })}
+              disabled={loading}
+            >
+              一键执行 log
+            </button>
+          </div>
           <div className="input-actions">
             <button
               id="btn-execute"
