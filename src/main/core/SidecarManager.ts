@@ -18,7 +18,8 @@ const DEFAULT_TIMEOUT_MS = 30_000
 /** 自动重启配置 */
 const RESTART_CONFIG = {
   maxRetries: 3,
-  baseDelayMs: 1000 // 指数退避基础延迟
+  baseDelayMs: 1000, // 指数退避基础延迟
+  stableThresholdMs: 5000 // 进程存活超过此时间才视为启动成功并重置 restartCount
 }
 
 /** 待处理请求的回调 */
@@ -35,6 +36,7 @@ export class SidecarManager extends EventEmitter {
   private requestCounter = 0
   private restartCount = 0
   private intentionalStop = false // 标记是否为主动关闭
+  private stabilityTimer: ReturnType<typeof setTimeout> | null = null // 稳定性计时器
 
   // ─── 生命周期 ────────────────────────────────────────────────────────
 
@@ -76,14 +78,25 @@ export class SidecarManager extends EventEmitter {
       this.rejectAllPending(new Error(`Sidecar 进程异常退出 (code=${code})`))
       this.process = null
 
+      // 进程退出时取消稳定性计时器（没撑到阈值，不重置 restartCount）
+      if (this.stabilityTimer) {
+        clearTimeout(this.stabilityTimer)
+        this.stabilityTimer = null
+      }
+
       // 非主动关闭时尝试自动重启
       if (!this.intentionalStop) {
         this.tryAutoRestart()
       }
     })
 
-    // 成功启动后重置重启计数
-    this.restartCount = 0
+    // 进程存活超过阈值才视为启动成功，此时才重置 restartCount
+    // 如果进程在阈值内就崩溃，exit handler 会取消此计时器，restartCount 不归零
+    this.stabilityTimer = setTimeout(() => {
+      this.restartCount = 0
+      this.stabilityTimer = null
+      console.log('[SidecarManager] 进程已稳定运行，重置重启计数')
+    }, RESTART_CONFIG.stableThresholdMs)
   }
 
   /** 优雅关闭 Sidecar 进程 */
@@ -91,6 +104,13 @@ export class SidecarManager extends EventEmitter {
     if (!this.process) return
     this.intentionalStop = true
     console.log('[SidecarManager] 正在关闭 Sidecar...')
+
+    // 主动关闭时取消稳定性计时器
+    if (this.stabilityTimer) {
+      clearTimeout(this.stabilityTimer)
+      this.stabilityTimer = null
+    }
+
     this.process.kill('SIGTERM')
     this.rejectAllPending(new Error('Sidecar 已关闭'))
     this.process = null
