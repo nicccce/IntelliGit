@@ -63,95 +63,135 @@ function App(): React.JSX.Element {
 
       {/* ── 主内容区 ──────────────────────────────────────────── */}
       <main className="app-main">
-        {/* 输入面板 */}
-        <section className="input-panel">
-          <div className="input-group">
-            <label htmlFor="git-command">Git 命令</label>
-            <input
-              id="git-command"
-              type="text"
-              placeholder="输入命令，如：status、log、diff ..."
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.ctrlKey) {
-                  handleSubmit()
-                }
-              }}
-              disabled={loading}
-              autoFocus
-            />
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="git-payload">Payload（JSON）</label>
-            <textarea
-              id="git-payload"
-              placeholder='{"repoPath": "/path/to/repo"}'
-              value={payloadStr}
-              onChange={(e) => setPayloadStr(e.target.value)}
-              disabled={loading}
-              rows={3}
-            />
-          </div>
-
-          <div className="quick-actions">
-            <button
-              className="btn btn-secondary"
-              onClick={() => handleQuickCommand('status', { repoPath: '.' })}
-              disabled={loading}
-            >
-              一键执行 status
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => handleQuickCommand('log', { repoPath: '.', maxEntries: 20 })}
-              disabled={loading}
-            >
-              一键执行 log
-            </button>
-          </div>
-          <div className="input-actions">
-            <button
-              id="btn-execute"
-              className="btn btn-primary"
-              onClick={handleSubmit}
-              disabled={loading || !command.trim()}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner" />
-                  执行中...
-                </>
-              ) : (
-                '发送命令'
-              )}
-            </button>
-            <button
-              id="btn-clear"
-              className="btn btn-ghost"
-              onClick={clearHistory}
-              disabled={history.length === 0}
-            >
-              清空历史
-            </button>
-            <span className="shortcut-hint">Ctrl + Enter 快捷发送</span>
-          </div>
-
-          {error && (
-            <div className="error-banner">
-              <span className="error-icon">⚠</span>
-              {error}
+        <div className="dashboard-grid">
+          <section className="status-panel">
+            <div className="panel-header">
+              <div>
+                <p className="panel-eyebrow">运行状态</p>
+                <h2>Sidecar 通信面板</h2>
+              </div>
+              <span className={`connection-pill ${loading ? 'is-loading' : 'is-idle'}`}>
+                {loading ? '处理中' : '已就绪'}
+              </span>
             </div>
-          )}
-        </section>
+
+            <div className="status-cards">
+              <article className="status-card accent-blue">
+                <span className="status-card-label">当前命令</span>
+                <strong>{command.trim() || '未输入'}</strong>
+              </article>
+              <article className="status-card accent-green">
+                <span className="status-card-label">历史条目</span>
+                <strong>{history.length}</strong>
+              </article>
+              <article className="status-card accent-purple">
+                <span className="status-card-label">快捷发送</span>
+                <strong>Ctrl + Enter</strong>
+              </article>
+            </div>
+
+            <div className="status-tip">
+              <span className="status-tip-dot" />
+              适合先选择快捷命令，再微调 JSON Payload。
+            </div>
+          </section>
+
+          {/* 输入面板 */}
+          <section className="input-panel">
+            <div className="input-group">
+              <label htmlFor="git-command">Git 命令</label>
+              <input
+                id="git-command"
+                type="text"
+                placeholder="输入命令，如：status、log、diff ..."
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.ctrlKey) {
+                    handleSubmit()
+                  }
+                }}
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="git-payload">Payload（JSON）</label>
+              <textarea
+                id="git-payload"
+                placeholder='{"repoPath": "/path/to/repo"}'
+                value={payloadStr}
+                onChange={(e) => setPayloadStr(e.target.value)}
+                disabled={loading}
+                rows={3}
+              />
+            </div>
+
+            <div className="quick-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleQuickCommand('status', { repoPath: '.' })}
+                disabled={loading}
+              >
+                一键执行 status
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleQuickCommand('log', { repoPath: '.', maxEntries: 20 })}
+                disabled={loading}
+              >
+                一键执行 log
+              </button>
+            </div>
+            <div className="input-actions">
+              <button
+                id="btn-execute"
+                className="btn btn-primary"
+                onClick={handleSubmit}
+                disabled={loading || !command.trim()}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner" />
+                    执行中...
+                  </>
+                ) : (
+                  '发送命令'
+                )}
+              </button>
+              <button
+                id="btn-clear"
+                className="btn btn-ghost"
+                onClick={clearHistory}
+                disabled={history.length === 0}
+              >
+                清空历史
+              </button>
+              <span className="shortcut-hint">Ctrl + Enter 快捷发送</span>
+            </div>
+
+            {error && (
+              <div className="error-banner">
+                <span className="error-icon">⚠</span>
+                {error}
+              </div>
+            )}
+          </section>
+        </div>
 
         {/* 结果面板 */}
         <section className="result-panel">
-          <h2>
-            执行历史
-            {history.length > 0 && <span className="history-count">{history.length}</span>}
-          </h2>
+          <div className="panel-header panel-header-tight">
+            <div>
+              <p className="panel-eyebrow">日志列表</p>
+              <h2>
+                执行历史
+                {history.length > 0 && <span className="history-count">{history.length}</span>}
+              </h2>
+            </div>
+            {history.length > 0 && <span className="result-summary">最近 {history.length} 条记录</span>}
+          </div>
 
           {history.length === 0 ? (
             <div className="empty-state">
@@ -162,25 +202,27 @@ function App(): React.JSX.Element {
           ) : (
             <div className="history-list">
               {history.map((record) => (
-                <div
+                <article
                   key={record.id}
                   className={`history-item ${record.success ? 'success' : 'failure'}`}
                 >
                   <div className="history-meta">
-                    <code className="history-command">
-                      <span className="prompt">$</span> git {record.command}
-                    </code>
+                    <div className="history-heading">
+                      <code className="history-command">
+                        <span className="prompt">$</span> git {record.command}
+                      </code>
+                      <time className="history-time">
+                        {new Date(record.timestamp).toLocaleTimeString()}
+                      </time>
+                    </div>
                     <span className={`status-badge ${record.success ? 'badge-success' : 'badge-error'}`}>
                       {record.success ? '✓ 成功' : '✗ 失败'}
                     </span>
-                    <time className="history-time">
-                      {new Date(record.timestamp).toLocaleTimeString()}
-                    </time>
                   </div>
                   <pre className="history-output">
                     {JSON.stringify(record.response, null, 2)}
                   </pre>
-                </div>
+                </article>
               ))}
             </div>
           )}

@@ -4,7 +4,8 @@
  */
 
 import { app, shell, BrowserWindow } from 'electron'
-import { join } from 'path'
+import { existsSync } from 'fs'
+import { dirname, join, parse } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { SidecarManager } from './core'
@@ -13,6 +14,38 @@ import { registerAllIpcHandlers } from './ipc'
 // ─── 全局单例 ──────────────────────────────────────────────────────────────────
 
 const sidecarManager = new SidecarManager()
+
+function findGitRoot(startDir: string): string | null {
+  let current = startDir
+  while (true) {
+    if (existsSync(join(current, '.git'))) {
+      return current
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      return null
+    }
+
+    current = parent
+  }
+}
+
+function getInitialRepoPath(): string | null {
+  const candidates = [
+    process.cwd(),
+    app.getAppPath(),
+    dirname(app.getAppPath()),
+    parse(app.getAppPath()).root
+  ]
+
+  for (const candidate of candidates) {
+    const gitRoot = findGitRoot(candidate)
+    if (gitRoot) return gitRoot
+  }
+
+  return null
+}
 
 // ─── 窗口创建 ──────────────────────────────────────────────────────────────────
 
@@ -69,7 +102,26 @@ app.whenReady().then(() => {
   // 2. 注册 IPC Handlers
   registerAllIpcHandlers(sidecarManager)
 
-  // 3. 创建窗口
+  // 3. 尝试自动定位当前 Git 仓库，让前端能够直接读取状态
+  const projectRoot = getInitialRepoPath()
+  if (projectRoot) {
+    void sidecarManager
+      .send('repo.open', { path: projectRoot })
+      .then((response) => {
+        if (!response.success) {
+          console.warn('[Main] 自动打开仓库失败:', response.error)
+        } else {
+          console.log('[Main] 自动打开仓库成功:', projectRoot)
+        }
+      })
+      .catch((err) => {
+        console.warn('[Main] 自动打开仓库请求失败:', err instanceof Error ? err.message : String(err))
+      })
+  } else {
+    console.warn('[Main] 未找到可用 Git 仓库根目录，稍后需要手动打开仓库')
+  }
+
+  // 4. 创建窗口
   createWindow()
 
   app.on('activate', () => {
