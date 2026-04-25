@@ -374,6 +374,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         return
       }
       set({ successMessage: 'Push 成功' })
+      await get().refreshAll()
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Push 失败: ${err}` })

@@ -6,6 +6,7 @@ import (
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -111,7 +112,24 @@ func (r *Repository) Push(remoteName string, auth *AuthMethod, progress io.Write
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
 		return fmt.Errorf("push 失败 (%s): %w", remoteName, err)
 	}
+	if err := r.updateCurrentRemoteTrackingRef(remoteName); err != nil {
+		return fmt.Errorf("push succeeded but failed to update local remote-tracking ref (%s): %w", remoteName, err)
+	}
 	return nil
+}
+
+func (r *Repository) updateCurrentRemoteTrackingRef(remoteName string) error {
+	headRef, err := r.repo.Head()
+	if err != nil {
+		return err
+	}
+	if !headRef.Name().IsBranch() {
+		return nil
+	}
+
+	remoteRefName := plumbing.NewRemoteReferenceName(remoteName, headRef.Name().Short())
+	remoteRef := plumbing.NewHashReference(remoteRefName, headRef.Hash())
+	return r.repo.Storer.SetReference(remoteRef)
 }
 
 // resolveAuth 将 AuthMethod 转换为 go-git 的 transport.AuthMethod
