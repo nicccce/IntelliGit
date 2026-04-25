@@ -99,7 +99,8 @@ function Toolbar(): React.JSX.Element {
     pull, push, refreshAll, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
   const [branchDropdown, setBranchDropdown] = useState(false)
 
-  const hasCommitsToPush = commitsAhead > 0
+  const hasCommitsToPush = commitsAhead > 0 && commitsBehind === 0
+  const hasCommitsToPull = commitsBehind > 0
 
   return (
     <header className="ig-toolbar" id="main-toolbar">
@@ -151,8 +152,10 @@ function Toolbar(): React.JSX.Element {
             <span className="spinner" /> 
           ) : hasCommitsToPush ? (
             `⬆ Push ${commitsAhead}`
+          ) : hasCommitsToPull ? (
+            `⬇ Pull ${commitsBehind}`
           ) : (
-            `⬇ Pull ${commitsBehind > 0 ? commitsBehind : ''}`
+            '⬇ Pull'
           )}
         </button>
         <button className="ig-icon-btn" onClick={refreshAll}
@@ -304,7 +307,9 @@ function HistoryView(): React.JSX.Element {
 //  设置视图
 // ═══════════════════════════════════════════════════════════════
 function SettingsView(): React.JSX.Element {
-  const { currentRepo, updateRepoAuth } = useAppStore()
+  const { currentRepo, updateRepoSettings } = useAppStore()
+  const [commitAuthorName, setCommitAuthorName] = useState('')
+  const [commitAuthorEmail, setCommitAuthorEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [sshKeyPath, setSshKeyPath] = useState('')
@@ -312,6 +317,8 @@ function SettingsView(): React.JSX.Element {
 
   useEffect(() => {
     if (currentRepo) {
+      setCommitAuthorName(currentRepo.commitAuthorName || '')
+      setCommitAuthorEmail(currentRepo.commitAuthorEmail || '')
       setUsername(currentRepo.authUsername || '')
       setPassword(currentRepo.authPassword || '')
       setSshKeyPath(currentRepo.sshKeyPath || '')
@@ -324,11 +331,13 @@ function SettingsView(): React.JSX.Element {
   }
 
   const handleSave = (): void => {
-    updateRepoAuth(currentRepo.path, {
-      authUsername: username || undefined,
-      authPassword: password || undefined,
-      sshKeyPath: sshKeyPath || undefined,
-      sshPassword: sshPassword || undefined
+    updateRepoSettings(currentRepo.path, {
+      commitAuthorName: commitAuthorName.trim() || undefined,
+      commitAuthorEmail: commitAuthorEmail.trim() || undefined,
+      authUsername: username.trim() || undefined,
+      authPassword: password.trim() || undefined,
+      sshKeyPath: sshKeyPath.trim() || undefined,
+      sshPassword: sshPassword.trim() || undefined
     })
   }
 
@@ -345,6 +354,20 @@ function SettingsView(): React.JSX.Element {
             <span className="ig-settings-label">路径</span>
             <span className="ig-settings-value ig-mono">{currentRepo.path}</span>
           </div>
+        </div>
+      </div>
+      <div className="ig-settings-section">
+        <h3>提交身份</h3>
+        <p className="ig-hint">用于新建 Commit；GitHub 贡献统计按提交邮箱匹配账号</p>
+        <div className="ig-form-group">
+          <label>作者名称</label>
+          <input type="text" value={commitAuthorName} onChange={e => setCommitAuthorName(e.target.value)}
+            placeholder="留空时使用 Git 配置或认证用户名" />
+        </div>
+        <div className="ig-form-group">
+          <label>作者邮箱</label>
+          <input type="email" value={commitAuthorEmail} onChange={e => setCommitAuthorEmail(e.target.value)}
+            placeholder="your-email@example.com" />
         </div>
       </div>
       <div className="ig-settings-section">
@@ -374,7 +397,7 @@ function SettingsView(): React.JSX.Element {
             placeholder="（可选）" />
         </div>
       </div>
-      <button className="btn btn-primary" onClick={handleSave}>保存认证信息</button>
+      <button className="btn btn-primary" onClick={handleSave}>保存设置</button>
     </div>
   )
 }

@@ -76,8 +76,8 @@ interface AppStoreState {
   removeRepo: (path: string) => Promise<void>
   /** 切换当前仓库 */
   switchRepo: (path: string) => Promise<void>
-  /** 更新仓库认证信息 */
-  updateRepoAuth: (path: string, auth: Partial<RepoConfig>) => Promise<void>
+  /** 更新仓库设置 */
+  updateRepoSettings: (path: string, settings: Partial<RepoConfig>) => Promise<void>
 
   // ── Git 操作 ─────────────────────────────────────────────
   /** 刷新仓库状态 */
@@ -95,7 +95,7 @@ interface AppStoreState {
   /** 从暂存区移除 */
   removeFile: (path: string) => Promise<void>
   /** 创建 Commit */
-  createCommit: (message: string, authorName?: string, authorEmail?: string) => Promise<void>
+  createCommit: (message: string) => Promise<void>
   /** Push */
   push: () => Promise<void>
   /** Pull */
@@ -122,6 +122,20 @@ function repoNameFromPath(p: string): string {
 async function persistConfig(repos: RepoConfig[], currentRepoPath: string | null): Promise<void> {
   const config: AppConfig = { repos, currentRepoPath }
   await window.electronAPI.saveConfig(config)
+}
+
+function cleanSetting(value: string | undefined): string | undefined {
+  const normalized = value?.trim()
+  return normalized || undefined
+}
+
+function remotePayload(repo: RepoConfig | null): Record<string, unknown> {
+  const payload: Record<string, unknown> = { remote: 'origin' }
+  if (repo?.authUsername) payload.username = repo.authUsername
+  if (repo?.authPassword) payload.password = repo.authPassword
+  if (repo?.sshKeyPath) payload.sshKeyPath = repo.sshKeyPath
+  if (repo?.sshPassword) payload.sshPassword = repo.sshPassword
+  return payload
 }
 
 export const useAppStore = create<AppStoreState>((set, get) => ({
@@ -226,11 +240,11 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     }
   },
 
-  updateRepoAuth: async (path: string, auth: Partial<RepoConfig>) => {
+  updateRepoSettings: async (path: string, settings: Partial<RepoConfig>) => {
     const { repos, currentRepo } = get()
-    const newRepos = repos.map((r) => (r.path === path ? { ...r, ...auth } : r))
-    const newCurrent = currentRepo?.path === path ? { ...currentRepo, ...auth } : currentRepo
-    set({ repos: newRepos, currentRepo: newCurrent, successMessage: '认证信息已保存' })
+    const newRepos = repos.map((r) => (r.path === path ? { ...r, ...settings } : r))
+    const newCurrent = currentRepo?.path === path ? { ...currentRepo, ...settings } : currentRepo
+    set({ repos: newRepos, currentRepo: newCurrent, successMessage: '设置已保存' })
     await persistConfig(newRepos, newCurrent?.path || null)
     setTimeout(() => set({ successMessage: null }), 2000)
   },
@@ -261,6 +275,11 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   refreshBranches: async () => {
     try {
+      const { currentRepo } = get()
+      if (currentRepo) {
+        await window.electronAPI.invokeGit('remote.fetch', remotePayload(currentRepo))
+      }
+
       const [branchRes, currentRes] = await Promise.all([
         window.electronAPI.invokeGit('branch.list'),
         window.electronAPI.invokeGit('branch.current')
@@ -337,10 +356,13 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({ operationLoading: null })
   },
 
-  createCommit: async (message: string, authorName?: string, authorEmail?: string) => {
+  createCommit: async (message: string) => {
     set({ operationLoading: 'commit' })
     try {
+      const { currentRepo } = get()
       const payload: Record<string, unknown> = { message }
+      const authorEmail = cleanSetting(currentRepo?.commitAuthorEmail)
+      const authorName = cleanSetting(currentRepo?.commitAuthorName) || (authorEmail ? cleanSetting(currentRepo?.authUsername) : undefined)
       if (authorName) payload.authorName = authorName
       if (authorEmail) payload.authorEmail = authorEmail
 
@@ -362,11 +384,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({ operationLoading: 'push' })
     try {
       const { currentRepo } = get()
-      const payload: Record<string, unknown> = { remote: 'origin' }
-      if (currentRepo?.authUsername) payload.username = currentRepo.authUsername
-      if (currentRepo?.authPassword) payload.password = currentRepo.authPassword
-      if (currentRepo?.sshKeyPath) payload.sshKeyPath = currentRepo.sshKeyPath
-      if (currentRepo?.sshPassword) payload.sshPassword = currentRepo.sshPassword
+      const payload = remotePayload(currentRepo)
 
       const response = await window.electronAPI.invokeGit('remote.push', payload)
       if (!response.success) {
@@ -386,11 +404,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({ operationLoading: 'pull' })
     try {
       const { currentRepo } = get()
-      const payload: Record<string, unknown> = { remote: 'origin' }
-      if (currentRepo?.authUsername) payload.username = currentRepo.authUsername
-      if (currentRepo?.authPassword) payload.password = currentRepo.authPassword
-      if (currentRepo?.sshKeyPath) payload.sshKeyPath = currentRepo.sshKeyPath
-      if (currentRepo?.sshPassword) payload.sshPassword = currentRepo.sshPassword
+      const payload = remotePayload(currentRepo)
 
       const response = await window.electronAPI.invokeGit('remote.pull', payload)
       if (!response.success) {

@@ -2,9 +2,11 @@ package git
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -16,17 +18,50 @@ func (r *Repository) Commit(message, authorName, authorEmail string) (string, er
 		return "", fmt.Errorf("获取 worktree 失败: %w", err)
 	}
 
-	hash, err := wt.Commit(message, &gogit.CommitOptions{
-		Author: &object.Signature{
+	opts := &gogit.CommitOptions{}
+	authorName = strings.TrimSpace(authorName)
+	authorEmail = strings.TrimSpace(authorEmail)
+	if authorName != "" || authorEmail != "" {
+		if authorName == "" || authorEmail == "" {
+			defaultName, defaultEmail := r.defaultCommitAuthor()
+			if authorName == "" {
+				authorName = defaultName
+			}
+			if authorEmail == "" {
+				authorEmail = defaultEmail
+			}
+		}
+		if authorName == "" || authorEmail == "" {
+			return "", fmt.Errorf("提交作者信息不完整，请同时填写提交名称和邮箱")
+		}
+		opts.Author = &object.Signature{
 			Name:  authorName,
 			Email: authorEmail,
 			When:  time.Now(),
-		},
-	})
+		}
+	}
+
+	hash, err := wt.Commit(message, opts)
 	if err != nil {
 		return "", fmt.Errorf("git commit 失败: %w", err)
 	}
 	return hash.String(), nil
+}
+
+func (r *Repository) defaultCommitAuthor() (string, string) {
+	cfg, err := r.repo.ConfigScoped(config.SystemScope)
+	if err != nil {
+		return "", ""
+	}
+	name := cfg.Author.Name
+	email := cfg.Author.Email
+	if name == "" {
+		name = cfg.User.Name
+	}
+	if email == "" {
+		email = cfg.User.Email
+	}
+	return name, email
 }
 
 // Log 获取提交历史记录，max 指定最多返回条数（0 表示不限制）

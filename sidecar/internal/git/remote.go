@@ -19,8 +19,8 @@ type AuthMethod struct {
 	Password string // 或 Personal Access Token
 
 	// SSH 认证
-	SSHKeyPath   string
-	SSHPassword  string // SSH key passphrase
+	SSHKeyPath  string
+	SSHPassword string // SSH key passphrase
 }
 
 // Remotes 列出所有远程仓库信息
@@ -86,11 +86,16 @@ func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Write
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
 	}
+	branchRef, err := r.currentBranchReferenceName()
+	if err != nil {
+		return err
+	}
 
 	pullOpts := &gogit.PullOptions{
-		RemoteName: remoteName,
-		Auth:       resolveAuth(auth),
-		Progress:   progress,
+		RemoteName:    remoteName,
+		ReferenceName: branchRef,
+		Auth:          resolveAuth(auth),
+		Progress:      progress,
 	}
 
 	err = wt.Pull(pullOpts)
@@ -102,13 +107,20 @@ func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Write
 
 // Push 推送本地提交到远程仓库（git push）
 func (r *Repository) Push(remoteName string, auth *AuthMethod, progress io.Writer) error {
+	branchRef, err := r.currentBranchReferenceName()
+	if err != nil {
+		return err
+	}
 	pushOpts := &gogit.PushOptions{
 		RemoteName: remoteName,
-		Auth:       resolveAuth(auth),
-		Progress:   progress,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(fmt.Sprintf("%s:%s", branchRef, branchRef)),
+		},
+		Auth:     resolveAuth(auth),
+		Progress: progress,
 	}
 
-	err := r.repo.Push(pushOpts)
+	err = r.repo.Push(pushOpts)
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
 		return fmt.Errorf("push 失败 (%s): %w", remoteName, err)
 	}
@@ -119,17 +131,29 @@ func (r *Repository) Push(remoteName string, auth *AuthMethod, progress io.Write
 }
 
 func (r *Repository) updateCurrentRemoteTrackingRef(remoteName string) error {
-	headRef, err := r.repo.Head()
+	branchRef, err := r.currentBranchReferenceName()
 	if err != nil {
 		return err
 	}
-	if !headRef.Name().IsBranch() {
-		return nil
-	}
 
-	remoteRefName := plumbing.NewRemoteReferenceName(remoteName, headRef.Name().Short())
+	headRef, err := r.repo.Reference(branchRef, true)
+	if err != nil {
+		return err
+	}
+	remoteRefName := plumbing.NewRemoteReferenceName(remoteName, branchRef.Short())
 	remoteRef := plumbing.NewHashReference(remoteRefName, headRef.Hash())
 	return r.repo.Storer.SetReference(remoteRef)
+}
+
+func (r *Repository) currentBranchReferenceName() (plumbing.ReferenceName, error) {
+	headRef, err := r.repo.Head()
+	if err != nil {
+		return "", fmt.Errorf("获取 HEAD 失败: %w", err)
+	}
+	if !headRef.Name().IsBranch() {
+		return "", fmt.Errorf("当前处于 detached HEAD 状态 (%s)", headRef.Hash().String()[:8])
+	}
+	return headRef.Name(), nil
 }
 
 // resolveAuth 将 AuthMethod 转换为 go-git 的 transport.AuthMethod

@@ -56,6 +56,10 @@ export interface RepoConfig {
   path: string
   /** 仓库显示名称 */
   name: string
+  /** Commit 作者名称，用于写入提交历史 */
+  commitAuthorName?: string
+  /** Commit 作者邮箱，用于 GitHub 贡献归属 */
+  commitAuthorEmail?: string
   /** 认证用户名 */
   authUsername?: string
   /** 认证密码 / Token */
