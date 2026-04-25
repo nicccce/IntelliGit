@@ -48,3 +48,6 @@ resources/intelligit-sidecar.exe
 
 # docs local files
 /docs/lxy/blog
+
+# go build tmp files
+/.tmp
