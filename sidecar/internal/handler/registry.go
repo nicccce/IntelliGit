@@ -64,6 +64,7 @@ func RegisterAll(r *Router) {
 	r.Register("branch.list", handleBranches)             // 列出本地分支
 	r.Register("branch.listRemote", handleRemoteBranches) // 列出远程分支
 	r.Register("branch.current", handleCurrentBranch)     // 获取当前分支
+	r.Register("branch.aheadBehind", handleAheadBehind)   // 获取当前分支的超前落后数量
 	r.Register("branch.create", handleCreateBranch)       // 创建分支
 	r.Register("branch.delete", handleDeleteBranch)       // 删除分支
 	r.Register("branch.checkout", handleCheckout)         // 切换分支

@@ -6,6 +6,8 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 )
 
 // Branches 列出所有本地分支
@@ -145,4 +147,65 @@ func (r *Repository) CheckoutNewBranch(branch string) error {
 		return fmt.Errorf("创建并切换分支失败 (%s): %w", branch, err)
 	}
 	return nil
+}
+
+// AheadBehind 计算当前分支相较于远程对应分支（如 origin/branchName）的落后与超前提交数
+func (r *Repository) AheadBehind(branchName string) (ahead int, behind int, err error) {
+	localRef, err := r.repo.Reference(plumbing.ReferenceName("refs/heads/"+branchName), true)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	remoteRef, err := r.repo.Reference(plumbing.ReferenceName("refs/remotes/origin/"+branchName), true)
+	if err != nil {
+		// 无远程分支，说明全是 ahead
+		iter, err := r.repo.Log(&gogit.LogOptions{From: localRef.Hash()})
+		if err == nil {
+			_ = iter.ForEach(func(c *object.Commit) error {
+				ahead++
+				return nil
+			})
+		}
+		return ahead, 0, nil
+	}
+
+	localCommit, err := r.repo.CommitObject(localRef.Hash())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	remoteCommit, err := r.repo.CommitObject(remoteRef.Hash())
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if localCommit.Hash == remoteCommit.Hash {
+		return 0, 0, nil
+	}
+
+	bases, err := localCommit.MergeBase(remoteCommit)
+	if err != nil || len(bases) == 0 {
+		return 0, 0, nil
+	}
+	base := bases[0]
+
+	iter1, _ := r.repo.Log(&gogit.LogOptions{From: localCommit.Hash})
+	_ = iter1.ForEach(func(c *object.Commit) error {
+		if c.Hash == base.Hash {
+			return storer.ErrStop
+		}
+		ahead++
+		return nil
+	})
+
+	iter2, _ := r.repo.Log(&gogit.LogOptions{From: remoteCommit.Hash})
+	_ = iter2.ForEach(func(c *object.Commit) error {
+		if c.Hash == base.Hash {
+			return storer.ErrStop
+		}
+		behind++
+		return nil
+	})
+
+	return ahead, behind, nil
 }

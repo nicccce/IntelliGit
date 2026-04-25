@@ -297,6 +297,28 @@ func handleCurrentBranch(ctx *Context) (any, error) {
 	return map[string]string{"branch": branch}, nil
 }
 
+func handleAheadBehind(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Branch string `json:"branch"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Branch == "" {
+		return nil, errMissingParam("branch")
+	}
+
+	ahead, behind, err := repo.AheadBehind(params.Branch)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]int{"ahead": ahead, "behind": behind}, nil
+}
+
 func handleCreateBranch(ctx *Context) (any, error) {
 	repo, err := ctx.Repo()
 	if err != nil {

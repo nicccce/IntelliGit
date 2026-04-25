@@ -50,6 +50,10 @@ interface AppStoreState {
   currentBranch: string
   /** 分支列表 */
   branches: BranchInfo[]
+  /** 待 Push 的提交数 */
+  commitsAhead: number
+  /** 待 Pull 的提交数 */
+  commitsBehind: number
 
   // ── UI 状态 ─────────────────────────────────────────────
   /** 全局加载状态 */
@@ -128,6 +132,8 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   commitHistory: [],
   currentBranch: '',
   branches: [],
+  commitsAhead: 0,
+  commitsBehind: 0,
   loading: false,
   operationLoading: null,
   error: null,
@@ -265,6 +271,14 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       if (currentRes.success && currentRes.data) {
         const data = currentRes.data as { branch: string }
         set({ currentBranch: data.branch })
+        
+        const abRes = await window.electronAPI.invokeGit('branch.aheadBehind', { branch: data.branch })
+        if (abRes.success && abRes.data) {
+          const ab = abRes.data as { ahead: number, behind: number }
+          set({ commitsAhead: ab.ahead, commitsBehind: ab.behind })
+        } else {
+          set({ commitsAhead: 0, commitsBehind: 0 })
+        }
       }
     } catch (err) {
       console.error('[AppStore] refreshBranches 失败:', err)
