@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -29,6 +30,9 @@ func (r *Repository) Status() ([]FileStatus, error) {
 			Worktree: toStatusCode(s.Worktree),
 		})
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Path < result[j].Path
+	})
 	return result, nil
 }
 
