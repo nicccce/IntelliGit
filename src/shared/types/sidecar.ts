@@ -48,6 +48,32 @@ export interface ProgressData {
   message: string
 }
 
+// ─── 仓库配置（持久化存储） ───────────────────────────────────────────────────
+
+/** 单个仓库的配置信息 */
+export interface RepoConfig {
+  /** 仓库唯一标识（使用路径） */
+  path: string
+  /** 仓库显示名称 */
+  name: string
+  /** 认证用户名 */
+  authUsername?: string
+  /** 认证密码 / Token */
+  authPassword?: string
+  /** SSH 密钥路径 */
+  sshKeyPath?: string
+  /** SSH 密钥密码 */
+  sshPassword?: string
+}
+
+/** 全局应用配置 */
+export interface AppConfig {
+  /** 已添加的仓库列表 */
+  repos: RepoConfig[]
+  /** 当前活跃仓库路径 */
+  currentRepoPath: string | null
+}
+
 // ─── IPC 通道常量 ─────────────────────────────────────────────────────────────
 
 /** IPC 通道名称集中管理 */
@@ -55,7 +81,13 @@ export const IPC_CHANNELS = {
   /** 渲染进程 -> 主进程：执行 Git 命令 */
   GIT_COMMAND: 'git:command',
   /** 主进程 -> 渲染进程：Sidecar 通知转发 */
-  SIDECAR_NOTIFICATION: 'sidecar:notification'
+  SIDECAR_NOTIFICATION: 'sidecar:notification',
+  /** 读取应用配置 */
+  CONFIG_LOAD: 'config:load',
+  /** 保存应用配置 */
+  CONFIG_SAVE: 'config:save',
+  /** 打开文件夹选择对话框 */
+  DIALOG_OPEN_FOLDER: 'dialog:openFolder'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -68,4 +100,12 @@ export interface ElectronAPI {
   onSidecarNotification: (
     callback: (notification: SidecarNotification) => void
   ) => () => void
+  /** 读取持久化配置 */
+  loadConfig: () => Promise<AppConfig>
+  /** 保存持久化配置 */
+  saveConfig: (config: AppConfig) => Promise<void>
+  /** 打开文件夹选择对话框，返回选中路径或 null */
+  openFolderDialog: () => Promise<string | null>
+  /** 当前运行模式（test 或 main） */
+  mode?: string
 }

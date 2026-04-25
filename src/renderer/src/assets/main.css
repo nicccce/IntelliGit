@@ -517,3 +517,593 @@ body {
   border-top: 1px solid var(--border-primary);
   flex-shrink: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MainApp — GitHub Desktop 风格界面样式
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 应用根布局 ─────────────────────────────────────────────── */
+.ig-app {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.ig-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── 加载屏 ───────────────────────────────────────────────── */
+.ig-loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: var(--space-md);
+  color: var(--text-secondary);
+}
+.ig-loading-screen .spinner { width: 24px; height: 24px; }
+
+/* ── 侧边栏 ───────────────────────────────────────────────── */
+.ig-sidebar {
+  width: 240px;
+  min-width: 200px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.ig-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-primary);
+  -webkit-app-region: drag;
+}
+.ig-sidebar-header h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ig-sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xs);
+}
+.ig-sidebar-list::-webkit-scrollbar { width: 4px; }
+.ig-sidebar-list::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 2px; }
+
+.ig-sidebar-empty {
+  padding: var(--space-xl) var(--space-md);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.ig-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  position: relative;
+}
+.ig-sidebar-item:hover { background: rgba(255,255,255,0.04); }
+.ig-sidebar-item.active {
+  background: rgba(88,166,255,0.1);
+  border-left: 2px solid var(--accent-blue);
+}
+.ig-sidebar-item-icon { font-size: 16px; flex-shrink: 0; }
+.ig-sidebar-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ig-sidebar-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ig-sidebar-item-path {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ig-remove-btn {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  font-size: 10px !important;
+}
+.ig-sidebar-item:hover .ig-remove-btn { opacity: 1; }
+
+/* ── 通用按钮 ─────────────────────────────────────────────── */
+.ig-icon-btn {
+  background: none;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+.ig-icon-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.ig-icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.ig-icon-btn-sm { width: 22px; height: 22px; font-size: 12px; border: none; }
+
+.ig-sm-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.ig-sm-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.ig-sm-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── 工具栏 ───────────────────────────────────────────────── */
+.ig-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+.ig-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  -webkit-app-region: no-drag;
+}
+.ig-toolbar-repo-name {
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.ig-toolbar-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(255,255,255,0.04);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  -webkit-app-region: no-drag;
+}
+.ig-tab {
+  font-size: 12px;
+  font-weight: 500;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 4px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.ig-tab:hover { color: var(--text-primary); }
+.ig-tab.active {
+  background: rgba(88,166,255,0.15);
+  color: var(--accent-blue);
+}
+.ig-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-xs);
+  -webkit-app-region: no-drag;
+}
+.ig-action-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast);
+}
+.ig-action-btn:hover { background: rgba(255,255,255,0.1); }
+.ig-action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.ig-action-btn .spinner { width: 12px; height: 12px; }
+
+/* ── 分支选择器 ───────────────────────────────────────────── */
+.ig-branch-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  background: rgba(255,255,255,0.04);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  cursor: pointer;
+  position: relative;
+}
+.ig-branch-picker:hover { background: rgba(255,255,255,0.08); }
+.ig-branch-icon { color: var(--accent-purple); }
+.ig-caret { font-size: 10px; color: var(--text-muted); }
+.ig-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-xs);
+  animation: slideIn 0.15s ease-out;
+}
+.ig-dropdown-item {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ig-dropdown-item:hover { background: rgba(255,255,255,0.06); }
+.ig-dropdown-item.active { color: var(--accent-blue); }
+.ig-check { font-size: 10px; }
+
+/* ── 通知横幅 ─────────────────────────────────────────────── */
+.ig-notification {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  animation: slideIn 0.2s ease-out;
+  flex-shrink: 0;
+}
+.ig-notification-error {
+  background: rgba(248,81,73,0.08);
+  border-bottom: 1px solid rgba(248,81,73,0.2);
+  color: var(--accent-red);
+}
+.ig-notification-success {
+  background: rgba(63,185,80,0.08);
+  border-bottom: 1px solid rgba(63,185,80,0.2);
+  color: var(--accent-green);
+}
+.ig-notification-close { font-size: 12px; opacity: 0.6; }
+
+/* ── 加载条 ───────────────────────────────────────────────── */
+.ig-loading-bar {
+  height: 2px;
+  background: rgba(88,166,255,0.1);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.ig-loading-bar-inner {
+  height: 100%;
+  width: 40%;
+  background: var(--gradient-brand);
+  animation: loadingSlide 1.2s ease-in-out infinite;
+}
+@keyframes loadingSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* ── 主内容区 ─────────────────────────────────────────────── */
+.ig-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.ig-content::-webkit-scrollbar { width: 6px; }
+.ig-content::-webkit-scrollbar-track { background: transparent; }
+.ig-content::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 3px; }
+
+/* ── 空状态视图 ───────────────────────────────────────────── */
+.ig-empty-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  gap: var(--space-sm);
+}
+.ig-empty-view h3 { font-size: 16px; color: var(--text-secondary); }
+.ig-empty-view p { font-size: 13px; }
+.ig-empty-icon { font-size: 48px; opacity: 0.4; margin-bottom: var(--space-sm); }
+
+/* ── 变更视图 ─────────────────────────────────────────────── */
+.ig-changes-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.ig-file-lists {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.ig-file-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ig-file-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--border-primary);
+  background: rgba(255,255,255,0.02);
+}
+.ig-file-section-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.ig-file-list { max-height: 260px; overflow-y: auto; }
+.ig-file-list::-webkit-scrollbar { width: 4px; }
+.ig-file-list::-webkit-scrollbar-thumb { background: var(--border-primary); border-radius: 2px; }
+.ig-file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px var(--space-sm);
+  font-size: 12px;
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.ig-file-item:last-child { border-bottom: none; }
+.ig-file-item:hover { background: rgba(255,255,255,0.03); }
+.ig-file-status {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.ig-file-path {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ig-file-empty {
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ── 提交面板 ─────────────────────────────────────────────── */
+.ig-commit-panel {
+  padding: var(--space-sm);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+.ig-commit-input {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+  margin-bottom: var(--space-sm);
+}
+.ig-commit-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.1);
+}
+.ig-commit-input::placeholder { color: var(--text-muted); }
+.ig-commit-btn { width: 100%; }
+
+/* ── 历史视图 ─────────────────────────────────────────────── */
+.ig-history-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.ig-history-header {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-primary);
+}
+.ig-history-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.ig-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xs) var(--space-md);
+}
+.ig-commit-item {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  position: relative;
+}
+.ig-commit-item::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  bottom: -8px;
+  width: 1px;
+  background: var(--border-primary);
+}
+.ig-commit-item:last-child::before { display: none; }
+.ig-commit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 0 6px rgba(88,166,255,0.3);
+  z-index: 1;
+}
+.ig-commit-info { flex: 1; min-width: 0; }
+.ig-commit-msg {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.ig-commit-meta {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.ig-commit-author { color: var(--text-secondary); }
+.ig-commit-hash {
+  font-family: var(--font-mono);
+  color: var(--accent-purple);
+}
+
+/* ── 设置视图 ─────────────────────────────────────────────── */
+.ig-settings-view {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 560px;
+}
+.ig-settings-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+.ig-settings-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+}
+.ig-settings-row {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+  font-size: 13px;
+}
+.ig-settings-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+.ig-settings-value {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.ig-mono { font-family: var(--font-mono); font-size: 12px; }
+
+.ig-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+.ig-form-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.ig-form-group input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.ig-form-group input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(88,166,255,0.1);
+}
+.ig-form-group input::placeholder { color: var(--text-muted); }
+
+.ig-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+/* ── 状态栏 ───────────────────────────────────────────────── */
+.ig-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-md);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}

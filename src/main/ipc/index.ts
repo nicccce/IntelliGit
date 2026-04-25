@@ -5,11 +5,12 @@
 
 import type { SidecarManager } from '../core/SidecarManager'
 import { registerGitHandlers } from './gitHandlers'
+import { registerConfigHandlers } from './configHandlers'
 
 /** 注册全部 IPC Handlers */
 export function registerAllIpcHandlers(sidecarManager: SidecarManager): void {
   registerGitHandlers(sidecarManager)
+  registerConfigHandlers()
   // 未来扩展：
   // registerAiHandlers(...)
-  // registerSettingsHandlers(...)
 }

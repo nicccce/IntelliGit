@@ -6,7 +6,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { ElectronAPI, SidecarResponse, SidecarNotification } from '../shared/types'
+import type { ElectronAPI, SidecarResponse, SidecarNotification, AppConfig } from '../shared/types'
 
 /** 暴露给渲染进程的安全 API */
 const electronAPI: ElectronAPI = {
@@ -24,7 +24,21 @@ const electronAPI: ElectronAPI = {
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.SIDECAR_NOTIFICATION, handler)
     }
-  }
+  },
+
+  loadConfig: (): Promise<AppConfig> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CONFIG_LOAD)
+  },
+
+  saveConfig: (config: AppConfig): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CONFIG_SAVE, config)
+  },
+
+  openFolderDialog: (): Promise<string | null> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_FOLDER)
+  },
+
+  mode: process.env.ELECTRON_MODE
 }
 
 // Use contextBridge to safely expose APIs
