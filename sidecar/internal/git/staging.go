@@ -1,9 +1,12 @@
 package git
 
 import (
+	"errors"
 	"fmt"
 
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/index"
 )
 
 // Status 获取仓库中所有文件的状态（类似 git status）
@@ -65,14 +68,23 @@ func (r *Repository) AddGlob(pattern string) error {
 	return nil
 }
 
-// Remove 将文件从暂存区和工作区移除（git rm <path>）
+// Remove 将文件从暂存区移除，并保留工作区内容（git restore --staged <path>）
 func (r *Repository) Remove(path string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
 	}
-	if _, err := wt.Remove(path); err != nil {
-		return fmt.Errorf("git rm 失败 (%s): %w", path, err)
+	if err := wt.Restore(&gogit.RestoreOptions{
+		Staged: true,
+		Files:  []string{path},
+	}); err != nil {
+		if errors.Is(err, plumbing.ErrReferenceNotFound) {
+			if removeErr := r.removeFromIndex(path); removeErr != nil {
+				return fmt.Errorf("取消暂存失败 (%s): %w", path, removeErr)
+			}
+			return nil
+		}
+		return fmt.Errorf("取消暂存失败 (%s): %w", path, err)
 	}
 	return nil
 }
@@ -84,12 +96,24 @@ func (r *Repository) Restore(path string) error {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
 	}
 	if err := wt.Restore(&gogit.RestoreOptions{
+		Staged:   true,
 		Worktree: true,
 		Files:    []string{path},
 	}); err != nil {
 		return fmt.Errorf("恢复文件失败 (%s): %w", path, err)
 	}
 	return nil
+}
+
+func (r *Repository) removeFromIndex(path string) error {
+	idx, err := r.repo.Storer.Index()
+	if err != nil {
+		return err
+	}
+	if _, err := idx.Remove(path); err != nil && !errors.Is(err, index.ErrEntryNotFound) {
+		return err
+	}
+	return r.repo.Storer.SetIndex(idx)
 }
 
 // toStatusCode 将 go-git 的 StatusCode 转换为自定义 StatusCode

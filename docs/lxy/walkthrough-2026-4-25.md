@@ -86,8 +86,71 @@
   - 为弹出的下拉框与通知横幅加入了 `slideIn` 进场动画。
 - **排版与间距**：充分利用 Flexbox 进行灵活布局，并为自定义的滚动条编写了 webkit 样式以保持视觉的统一性。
 
-## 4. 后续开发建议
-1. **差异对比 (Diff View)**：目前 “变更视图” 仅展示了文件列表。后续可以利用侧边栏右侧的空白区域，展示选中文件的详细代码 Diff。
+## 4. Bug 修复与问题排查记录
+
+### 4.1 JSON null 解析导致的 Bug
+在前端联调联试阶段遇到一个跨语言边界陷阱：Go 语言的 `nil` 切片在 JSON 序列化时会变成 `null` 而不是 `[]`，导致前端 `if (response.data)` 判断失败，状态更新被跳过。
+
+**问题表现**：提交成功后，暂存区文件列表不消失。
+**根因**：Go 返回 `nil` 切片 -> JSON 序列化为 `null` -> JS 中 `null` 是 falsy -> 状态更新条件跳过。
+**修复**：在前端接收数据时使用 `|| []` 兜底：
+```ts
+set({ fileStatuses: (response.data as FileStatusInfo[]) || [] })
+```
+同时为分支列表和提交历史也加上相同兜底处理。
+
+### 4.2 Push/Pull 状态显示错误
+顶部同步按钮一直显示 Pull，即使本地有未推送的 commit。
+
+**排查链路**：
+1. UI 判断逻辑：`hasCommitsToPush = commitsAhead > 0`
+2. `commitsAhead` 来自 `refreshBranches()` 调用 `branch.aheadBehind`
+3. 发现运行时 `resources/intelligit-sidecar.exe` 是旧版本，不认识 `branch.aheadBehind` 命令
+
+**修复**：重新编译 sidecar 并覆盖 `resources/intelligit-sidecar.exe`。
+
+### 4.3 Push 成功后计数不刷新
+Push 操作成功后，顶部按钮仍显示 `Push 1`。
+
+**问题分析**：
+1. 前端 `push` 操作成功后没有调用 `refreshAll()`
+2. Go Sidecar Push 成功后没有更新本地 remote-tracking ref
+
+**修复**：
+- 前端：Push 成功后调用 `await get().refreshAll()`
+- Go Sidecar：Push 成功后调用 `updateCurrentRemoteTrackingRef()` 更新 `refs/remotes/<remote>/<branch>`
+
+### 4.4 Push/Pull 历史不同步问题
+测试仓库出现 `non-fast-forward update` 和 `refusing to merge unrelated histories` 错误。
+
+**问题根因**：
+1. 本地缺失 `refs/remotes/origin/master` 导致 ahead/behind 误判
+2. Push 默认行为和 Git CLI 不一致（go-git 会推送所有分支）
+3. go-git 的 Pull 只支持 fast-forward 合并
+
+**修复**：
+- 刷新分支状态前先执行 `remote.fetch` 更新远程跟踪引用
+- Push 改为显式推送当前分支
+- Pull 改用系统 Git CLI 调用以支持 merge 语义
+- 不默认加 `--allow-unrelated-histories`，需用户确认
+
+### 4.5 Sidecar 构建链路与 npm 脚本调整
+解决 Go 源码改了但运行时二进制没更新的问题。
+
+**修复方案**：
+- 新增 `scripts/build-sidecar.mjs` 脚本，智能处理 Go 编译：
+  - 有 Go 环境：重新编译
+  - 无 Go 但有二进制：warning 后继续
+  - 无 Go 且无二进制：报错退出
+- 更新 `package.json`：
+  ```json
+  "build:sidecar": "node scripts/build-sidecar.mjs"
+  "dev": "npm run build:sidecar && electron-vite dev"
+  "build": "npm run build:sidecar && npm run typecheck && electron-vite build"
+  ```
+
+## 5. 后续开发建议
+1. **差异对比 (Diff View)**：目前 "变更视图" 仅展示了文件列表。后续可以利用侧边栏右侧的空白区域，展示选中文件的详细代码 Diff。
 2. **分支管理**：现有的分支下拉框主要用于 `checkout`，后续需要加入创建新分支和删除分支的 UI 交互。
-3. **全局配置与账号管理**：目前的鉴权是 “单仓库配置” 的形式，后续可以引入全局的凭据管理器，减少重复输入。
+3. **全局配置与账号管理**：目前的鉴权是 "单仓库配置" 的形式，后续可以引入全局的凭据管理器，减少重复输入。
 4. **异常处理增强**：由于各种操作依赖本地文件系统的权限或网络状况，前端可针对特定的错误码（例如 401 鉴权失败或远程冲突）给予更友好的本地化指引。
