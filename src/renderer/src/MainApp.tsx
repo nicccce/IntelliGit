@@ -96,8 +96,10 @@ function RepoSidebar(): React.JSX.Element {
 // ═══════════════════════════════════════════════════════════════
 function Toolbar(): React.JSX.Element {
   const { currentRepo, currentBranch, branches, activeView, setActiveView,
-    pull, push, refreshAll, operationLoading, checkoutBranch } = useAppStore()
+    pull, push, refreshAll, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
   const [branchDropdown, setBranchDropdown] = useState(false)
+
+  const hasCommitsToPush = commitsAhead > 0
 
   return (
     <header className="ig-toolbar" id="main-toolbar">
@@ -139,13 +141,19 @@ function Toolbar(): React.JSX.Element {
         ))}
       </div>
       <div className="ig-toolbar-actions">
-        <button className="ig-action-btn" onClick={pull}
-          disabled={!currentRepo || !!operationLoading} title="Pull">
-          {operationLoading === 'pull' ? <span className="spinner" /> : '⬇'} Pull
-        </button>
-        <button className="ig-action-btn" onClick={push}
-          disabled={!currentRepo || !!operationLoading} title="Push">
-          {operationLoading === 'push' ? <span className="spinner" /> : '⬆'} Push
+        <button 
+          className="ig-action-btn" 
+          onClick={hasCommitsToPush ? push : pull}
+          disabled={!currentRepo || !!operationLoading} 
+          title={hasCommitsToPush ? "Push commits" : "Pull commits"}
+        >
+          {operationLoading === 'push' || operationLoading === 'pull' ? (
+            <span className="spinner" /> 
+          ) : hasCommitsToPush ? (
+            `⬆ Push ${commitsAhead}`
+          ) : (
+            `⬇ Pull ${commitsBehind > 0 ? commitsBehind : ''}`
+          )}
         </button>
         <button className="ig-icon-btn" onClick={refreshAll}
           disabled={!currentRepo || !!operationLoading} title="刷新">
@@ -401,7 +409,7 @@ const AUTO_REFRESH_INTERVAL = 3000
 // ═══════════════════════════════════════════════════════════════
 function MainApp(): React.JSX.Element {
   const { configLoaded, loadConfig, activeView, loading, currentRepo,
-    refreshStatus, refreshBranches } = useAppStore()
+    refreshStatus } = useAppStore()
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
