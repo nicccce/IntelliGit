@@ -174,6 +174,86 @@ func TestPullUsesCurrentBranchWithoutTrackingConfig(t *testing.T) {
 	}
 }
 
+func TestPullMergesDivergedCurrentBranch(t *testing.T) {
+	tempDir := t.TempDir()
+	localPath := filepath.Join(tempDir, "local")
+	otherPath := filepath.Join(tempDir, "other")
+	remotePath := filepath.Join(tempDir, "remote.git")
+
+	_, err := Init(remotePath, true)
+	if err != nil {
+		t.Fatalf("init bare remote: %v", err)
+	}
+
+	repo, err := Init(localPath, false)
+	if err != nil {
+		t.Fatalf("init local repo: %v", err)
+	}
+	configureCLIUser(t, repo)
+	if err := repo.AddRemote("origin", remotePath); err != nil {
+		t.Fatalf("add remote: %v", err)
+	}
+
+	basePath := filepath.Join(localPath, "base.txt")
+	if err := os.WriteFile(basePath, []byte("base\n"), 0644); err != nil {
+		t.Fatalf("write base file: %v", err)
+	}
+	if err := repo.Add("base.txt"); err != nil {
+		t.Fatalf("add base file: %v", err)
+	}
+	if _, err := repo.Commit("base", "Tester", "tester@example.com"); err != nil {
+		t.Fatalf("commit base: %v", err)
+	}
+	if err := repo.Push("origin", nil, io.Discard); err != nil {
+		t.Fatalf("push base: %v", err)
+	}
+
+	other, err := Clone(remotePath, otherPath, nil)
+	if err != nil {
+		t.Fatalf("clone other: %v", err)
+	}
+	remotePathFile := filepath.Join(otherPath, "remote.txt")
+	if err := os.WriteFile(remotePathFile, []byte("remote\n"), 0644); err != nil {
+		t.Fatalf("write remote file: %v", err)
+	}
+	if err := other.Add("remote.txt"); err != nil {
+		t.Fatalf("add remote file: %v", err)
+	}
+	if _, err := other.Commit("remote change", "Tester", "tester@example.com"); err != nil {
+		t.Fatalf("commit remote change: %v", err)
+	}
+	if err := other.Push("origin", nil, io.Discard); err != nil {
+		t.Fatalf("push remote change: %v", err)
+	}
+
+	localPathFile := filepath.Join(localPath, "local.txt")
+	if err := os.WriteFile(localPathFile, []byte("local\n"), 0644); err != nil {
+		t.Fatalf("write local file: %v", err)
+	}
+	if err := repo.Add("local.txt"); err != nil {
+		t.Fatalf("add local file: %v", err)
+	}
+	if _, err := repo.Commit("local change", "Tester", "tester@example.com"); err != nil {
+		t.Fatalf("commit local change: %v", err)
+	}
+
+	if err := repo.Pull("origin", nil, io.Discard); err != nil {
+		t.Fatalf("pull diverged branch: %v", err)
+	}
+
+	headRef, err := repo.GoGitRepo().Head()
+	if err != nil {
+		t.Fatalf("head after pull: %v", err)
+	}
+	headCommit, err := repo.GoGitRepo().CommitObject(headRef.Hash())
+	if err != nil {
+		t.Fatalf("head commit after pull: %v", err)
+	}
+	if headCommit.NumParents() != 2 {
+		t.Fatalf("merge commit parents = %d, want 2", headCommit.NumParents())
+	}
+}
+
 func TestPushOnlyPushesCurrentBranch(t *testing.T) {
 	tempDir := t.TempDir()
 	localPath := filepath.Join(tempDir, "local")
@@ -256,5 +336,19 @@ func TestPushOnlyPushesCurrentBranch(t *testing.T) {
 	}
 	if masterRef.Hash().String() != masterHash {
 		t.Fatalf("remote master = %s, want %s", masterRef.Hash(), masterHash)
+	}
+}
+
+func configureCLIUser(t *testing.T, repo *Repository) {
+	t.Helper()
+
+	cfg, err := repo.GoGitRepo().Config()
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	cfg.User.Name = "Tester"
+	cfg.User.Email = "tester@example.com"
+	if err := repo.GoGitRepo().SetConfig(cfg); err != nil {
+		t.Fatalf("write config: %v", err)
 	}
 }

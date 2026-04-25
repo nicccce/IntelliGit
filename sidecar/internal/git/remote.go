@@ -1,8 +1,12 @@
 package git
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"strings"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -82,27 +86,12 @@ func (r *Repository) Fetch(remoteName string, auth *AuthMethod, progress io.Writ
 
 // Pull 拉取并合并远程分支（git pull）
 func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Writer) error {
-	wt, err := r.repo.Worktree()
-	if err != nil {
-		return fmt.Errorf("获取 worktree 失败: %w", err)
-	}
 	branchRef, err := r.currentBranchReferenceName()
 	if err != nil {
 		return err
 	}
 
-	pullOpts := &gogit.PullOptions{
-		RemoteName:    remoteName,
-		ReferenceName: branchRef,
-		Auth:          resolveAuth(auth),
-		Progress:      progress,
-	}
-
-	err = wt.Pull(pullOpts)
-	if err != nil && err != gogit.NoErrAlreadyUpToDate {
-		return fmt.Errorf("pull 失败 (%s): %w", remoteName, err)
-	}
-	return nil
+	return r.runGitCommand(progress, "pull", "--no-rebase", "--no-edit", remoteName, branchRef.Short())
 }
 
 // Push 推送本地提交到远程仓库（git push）
@@ -154,6 +143,28 @@ func (r *Repository) currentBranchReferenceName() (plumbing.ReferenceName, error
 		return "", fmt.Errorf("当前处于 detached HEAD 状态 (%s)", headRef.Hash().String()[:8])
 	}
 	return headRef.Name(), nil
+}
+
+func (r *Repository) runGitCommand(progress io.Writer, args ...string) error {
+	cmd := exec.Command("git", append([]string{"-C", r.path}, args...)...)
+	cmd.Env = append(os.Environ(), "GIT_MERGE_AUTOEDIT=no")
+
+	var output bytes.Buffer
+	writer := io.Writer(&output)
+	if progress != nil {
+		writer = io.MultiWriter(&output, progress)
+	}
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(output.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("git %s 失败: %s", strings.Join(args, " "), message)
+	}
+	return nil
 }
 
 // resolveAuth 将 AuthMethod 转换为 go-git 的 transport.AuthMethod
