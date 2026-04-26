@@ -39,6 +39,8 @@ Thumbs.db
 # 忽略 sidecar 开发目录下的临时构建物
 sidecar/intelligit-sidecar
 sidecar/intelligit-sidecar.exe
+sidecar/cmd/sidecar/sidecar
+sidecar/cmd/sidecar/sidecar.exe
 # 忽略放置在 resources 目录下准备打包的二进制文件
 resources/intelligit-sidecar
 resources/intelligit-sidecar.exe
