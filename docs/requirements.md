@@ -236,6 +236,8 @@ Node.js 主进程（Electron Main Process）负责 Go Sidecar 进程的完整生
 
 ### 3.1 影子合并预检 (Shadow Merge Check)
 
+这个没啥用，不做了
+
 #### 3.1.1 内存级静默推演
 
 在用户实际点击 Merge / Rebase 前，系统在后台利用 libgit2 的内存索引（In-memory Index）模拟合并：
