@@ -7,7 +7,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { app } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'fs'
 import { IPC_CHANNELS, type AppConfig } from '../../shared/types'
 
 /** 配置文件路径 */
@@ -75,6 +75,34 @@ export function registerConfigHandlers(): void {
         return null
       }
       return result.filePaths[0]
+    }
+  )
+
+  // ── 检查目录是否存在 ─────────────────────────────────────────────────────
+  ipcMain.handle(
+    IPC_CHANNELS.CHECK_DIR_EXISTS,
+    async (_event, path: string): Promise<boolean> => {
+      try {
+        const stats = statSync(path)
+        return stats.isDirectory()
+      } catch {
+        return false
+      }
+    }
+  )
+
+  // ── 检查目录是否为空 ─────────────────────────────────────────────────────
+  ipcMain.handle(
+    IPC_CHANNELS.CHECK_DIR_EMPTY,
+    async (_event, path: string): Promise<boolean> => {
+      try {
+        const stats = statSync(path)
+        if (!stats.isDirectory()) return false
+        const files = readdirSync(path)
+        return files.length === 0
+      } catch {
+        return false
+      }
     }
   )
 }

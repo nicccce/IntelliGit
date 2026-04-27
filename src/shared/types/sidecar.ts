@@ -91,7 +91,11 @@ export const IPC_CHANNELS = {
   /** 保存应用配置 */
   CONFIG_SAVE: 'config:save',
   /** 打开文件夹选择对话框 */
-  DIALOG_OPEN_FOLDER: 'dialog:openFolder'
+  DIALOG_OPEN_FOLDER: 'dialog:openFolder',
+  /** 检查目录是否存在 */
+  CHECK_DIR_EXISTS: 'check:dirExists',
+  /** 检查目录是否为空 */
+  CHECK_DIR_EMPTY: 'check:dirEmpty'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -110,6 +114,10 @@ export interface ElectronAPI {
   saveConfig: (config: AppConfig) => Promise<void>
   /** 打开文件夹选择对话框，返回选中路径或 null */
   openFolderDialog: () => Promise<string | null>
+  /** 检查目录是否存在 */
+  checkDirExists: (path: string) => Promise<boolean>
+  /** 检查目录是否为空 */
+  checkDirEmpty: (path: string) => Promise<boolean>
   /** 当前运行模式（test 或 main） */
   mode?: string
 }

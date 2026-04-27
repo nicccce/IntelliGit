@@ -38,6 +38,14 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.DIALOG_OPEN_FOLDER)
   },
 
+  checkDirExists: (path: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CHECK_DIR_EXISTS, path)
+  },
+
+  checkDirEmpty: (path: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CHECK_DIR_EMPTY, path)
+  },
+
   mode: process.env.ELECTRON_MODE
 }
 

@@ -32,38 +32,179 @@ function statusColor(code: string): string {
 //  仓库侧边栏
 // ═══════════════════════════════════════════════════════════════
 function RepoSidebar(): React.JSX.Element {
-  const { repos, currentRepo, switchRepo, addRepo, removeRepo } = useAppStore()
-  const [adding, setAdding] = useState(false)
+  const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } = useAppStore()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [modal, setModal] = useState<'create' | 'add' | 'clone' | null>(null)
+  const [loadingAction, setLoadingAction] = useState(false)
 
-  const handleAddRepo = useCallback(async () => {
-    setAdding(true)
-    try {
-      const path = await window.electronAPI.openFolderDialog()
-      if (path) await addRepo(path)
-    } finally {
-      setAdding(false)
+  const [createRepoName, setCreateRepoName] = useState('')
+  const [createLocation, setCreateLocation] = useState('')
+  const [cloneUrl, setCloneUrl] = useState('')
+  const [cloneLocation, setCloneLocation] = useState('')
+  const [modalError, setModalError] = useState<string | null>(null)
+
+  const [createLocationExists, setCreateLocationExists] = useState<boolean | null>(null)
+  const [cloneLocationExists, setCloneLocationExists] = useState<boolean | null>(null)
+  const [cloneLocationIsEmpty, setCloneLocationIsEmpty] = useState<boolean | null>(null)
+
+  const closeModal = useCallback(() => {
+    setModal(null)
+    setModalError(null)
+  }, [])
+
+  const handleChooseCreateLocation = useCallback(async () => {
+    const path = await window.electronAPI.openFolderDialog()
+    if (path) {
+      setCreateLocation(path)
+      const exists = await window.electronAPI.checkDirExists(path)
+      setCreateLocationExists(exists)
     }
-  }, [addRepo])
+  }, [])
+
+  const handleChooseCloneLocation = useCallback(async () => {
+    const path = await window.electronAPI.openFolderDialog()
+    if (path) {
+      setCloneLocation(path)
+      const exists = await window.electronAPI.checkDirExists(path)
+      const isEmpty = await window.electronAPI.checkDirEmpty(path)
+      setCloneLocationExists(exists)
+      setCloneLocationIsEmpty(isEmpty)
+    }
+  }, [])
+
+  const handleCreateLocationChange = useCallback(async (value: string) => {
+    setCreateLocation(value)
+    if (value.trim()) {
+      const exists = await window.electronAPI.checkDirExists(value.trim())
+      setCreateLocationExists(exists)
+    } else {
+      setCreateLocationExists(null)
+    }
+  }, [])
+
+  const handleCloneLocationChange = useCallback(async (value: string) => {
+    setCloneLocation(value)
+    if (value.trim()) {
+      const exists = await window.electronAPI.checkDirExists(value.trim())
+      const isEmpty = await window.electronAPI.checkDirEmpty(value.trim())
+      setCloneLocationExists(exists)
+      setCloneLocationIsEmpty(isEmpty)
+    } else {
+      setCloneLocationExists(null)
+      setCloneLocationIsEmpty(null)
+    }
+  }, [])
+
+  const handleCreateConfirm = useCallback(async () => {
+    setModalError(null)
+    if (!createRepoName.trim() || !createLocation.trim()) {
+      setModalError('请填写仓库名称并选择位置。')
+      return
+    }
+
+    if (createLocationExists !== true) {
+      setModalError('存储位置目录不存在。')
+      return
+    }
+
+    // 创建仓库到用户选择的目录
+    const targetPath = createLocation.trim()
+    setLoadingAction(true)
+    try {
+      const ok = await createRepo(targetPath)
+      if (!ok) {
+        setModalError('创建仓库失败，请检查输入后重试。')
+        return
+      }
+      setCreateRepoName('')
+      setCreateLocation('')
+      setCreateLocationExists(null)
+      closeModal()
+    } finally {
+      setLoadingAction(false)
+    }
+  }, [createLocation, createRepo, createRepoName, closeModal])
+
+  const handleCloneConfirm = useCallback(async () => {
+    setModalError(null)
+    if (!cloneUrl.trim() || !cloneLocation.trim()) {
+      setModalError('请填写远程地址并选择克隆位置。')
+      return
+    }
+
+    if (cloneLocationExists !== true) {
+      setModalError('克隆位置目录不存在。')
+      return
+    }
+
+    if (cloneLocationIsEmpty !== true) {
+      setModalError('克隆位置必须是空目录。')
+      return
+    }
+
+    // 克隆到用户选择的目录，不自动创建子目录
+    const targetPath = cloneLocation.trim()
+    setLoadingAction(true)
+    try {
+      const ok = await cloneRepo(cloneUrl.trim(), targetPath)
+      if (!ok) {
+        setModalError('克隆仓库失败，请检查地址与位置。')
+        return
+      }
+      setCloneUrl('')
+      setCloneLocation('')
+      setCloneLocationExists(null)
+      setCloneLocationIsEmpty(null)
+      closeModal()
+    } finally {
+      setLoadingAction(false)
+    }
+  }, [cloneLocation, cloneRepo, cloneUrl, cloneLocationExists, cloneLocationIsEmpty, closeModal])
+
+  useEffect(() => {
+    const handleOutside = () => setMenuOpen(false)
+    if (menuOpen) {
+      document.addEventListener('click', handleOutside)
+      return () => document.removeEventListener('click', handleOutside)
+    }
+    return undefined
+  }, [menuOpen])
 
   return (
     <aside className="ig-sidebar" id="repo-sidebar">
       <div className="ig-sidebar-header">
         <h2>仓库</h2>
-        <button
-          id="btn-add-repo"
-          className="ig-icon-btn"
-          title="添加仓库"
-          onClick={handleAddRepo}
-          disabled={adding}
-        >
-          {adding ? '…' : '＋'}
-        </button>
+        <div className="ig-repo-actions">
+          <button
+            id="btn-add-repo"
+            className="ig-icon-btn"
+            title="仓库操作"
+            onClick={(event) => { event.stopPropagation(); setMenuOpen(!menuOpen) }}
+            disabled={loadingAction}
+          >
+            {loadingAction ? '…' : '＋'}
+          </button>
+          {menuOpen && (
+            <div className="ig-dropdown ig-repo-dropdown" onClick={(e) => e.stopPropagation()}>
+              <div className="ig-dropdown-item" onClick={() => { setModal('create'); setMenuOpen(false) }}>
+                创建仓库
+              </div>
+              <div className="ig-dropdown-item" onClick={() => { setModal('add'); setMenuOpen(false) }}>
+                添加仓库
+              </div>
+              <div className="ig-dropdown-item" onClick={() => { setModal('clone'); setMenuOpen(false) }}>
+                克隆仓库
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="ig-sidebar-list">
         {repos.length === 0 ? (
           <div className="ig-sidebar-empty">
             <p>尚无仓库</p>
-            <p className="ig-hint">点击 ＋ 添加 Git 仓库</p>
+            <p className="ig-hint">点击 ＋ 新建、添加或克隆仓库</p>
           </div>
         ) : (
           repos.map((r) => (
@@ -87,6 +228,142 @@ function RepoSidebar(): React.JSX.Element {
           ))
         )}
       </div>
+
+      {modal && (
+        <div className="ig-modal-backdrop">
+          <div className="ig-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ig-modal-header">
+              <h3>{modal === 'create' ? '创建仓库' : modal === 'add' ? '添加仓库' : '克隆仓库'}</h3>
+            </div>
+            <div className="ig-modal-body">
+              {modal === 'create' && (
+                <>
+                  <div className="ig-form-group">
+                    <label>仓库名称</label>
+                    <input
+                      type="text"
+                      value={createRepoName}
+                      onChange={(e) => setCreateRepoName(e.target.value)}
+                      placeholder="请输入仓库名称"
+                    />
+                  </div>
+                  <div className="ig-form-group">
+                    <label>存储位置</label>
+                    <div className="ig-input-with-button">
+                      <input
+                        type="text"
+                        value={createLocation}
+                        onChange={(e) => handleCreateLocationChange(e.target.value)}
+                        placeholder="请输入或选择仓库位置"
+                      />
+                      <button className="btn btn-secondary" onClick={handleChooseCreateLocation}>选择</button>
+                    </div>
+                    {createLocation.trim() && (
+                      <div className={`ig-path-status ${createLocationExists === true ? 'exists' : createLocationExists === false ? 'not-exists' : ''}`}>
+                        {createLocationExists === true ? '✓ 目录存在' : createLocationExists === false ? '✗ 目录不存在' : '检查中...'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {modal === 'add' && (
+                <>
+                  <div className="ig-form-group">
+                    <label>仓库路径</label>
+                    <div className="ig-input-with-button">
+                      <input
+                        type="text"
+                        value={createLocation}
+                        onChange={(e) => handleCreateLocationChange(e.target.value)}
+                        placeholder="请输入或选择现有仓库路径"
+                      />
+                      <button className="btn btn-secondary" onClick={handleChooseCreateLocation}>选择</button>
+                    </div>
+                    {createLocation.trim() && (
+                      <div className={`ig-path-status ${createLocationExists === true ? 'exists' : createLocationExists === false ? 'not-exists' : ''}`}>
+                        {createLocationExists === true ? '✓ 目录存在' : createLocationExists === false ? '✗ 目录不存在' : '检查中...'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {modal === 'clone' && (
+                <>
+                  <div className="ig-form-group">
+                    <label>远程仓库地址</label>
+                    <input
+                      type="text"
+                      value={cloneUrl}
+                      onChange={(e) => setCloneUrl(e.target.value)}
+                      placeholder="https://github.com/user/repo.git"
+                    />
+                  </div>
+                  <div className="ig-form-group">
+                    <label>克隆位置</label>
+                    <div className="ig-input-with-button">
+                      <input
+                        type="text"
+                        value={cloneLocation}
+                        onChange={(e) => handleCloneLocationChange(e.target.value)}
+                        placeholder="请输入或选择空目录作为克隆位置"
+                      />
+                      <button className="btn btn-secondary" onClick={handleChooseCloneLocation}>选择</button>
+                    </div>
+                    {cloneLocation.trim() && (
+                      <div className={`ig-path-status ${cloneLocationExists === true ? 'exists' : cloneLocationExists === false ? 'not-exists' : ''}`}>
+                        {cloneLocationExists === true ? '✓ 目录存在' : cloneLocationExists === false ? '✗ 目录不存在' : '检查中...'}
+                        {cloneLocationExists === true && cloneLocationIsEmpty === true && '，且为空目录'}
+                        {cloneLocationExists === true && cloneLocationIsEmpty === false && '，但不为空目录'}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {modalError && <div className="ig-form-error">{modalError}</div>}
+            </div>
+            <div className="ig-modal-footer">
+              <button className="btn btn-secondary" onClick={closeModal}>取消</button>
+              {modal === 'add' ? (
+                <button
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    if (!createLocation) {
+                      setModalError('请先选择仓库路径。')
+                      return
+                    }
+                    setModalError(null)
+                    setLoadingAction(true)
+                    try {
+                      const ok = await addRepo(createLocation)
+                      if (!ok) {
+                        setModalError('添加仓库失败，请检查路径是否为有效仓库。')
+                        return
+                      }
+                      setCreateLocation('')
+                      closeModal()
+                    } finally {
+                      setLoadingAction(false)
+                    }
+                  }}
+                  disabled={!createLocation || loadingAction}
+                >确认</button>
+              ) : modal === 'create' ? (
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCreateConfirm}
+                  disabled={!createRepoName.trim() || !createLocation || loadingAction}
+                >确认</button>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCloneConfirm}
+                  disabled={!cloneUrl.trim() || !cloneLocation || loadingAction}
+                >确认</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }
