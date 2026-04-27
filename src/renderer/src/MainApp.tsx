@@ -44,12 +44,14 @@ function RepoSidebar(): React.JSX.Element {
   const [modalError, setModalError] = useState<string | null>(null)
 
   const [createLocationExists, setCreateLocationExists] = useState<boolean | null>(null)
+  const [createLocationIsRepo, setCreateLocationIsRepo] = useState<boolean | null>(null)
   const [cloneLocationExists, setCloneLocationExists] = useState<boolean | null>(null)
   const [cloneLocationIsEmpty, setCloneLocationIsEmpty] = useState<boolean | null>(null)
 
   const closeModal = useCallback(() => {
     setModal(null)
     setModalError(null)
+    setCreateLocationIsRepo(null)
   }, [])
 
   const handleChooseCreateLocation = useCallback(async () => {
@@ -58,6 +60,12 @@ function RepoSidebar(): React.JSX.Element {
       setCreateLocation(path)
       const exists = await window.electronAPI.checkDirExists(path)
       setCreateLocationExists(exists)
+      if (exists) {
+        const response = await window.electronAPI.invokeGit('repo.open', { path })
+        setCreateLocationIsRepo(response.success)
+      } else {
+        setCreateLocationIsRepo(null)
+      }
     }
   }, [])
 
@@ -75,10 +83,18 @@ function RepoSidebar(): React.JSX.Element {
   const handleCreateLocationChange = useCallback(async (value: string) => {
     setCreateLocation(value)
     if (value.trim()) {
-      const exists = await window.electronAPI.checkDirExists(value.trim())
+      const pathValue = value.trim()
+      const exists = await window.electronAPI.checkDirExists(pathValue)
       setCreateLocationExists(exists)
+      if (exists) {
+        const response = await window.electronAPI.invokeGit('repo.open', { path: pathValue })
+        setCreateLocationIsRepo(response.success)
+      } else {
+        setCreateLocationIsRepo(null)
+      }
     } else {
       setCreateLocationExists(null)
+      setCreateLocationIsRepo(null)
     }
   }, [])
 
@@ -111,9 +127,9 @@ function RepoSidebar(): React.JSX.Element {
     const targetPath = createLocation.trim()
     setLoadingAction(true)
     try {
-      const ok = await createRepo(targetPath)
-      if (!ok) {
-        setModalError('创建仓库失败，请检查输入后重试。')
+      const result = await createRepo(targetPath)
+      if (!result.success) {
+        setModalError(result.error || '创建仓库失败，请检查输入后重试。')
         return
       }
       setCreateRepoName('')
@@ -124,6 +140,47 @@ function RepoSidebar(): React.JSX.Element {
       setLoadingAction(false)
     }
   }, [createLocation, createRepo, createRepoName, closeModal])
+
+  const handleAddConfirm = useCallback(async () => {
+    setModalError(null)
+    if (!createLocation.trim()) {
+      setModalError('请先选择仓库路径。')
+      return
+    }
+
+    if (createLocationExists !== true) {
+      setModalError('仓库路径不存在。')
+      return
+    }
+
+    setLoadingAction(true)
+    try {
+      let isRepo = createLocationIsRepo
+      if (isRepo !== true) {
+        const response = await window.electronAPI.invokeGit('repo.open', { path: createLocation.trim() })
+        isRepo = response.success
+        setCreateLocationIsRepo(isRepo)
+      }
+
+      if (!isRepo) {
+        setModalError('所选路径不是有效的 Git 仓库。')
+        return
+      }
+
+      const result = await addRepo(createLocation.trim())
+      if (!result.success) {
+        setModalError(result.error || '添加仓库失败，请检查路径是否为有效仓库。')
+        return
+      }
+
+      setCreateLocation('')
+      setCreateLocationExists(null)
+      setCreateLocationIsRepo(null)
+      closeModal()
+    } finally {
+      setLoadingAction(false)
+    }
+  }, [addRepo, createLocation, createLocationExists, createLocationIsRepo, closeModal])
 
   const handleCloneConfirm = useCallback(async () => {
     setModalError(null)
@@ -146,9 +203,9 @@ function RepoSidebar(): React.JSX.Element {
     const targetPath = cloneLocation.trim()
     setLoadingAction(true)
     try {
-      const ok = await cloneRepo(cloneUrl.trim(), targetPath)
-      if (!ok) {
-        setModalError('克隆仓库失败，请检查地址与位置。')
+      const result = await cloneRepo(cloneUrl.trim(), targetPath)
+      if (!result.success) {
+        setModalError(result.error || '克隆仓库失败，请检查地址与位置。')
         return
       }
       setCloneUrl('')
@@ -284,6 +341,11 @@ function RepoSidebar(): React.JSX.Element {
                         {createLocationExists === true ? '✓ 目录存在' : createLocationExists === false ? '✗ 目录不存在' : '检查中...'}
                       </div>
                     )}
+                    {createLocationExists === true && createLocationIsRepo !== null && (
+                      <div className={`ig-path-status ${createLocationIsRepo ? 'exists' : 'not-exists'}`}>
+                        {createLocationIsRepo ? '✓ 有效 Git 仓库' : '✗ 不是 Git 仓库'}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -326,39 +388,27 @@ function RepoSidebar(): React.JSX.Element {
               {modal === 'add' ? (
                 <button
                   className="btn btn-primary"
-                  onClick={async () => {
-                    if (!createLocation) {
-                      setModalError('请先选择仓库路径。')
-                      return
-                    }
-                    setModalError(null)
-                    setLoadingAction(true)
-                    try {
-                      const ok = await addRepo(createLocation)
-                      if (!ok) {
-                        setModalError('添加仓库失败，请检查路径是否为有效仓库。')
-                        return
-                      }
-                      setCreateLocation('')
-                      closeModal()
-                    } finally {
-                      setLoadingAction(false)
-                    }
-                  }}
+                  onClick={handleAddConfirm}
                   disabled={!createLocation || loadingAction}
-                >确认</button>
+                >
+                  {loadingAction ? <><span className="spinner" /> 正在验证…</> : '确认'}
+                </button>
               ) : modal === 'create' ? (
                 <button
                   className="btn btn-primary"
                   onClick={handleCreateConfirm}
                   disabled={!createRepoName.trim() || !createLocation || loadingAction}
-                >确认</button>
+                >
+                  {loadingAction ? <><span className="spinner" /> 创建中…</> : '确认'}
+                </button>
               ) : (
                 <button
                   className="btn btn-primary"
                   onClick={handleCloneConfirm}
                   disabled={!cloneUrl.trim() || !cloneLocation || loadingAction}
-                >确认</button>
+                >
+                  {loadingAction ? <><span className="spinner" /> 克隆中…</> : '确认'}
+                </button>
               )}
             </div>
           </div>

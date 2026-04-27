@@ -71,11 +71,11 @@ interface AppStoreState {
   /** 初始化加载配置 */
   loadConfig: () => Promise<void>
   /** 添加仓库 */
-  addRepo: (path: string) => Promise<boolean>
+  addRepo: (path: string) => Promise<{ success: boolean; error?: string }>
   /** 新建仓库 */
-  createRepo: (path: string) => Promise<boolean>
+  createRepo: (path: string) => Promise<{ success: boolean; error?: string }>
   /** 克隆远程仓库 */
-  cloneRepo: (url: string, path: string) => Promise<boolean>
+  cloneRepo: (url: string, path: string) => Promise<{ success: boolean; error?: string }>
   /** 移除仓库 */
   removeRepo: (path: string) => Promise<void>
   /** 切换当前仓库 */
@@ -187,15 +187,13 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   addRepo: async (path: string) => {
     const { repos } = get()
     if (repos.find((r) => r.path === path)) {
-      set({ error: '该仓库已存在' })
-      return false
+      return { success: false, error: '该仓库已存在' }
     }
 
     // 尝试打开仓库验证
     const response = await window.electronAPI.invokeGit('repo.open', { path })
     if (!response.success) {
-      set({ error: `无法打开仓库: ${response.error}` })
-      return false
+      return { success: false, error: `无法打开仓库: ${response.error}` }
     }
 
     const newRepo: RepoConfig = { path, name: repoNameFromPath(path) }
@@ -206,20 +204,18 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     // 刷新
     const state = get()
     await state.refreshAll()
-    return true
+    return { success: true }
   },
 
   createRepo: async (path: string) => {
     const { repos } = get()
     if (repos.find((r) => r.path === path)) {
-      set({ error: '该仓库已存在' })
-      return false
+      return { success: false, error: '该仓库已存在' }
     }
 
     const response = await window.electronAPI.invokeGit('repo.init', { path, bare: false })
     if (!response.success) {
-      set({ error: `创建仓库失败: ${response.error}` })
-      return false
+      return { success: false, error: `创建仓库失败: ${response.error}` }
     }
 
     return await get().addRepo(path)
@@ -228,14 +224,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   cloneRepo: async (url: string, path: string) => {
     const { repos } = get()
     if (repos.find((r) => r.path === path)) {
-      set({ error: '该仓库已存在' })
-      return false
+      return { success: false, error: '该仓库已存在' }
     }
 
     const response = await window.electronAPI.invokeGit('repo.clone', { url, path })
     if (!response.success) {
-      set({ error: `克隆仓库失败: ${response.error}` })
-      return false
+      return { success: false, error: `克隆仓库失败: ${response.error}` }
     }
 
     return await get().addRepo(path)
