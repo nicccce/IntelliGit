@@ -635,17 +635,22 @@ function HistoryView(): React.JSX.Element {
 // ═══════════════════════════════════════════════════════════════
 function SettingsView(): React.JSX.Element {
   const { currentRepo, updateRepoSettings } = useAppStore()
-  const [commitAuthorName, setCommitAuthorName] = useState('')
-  const [commitAuthorEmail, setCommitAuthorEmail] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [sshKeyPath, setSshKeyPath] = useState('')
-  const [sshPassword, setSshPassword] = useState('')
+  const [commitAuthorName, setCommitAuthorName] = useState<string>(() => currentRepo?.commitAuthorName || '')
+  const [commitAuthorEmail, setCommitAuthorEmail] = useState<string>(() => currentRepo?.commitAuthorEmail || '')
+  const [remoteType, setRemoteType] = useState<'none' | 'http' | 'ssh'>(() => currentRepo?.remoteType || 'none')
+  const [remoteUrl, setRemoteUrl] = useState<string>(() => currentRepo?.remoteUrl || '')
+  const [username, setUsername] = useState<string>(() => currentRepo?.authUsername || '')
+  const [password, setPassword] = useState<string>(() => currentRepo?.authPassword || '')
+  const [sshKeyPath, setSshKeyPath] = useState<string>(() => currentRepo?.sshKeyPath || '')
+  const [sshPassword, setSshPassword] = useState<string>(() => currentRepo?.sshPassword || '')
 
+  // 切换仓库时同步状态
   useEffect(() => {
     if (currentRepo) {
       setCommitAuthorName(currentRepo.commitAuthorName || '')
       setCommitAuthorEmail(currentRepo.commitAuthorEmail || '')
+      setRemoteType(currentRepo.remoteType || 'none')
+      setRemoteUrl(currentRepo.remoteUrl || '')
       setUsername(currentRepo.authUsername || '')
       setPassword(currentRepo.authPassword || '')
       setSshKeyPath(currentRepo.sshKeyPath || '')
@@ -657,14 +662,33 @@ function SettingsView(): React.JSX.Element {
     return <div className="ig-empty-view"><h3>选择仓库进行设置</h3></div>
   }
 
+  const handleRemoteTypeChange = (type: 'none' | 'http' | 'ssh'): void => {
+    setRemoteType(type)
+    if (type === 'none') {
+      setRemoteUrl('')
+      setUsername('')
+      setPassword('')
+      setSshKeyPath('')
+      setSshPassword('')
+    } else if (type === 'http') {
+      setSshKeyPath('')
+      setSshPassword('')
+    } else if (type === 'ssh') {
+      setUsername('')
+      setPassword('')
+    }
+  }
+
   const handleSave = (): void => {
     updateRepoSettings(currentRepo.path, {
       commitAuthorName: commitAuthorName.trim() || undefined,
       commitAuthorEmail: commitAuthorEmail.trim() || undefined,
-      authUsername: username.trim() || undefined,
-      authPassword: password.trim() || undefined,
-      sshKeyPath: sshKeyPath.trim() || undefined,
-      sshPassword: sshPassword.trim() || undefined
+      remoteType,
+      remoteUrl: remoteType !== 'none' ? remoteUrl.trim() || undefined : undefined,
+      authUsername: remoteType === 'http' ? username.trim() || undefined : undefined,
+      authPassword: remoteType === 'http' ? password.trim() || undefined : undefined,
+      sshKeyPath: remoteType === 'ssh' ? sshKeyPath.trim() || undefined : undefined,
+      sshPassword: remoteType === 'ssh' ? sshPassword.trim() || undefined : undefined
     })
   }
 
@@ -698,31 +722,83 @@ function SettingsView(): React.JSX.Element {
         </div>
       </div>
       <div className="ig-settings-section">
-        <h3>HTTP(S) 认证</h3>
-        <p className="ig-hint">用于 Push/Pull 等远程操作（Token 填入密码字段）</p>
-        <div className="ig-form-group">
-          <label>用户名</label>
-          <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-            placeholder="GitHub 用户名" />
+        <h3>远程仓库</h3>
+        <p className="ig-hint">选择远程仓库形式以配置 Push/Pull 等操作使用的远程地址与认证</p>
+        <div className="ig-remote-type-group">
+          <label className={`ig-remote-option ${remoteType === 'none' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="remoteType"
+              value="none"
+              checked={remoteType === 'none'}
+              onChange={() => handleRemoteTypeChange('none')}
+            />
+            <span>无</span>
+          </label>
+          <label className={`ig-remote-option ${remoteType === 'http' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="remoteType"
+              value="http"
+              checked={remoteType === 'http'}
+              onChange={() => handleRemoteTypeChange('http')}
+            />
+            <span>HTTP(S)</span>
+          </label>
+          <label className={`ig-remote-option ${remoteType === 'ssh' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="remoteType"
+              value="ssh"
+              checked={remoteType === 'ssh'}
+              onChange={() => handleRemoteTypeChange('ssh')}
+            />
+            <span>SSH</span>
+          </label>
         </div>
-        <div className="ig-form-group">
-          <label>密码 / Token</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-            placeholder="Personal Access Token" />
-        </div>
-      </div>
-      <div className="ig-settings-section">
-        <h3>SSH 认证</h3>
-        <div className="ig-form-group">
-          <label>SSH 密钥路径</label>
-          <input type="text" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)}
-            placeholder="~/.ssh/id_rsa" />
-        </div>
-        <div className="ig-form-group">
-          <label>SSH 密钥密码</label>
-          <input type="password" value={sshPassword} onChange={e => setSshPassword(e.target.value)}
-            placeholder="（可选）" />
-        </div>
+        {remoteType !== 'none' && (
+          <div className="ig-remote-detail">
+            <div className="ig-form-group">
+              <label>远程仓库地址</label>
+              <input
+                type="text"
+                value={remoteUrl}
+                onChange={e => setRemoteUrl(e.target.value)}
+                placeholder={remoteType === 'http' ? 'https://github.com/user/repo.git' : 'git@github.com:user/repo.git'}
+              />
+            </div>
+            {remoteType === 'http' && (
+              <>
+                <p className="ig-hint">HTTP(S) 认证</p>
+                <div className="ig-form-group">
+                  <label>用户名</label>
+                  <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                    placeholder="用户名" />
+                </div>
+                <div className="ig-form-group">
+                  <label>密码 / Token</label>
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                    placeholder="口令" />
+                </div>
+              </>
+            )}
+            {remoteType === 'ssh' && (
+              <>
+                <p className="ig-hint">SSH 认证</p>
+                <div className="ig-form-group">
+                  <label>SSH 密钥路径</label>
+                  <input type="text" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)}
+                    placeholder="~/.ssh/id_rsa" />
+                </div>
+                <div className="ig-form-group">
+                  <label>SSH 密钥密码</label>
+                  <input type="password" value={sshPassword} onChange={e => setSshPassword(e.target.value)}
+                    placeholder="（可选）" />
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <button className="btn btn-primary" onClick={handleSave}>保存设置</button>
     </div>

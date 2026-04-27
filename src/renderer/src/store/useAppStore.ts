@@ -133,12 +133,90 @@ function cleanSetting(value: string | undefined): string | undefined {
   return normalized || undefined
 }
 
+/** 根据远程 URL 推断远程类型 */
+function inferRemoteType(url: string): 'none' | 'http' | 'ssh' {
+  if (!url) return 'none'
+  const lower = url.trim().toLowerCase()
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return 'http'
+  if (lower.startsWith('git@') || lower.startsWith('ssh://')) return 'ssh'
+  return 'none'
+}
+
+interface RemoteInfo {
+  name: string
+  fetchUrl: string
+  pushUrls: string[]
+}
+
+/**
+ * 检测远程仓库实际配置，并与存储配置比对。
+ * 若 remoteUrl 未变化则保留原有认证，否则清空认证。
+ */
+async function detectAndSyncRemote(
+  path: string,
+  storedRepo: RepoConfig | undefined
+): Promise<Partial<RepoConfig> | null> {
+  try {
+    const response = await window.electronAPI.invokeGit('remote.list')
+    if (!response.success || !response.data) return null
+
+    const remotes = response.data as RemoteInfo[]
+    const origin = remotes.find((r) => r.name === 'origin')
+
+    if (!origin || !origin.fetchUrl) {
+      // 仓库没有配置 origin 远程
+      if (storedRepo?.remoteType && storedRepo.remoteType !== 'none') {
+        // 之前有远程配置但现在仓库里没有了，重置为 none
+        return { remoteType: 'none' as const, remoteUrl: undefined,
+          authUsername: undefined, authPassword: undefined,
+          sshKeyPath: undefined, sshPassword: undefined }
+      }
+      return null
+    }
+
+    const inferredType = inferRemoteType(origin.fetchUrl)
+
+    // 判断远程地址是否与存储的一致
+    const urlChanged = storedRepo?.remoteUrl !== origin.fetchUrl
+
+    if (urlChanged || !storedRepo?.remoteType || storedRepo.remoteType === 'none') {
+      // 地址变了（或之前没有配置）→ 使用新地址并清空认证
+      return {
+        remoteType: inferredType,
+        remoteUrl: origin.fetchUrl,
+        authUsername: undefined,
+        authPassword: undefined,
+        sshKeyPath: undefined,
+        sshPassword: undefined
+      }
+    }
+
+    // 地址未变 → 保持原认证
+    return null
+  } catch {
+    console.warn('[detectAndSyncRemote] 远程检测失败')
+    return null
+  }
+}
+
 function remotePayload(repo: RepoConfig | null): Record<string, unknown> {
   const payload: Record<string, unknown> = { remote: 'origin' }
-  if (repo?.authUsername) payload.username = repo.authUsername
-  if (repo?.authPassword) payload.password = repo.authPassword
-  if (repo?.sshKeyPath) payload.sshKeyPath = repo.sshKeyPath
-  if (repo?.sshPassword) payload.sshPassword = repo.sshPassword
+  if (!repo || !repo.remoteType || repo.remoteType === 'none') return payload
+
+  if (repo.remoteUrl) payload.url = repo.remoteUrl
+
+  if (repo.remoteType === 'http') {
+    if (repo?.authUsername) payload.username = repo.authUsername
+    if (repo?.authPassword) payload.password = repo.authPassword
+    return payload
+  }
+
+  if (repo.remoteType === 'ssh') {
+    if (repo?.sshKeyPath) payload.sshKeyPath = repo.sshKeyPath
+    if (repo?.sshPassword) payload.sshPassword = repo.sshPassword
+    return payload
+  }
+
   return payload
 }
 
@@ -160,23 +238,38 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   // ── 配置操作 ─────────────────────────────────────────────
 
-  loadConfig: async () => {
+        loadConfig: async () => {
     try {
       const config = await window.electronAPI.loadConfig()
-      const currentRepo = config.currentRepoPath
+      let repo = config.currentRepoPath
         ? config.repos.find((r) => r.path === config.currentRepoPath) || null
         : null
-      set({ repos: config.repos, currentRepo, configLoaded: true })
+      const repos = config.repos
 
-      // 如果有当前仓库，尝试打开并刷新
-      if (currentRepo) {
-        const state = get()
+      // 预先打开仓库并检测远程，避免 UI 先显示旧值再跳变
+      if (repo) {
         try {
-          await window.electronAPI.invokeGit('repo.open', { path: currentRepo.path })
-          await state.refreshAll()
+          await window.electronAPI.invokeGit('repo.open', { path: repo.path })
+          const remotePatch = await detectAndSyncRemote(repo.path, repo)
+          if (remotePatch) {
+            repo = { ...repo, ...remotePatch }
+            // 更新 repos 列表中的对应项
+            const idx = repos.findIndex((r) => r.path === repo!.path)
+            if (idx !== -1) repos[idx] = repo
+            // 持久化更新后的配置
+            await persistConfig(repos, repo.path)
+          }
         } catch {
           console.warn('[AppStore] 打开仓库失败，可能路径无效')
         }
+      }
+
+      set({ repos: [...repos], currentRepo: repo, configLoaded: true })
+
+      // 刷新
+      if (repo) {
+        const state = get()
+        await state.refreshAll()
       }
     } catch (err) {
       console.error('[AppStore] 加载配置失败:', err)
@@ -184,7 +277,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     }
   },
 
-  addRepo: async (path: string) => {
+        addRepo: async (path: string) => {
     const { repos } = get()
     if (repos.find((r) => r.path === path)) {
       return { success: false, error: '该仓库已存在' }
@@ -196,7 +289,13 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       return { success: false, error: `无法打开仓库: ${response.error}` }
     }
 
-    const newRepo: RepoConfig = { path, name: repoNameFromPath(path) }
+    // 先检测远程再更新 state，避免 UI 先显示旧值再跳变
+    let newRepo: RepoConfig = { path, name: repoNameFromPath(path) }
+    const remotePatch = await detectAndSyncRemote(path, newRepo)
+    if (remotePatch) {
+      newRepo = { ...newRepo, ...remotePatch }
+    }
+
     const newRepos = [...repos, newRepo]
     set({ repos: newRepos, currentRepo: newRepo, error: null })
     await persistConfig(newRepos, path)
@@ -250,7 +349,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     await persistConfig(newRepos, newCurrent?.path || null)
   },
 
-  switchRepo: async (path: string) => {
+    switchRepo: async (path: string) => {
     const { repos } = get()
     const repo = repos.find((r) => r.path === path)
     if (!repo) return
@@ -262,8 +361,20 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `切换仓库失败: ${response.error}`, loading: false })
         return
       }
-      set({ currentRepo: repo })
-      await persistConfig(repos, path)
+
+      // 先检测远程再更新 state，避免 UI 先显示旧值再跳变
+      const remotePatch = await detectAndSyncRemote(path, repo)
+      let newRepos = repos
+      let updatedRepo = repo
+      if (remotePatch) {
+        updatedRepo = { ...repo, ...remotePatch }
+        newRepos = repos.map((r) => (r.path === path ? updatedRepo : r))
+        await persistConfig(newRepos, path)
+      } else {
+        await persistConfig(repos, path)
+      }
+      set({ currentRepo: updatedRepo, repos: newRepos })
+
       const state = get()
       await state.refreshAll()
     } catch (err) {
@@ -271,12 +382,27 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     }
   },
 
-  updateRepoSettings: async (path: string, settings: Partial<RepoConfig>) => {
+    updateRepoSettings: async (path: string, settings: Partial<RepoConfig>) => {
     const { repos, currentRepo } = get()
+    const oldRepo = repos.find((r) => r.path === path)
     const newRepos = repos.map((r) => (r.path === path ? { ...r, ...settings } : r))
     const newCurrent = currentRepo?.path === path ? { ...currentRepo, ...settings } : currentRepo
     set({ repos: newRepos, currentRepo: newCurrent, successMessage: '设置已保存' })
     await persistConfig(newRepos, newCurrent?.path || null)
+
+    // 同步远程仓库地址到 Git 仓库
+    try {
+      if (settings.remoteType === 'none' && oldRepo?.remoteUrl) {
+        // 用户选择了"无"，删除 origin 远程
+        await window.electronAPI.invokeGit('remote.remove', { name: 'origin' })
+      } else if (settings.remoteUrl !== undefined && settings.remoteUrl) {
+        // 远程地址被设置或修改，同步到 Git
+        await window.electronAPI.invokeGit('remote.setUrl', { name: 'origin', url: settings.remoteUrl })
+      }
+    } catch (err) {
+      console.warn('[AppStore] 同步远程地址到 Git 失败:', err)
+    }
+
     setTimeout(() => set({ successMessage: null }), 2000)
   },
 

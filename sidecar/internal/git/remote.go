@@ -61,6 +61,36 @@ func (r *Repository) AddRemote(name, url string) error {
 	return nil
 }
 
+// SetRemoteURL 修改远程仓库地址（先删除再添加）
+func (r *Repository) SetRemoteURL(name, url string) error {
+	// Get the existing remote config for reference
+	remote, err := r.repo.Remote(name)
+	if err != nil {
+		// Remote doesn't exist, create it
+		return r.AddRemote(name, url)
+	}
+
+	// Get fetch refspecs from existing remote
+	_ = remote.Config() // Keep refspecs reference
+
+	// Delete old remote
+	if err := r.repo.DeleteRemote(name); err != nil {
+		return fmt.Errorf("修改远程仓库地址失败 (删除旧配置): %w", err)
+	}
+
+	// Create new remote with the new URL
+	_, err = r.repo.CreateRemote(&config.RemoteConfig{
+		Name:  name,
+		URLs:  []string{url},
+		Fetch: nil, // Use default fetch refspecs
+	})
+	if err != nil {
+		return fmt.Errorf("修改远程仓库地址失败 (添加新配置): %w", err)
+	}
+
+	return nil
+}
+
 // RemoveRemote 删除一个远程仓库
 func (r *Repository) RemoveRemote(name string) error {
 	if err := r.repo.DeleteRemote(name); err != nil {

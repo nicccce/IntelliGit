@@ -2,17 +2,6 @@ package handler
 
 // ┌──────────────────────────────────────────────────────────────────────────────┐
 // │                          Handler 实现                                        │
-// │                                                                              │
-// │  每个 handler 对应一个 Git 操作。handler 的职责：                              │
-// │    1. 通过 ctx.Bind() 解析参数                                                │
-// │    2. 通过 ctx.Repo() 获取仓库实例                                            │
-// │    3. 调用 git 包的方法                                                       │
-// │    4. 返回 (data, error)                                                     │
-// │                                                                              │
-// │  新增 handler 步骤：                                                          │
-// │    1. 在本文件中编写 handler 函数                                              │
-// │    2. 到 registry.go 中注册命令名称与 handler 的映射                           │
-// │    3. （可选）到 Node 端 shared/types/sidecar.ts 中添加对应的类型定义           │
 // └──────────────────────────────────────────────────────────────────────────────┘
 
 import (
@@ -35,15 +24,11 @@ func handleRepoOpen(ctx *Context) (any, error) {
 	if params.Path == "" {
 		return nil, errMissingParam("path")
 	}
-
 	repo, err := git.Open(params.Path)
 	if err != nil {
 		return nil, err
 	}
-
-	// 在 Router 中设置当前仓库
 	ctx.setRepoCallback(repo)
-
 	return map[string]string{"path": repo.Path()}, nil
 }
 
@@ -58,14 +43,11 @@ func handleRepoInit(ctx *Context) (any, error) {
 	if params.Path == "" {
 		return nil, errMissingParam("path")
 	}
-
 	repo, err := git.Init(params.Path, params.Bare)
 	if err != nil {
 		return nil, err
 	}
-
 	ctx.setRepoCallback(repo)
-
 	return map[string]string{"path": repo.Path()}, nil
 }
 
@@ -85,21 +67,17 @@ func handleClone(ctx *Context) (any, error) {
 	if params.Path == "" {
 		return nil, errMissingParam("path")
 	}
-
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
 	opts := &git.CloneOptions{
 		Depth:    params.Depth,
 		Branch:   params.Branch,
 		Progress: pw,
 	}
-
 	repo, err := git.Clone(params.URL, params.Path, opts)
 	if err != nil {
 		return nil, err
 	}
-
 	ctx.setRepoCallback(repo)
-
 	return map[string]string{"path": repo.Path()}, nil
 }
 
@@ -112,10 +90,7 @@ func handleHead(ctx *Context) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]string{
-		"hash":   hash,
-		"branch": branch,
-	}, nil
+	return map[string]string{"hash": hash, "branch": branch}, nil
 }
 
 func handleIsClean(ctx *Context) (any, error) {
@@ -221,7 +196,6 @@ func handleCommit(ctx *Context) (any, error) {
 	if params.Message == "" {
 		return nil, errMissingParam("message")
 	}
-
 	hash, err := repo.Commit(params.Message, params.AuthorName, params.AuthorEmail)
 	if err != nil {
 		return nil, err
@@ -241,7 +215,6 @@ func handleLog(ctx *Context) (any, error) {
 	if err := ctx.Bind(&params); err != nil {
 		return nil, err
 	}
-
 	if params.From != "" {
 		return repo.LogFrom(params.From, params.Max)
 	}
@@ -311,7 +284,6 @@ func handleAheadBehind(ctx *Context) (any, error) {
 	if params.Branch == "" {
 		return nil, errMissingParam("branch")
 	}
-
 	ahead, behind, err := repo.AheadBehind(params.Branch)
 	if err != nil {
 		return nil, err
@@ -442,6 +414,27 @@ func handleAddRemote(ctx *Context) (any, error) {
 	return nil, repo.AddRemote(params.Name, params.URL)
 }
 
+func handleSetRemoteURL(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Name == "" {
+		params.Name = "origin"
+	}
+	if params.URL == "" {
+		return nil, errMissingParam("url")
+	}
+	return nil, repo.SetRemoteURL(params.Name, params.URL)
+}
+
 func handleRemoveRemote(ctx *Context) (any, error) {
 	repo, err := ctx.Repo()
 	if err != nil {
@@ -472,7 +465,6 @@ func handleFetch(ctx *Context) (any, error) {
 	if remote == "" {
 		remote = "origin"
 	}
-
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
 	return nil, repo.Fetch(remote, params.toAuthMethod(), pw)
 }
@@ -490,7 +482,6 @@ func handlePull(ctx *Context) (any, error) {
 	if remote == "" {
 		remote = "origin"
 	}
-
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
 	return nil, repo.Pull(remote, params.toAuthMethod(), pw)
 }
@@ -508,7 +499,6 @@ func handlePush(ctx *Context) (any, error) {
 	if remote == "" {
 		remote = "origin"
 	}
-
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
 	return nil, repo.Push(remote, params.toAuthMethod(), pw)
 }

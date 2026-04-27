@@ -56,13 +56,17 @@ export interface RepoConfig {
   path: string
   /** 仓库显示名称 */
   name: string
+  /** 远程仓库形式：无 / HTTP(S) / SSH */
+  remoteType?: 'none' | 'http' | 'ssh'
+  /** 远程仓库地址 */
+  remoteUrl?: string
   /** Commit 作者名称，用于写入提交历史 */
   commitAuthorName?: string
   /** Commit 作者邮箱，用于 GitHub 贡献归属 */
   commitAuthorEmail?: string
-  /** 认证用户名 */
+  /** HTTP(S) 认证用户名 */
   authUsername?: string
-  /** 认证密码 / Token */
+  /** HTTP(S) 认证密码 / Token */
   authPassword?: string
   /** SSH 密钥路径 */
   sshKeyPath?: string
