@@ -219,7 +219,7 @@ function RepoSidebar(): React.JSX.Element {
   }, [cloneLocation, cloneRepo, cloneUrl, cloneLocationExists, cloneLocationIsEmpty, closeModal])
 
   useEffect(() => {
-    const handleOutside = () => setMenuOpen(false)
+    const handleOutside = (): void => setMenuOpen(false)
     if (menuOpen) {
       document.addEventListener('click', handleOutside)
       return () => document.removeEventListener('click', handleOutside)
@@ -644,19 +644,8 @@ function SettingsView(): React.JSX.Element {
   const [sshKeyPath, setSshKeyPath] = useState<string>(() => currentRepo?.sshKeyPath || '')
   const [sshPassword, setSshPassword] = useState<string>(() => currentRepo?.sshPassword || '')
 
-  // 切换仓库时同步状态
-  useEffect(() => {
-    if (currentRepo) {
-      setCommitAuthorName(currentRepo.commitAuthorName || '')
-      setCommitAuthorEmail(currentRepo.commitAuthorEmail || '')
-      setRemoteType(currentRepo.remoteType || 'none')
-      setRemoteUrl(currentRepo.remoteUrl || '')
-      setUsername(currentRepo.authUsername || '')
-      setPassword(currentRepo.authPassword || '')
-      setSshKeyPath(currentRepo.sshKeyPath || '')
-      setSshPassword(currentRepo.sshPassword || '')
-    }
-  }, [currentRepo?.path])
+  // SettingsView uses currentRepo initial state, and keying it by repo path
+  // ensures full remount when the selected repository changes.
 
   if (!currentRepo) {
     return <div className="ig-empty-view"><h3>选择仓库进行设置</h3></div>
@@ -886,7 +875,7 @@ function MainApp(): React.JSX.Element {
         <main className="ig-content">
           {activeView === 'changes' && <ChangesView />}
           {activeView === 'history' && <HistoryView />}
-          {activeView === 'settings' && <SettingsView />}
+          {activeView === 'settings' && <SettingsView key={currentRepo?.path || 'settings'} />}
         </main>
         <footer className="ig-statusbar">
           <span>{currentRepo ? `📂 ${currentRepo.path}` : 'IntelliGit'}</span>

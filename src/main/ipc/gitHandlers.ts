@@ -17,7 +17,7 @@ export function registerGitHandlers(sidecarManager: SidecarManager): void {
   ipcMain.handle(
     IPC_CHANNELS.GIT_COMMAND,
     async (_event, command: string, payload?: Record<string, unknown>): Promise<SidecarResponse> => {
-      console.log(`[IPC] git:command 收到请求 command="${command}"`, payload)
+      console.log(`[IPC] git:command 收到请求 command="${command}"`, payload == undefined ? '{}' : payload)
 
       try {
         if (!sidecarManager.isRunning) {
