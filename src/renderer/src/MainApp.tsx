@@ -423,40 +423,60 @@ function RepoSidebar(): React.JSX.Element {
 //  顶部工具栏
 // ═══════════════════════════════════════════════════════════════
 function Toolbar(): React.JSX.Element {
-  const { currentRepo, currentBranch, branches, activeView, setActiveView,
-    pull, push, refreshAll, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
-  const [branchDropdown, setBranchDropdown] = useState(false)
+  const { currentRepo, currentBranch, branches, remoteBranches, activeView, setActiveView,
+      pull, push, refreshAll, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
+    const [branchDropdown, setBranchDropdown] = useState(false)
 
-  const hasCommitsToPush = commitsAhead > 0 && commitsBehind === 0
-  const hasCommitsToPull = commitsBehind > 0
+    const hasCommitsToPush = commitsAhead > 0 && commitsBehind === 0
+    const hasCommitsToPull = commitsBehind > 0
 
-  return (
-    <header className="ig-toolbar" id="main-toolbar">
-      <div className="ig-toolbar-left">
-        <div className="ig-toolbar-repo-name">
-          {currentRepo ? currentRepo.name : 'IntelliGit'}
-        </div>
-        {currentBranch && (
-          <div className="ig-branch-picker" onClick={() => setBranchDropdown(!branchDropdown)}>
-            <span className="ig-branch-icon">⎇</span>
-            <span>{currentBranch}</span>
-            <span className="ig-caret">▾</span>
-            {branchDropdown && (
-              <div className="ig-dropdown" onClick={(e) => e.stopPropagation()}>
-                {branches.filter(b => !b.isRemote).map(b => (
-                  <div
-                    key={b.name}
-                    className={`ig-dropdown-item ${b.isHead ? 'active' : ''}`}
-                    onClick={() => { checkoutBranch(b.name); setBranchDropdown(false) }}
-                  >
-                    {b.isHead && <span className="ig-check">✓</span>}
-                    {b.name}
-                  </div>
-                ))}
-              </div>
-            )}
+    // 构建合并分支列表：本地分支 + 远程特有分支
+    const localBranchNames = new Set(branches.map(b => b.name))
+    const remoteOnlyBranches = remoteBranches
+      .filter(rb => !localBranchNames.has(rb.name.replace(/^origin\//, '')))
+      .map(rb => ({ ...rb, name: rb.name.replace(/^origin\//, '') }))
+    const mergedBranches = [
+      ...branches.filter(b => !b.isRemote),
+      ...remoteOnlyBranches
+    ]
+
+    return (
+      <header className="ig-toolbar" id="main-toolbar">
+        <div className="ig-toolbar-left">
+          <div className="ig-toolbar-repo-name">
+            {currentRepo ? currentRepo.name : 'IntelliGit'}
           </div>
-        )}
+          {currentBranch && (
+            <div className="ig-branch-picker" onClick={() => setBranchDropdown(!branchDropdown)}>
+              <span className="ig-branch-icon">⎇</span>
+              <span>{currentBranch}</span>
+              <span className="ig-caret">▾</span>
+              {branchDropdown && (
+                <div className="ig-dropdown" onClick={(e) => e.stopPropagation()}>
+                  {mergedBranches.length === 0 ? (
+                    <div className="ig-dropdown-item ig-dropdown-empty">无分支</div>
+                  ) : mergedBranches.map(b => {
+                    const isRemoteOnly = remoteOnlyBranches.some(rb => rb.name === b.name)
+                    return (
+                      <div
+                        key={b.name}
+                        className={`ig-dropdown-item ${b.isHead ? 'active' : ''}`}
+                        onClick={() => {
+                          checkoutBranch(b.name)
+                          setBranchDropdown(false)
+                        }}
+                      >
+                        {b.isHead && <span className="ig-check">✓</span>}
+                        <span className="ig-branch-name">{b.name}</span>
+                        {isRemoteOnly && <span className="ig-branch-tag ig-branch-tag-remote">远程</span>}
+                        {!isRemoteOnly && b.name !== currentBranch && <span className="ig-branch-tag ig-branch-tag-local">本地</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
       </div>
       <div className="ig-toolbar-tabs">
         {(['changes', 'history', 'settings'] as const).map(v => (
@@ -818,14 +838,14 @@ function NotificationBar(): React.JSX.Element | null {
 }
 
 // ── 自动轮询间隔（毫秒） ─────────────────────────────────────
-const AUTO_REFRESH_INTERVAL = 3000
+const AUTO_REFRESH_INTERVAL = 1000
 
 // ═══════════════════════════════════════════════════════════════
 //  主组件
 // ═══════════════════════════════════════════════════════════════
 function MainApp(): React.JSX.Element {
   const { configLoaded, loadConfig, activeView, loading, currentRepo,
-    refreshStatus } = useAppStore()
+      refreshAllLocal } = useAppStore()
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -843,7 +863,7 @@ function MainApp(): React.JSX.Element {
     // 有仓库时启动轮询
     if (currentRepo) {
       timerRef.current = setInterval(() => {
-        refreshStatus()
+                      refreshAllLocal()
       }, AUTO_REFRESH_INTERVAL)
     }
 
@@ -853,7 +873,7 @@ function MainApp(): React.JSX.Element {
         timerRef.current = null
       }
     }
-  }, [currentRepo?.path, refreshStatus])
+  }, [currentRepo?.path, refreshAllLocal])
 
   if (!configLoaded) {
     return (

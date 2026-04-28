@@ -48,8 +48,10 @@ interface AppStoreState {
   commitHistory: CommitRecord[]
   /** 当前分支 */
   currentBranch: string
-  /** 分支列表 */
+    /** 分支列表（本地分支） */
   branches: BranchInfo[]
+  /** 远程跟踪分支列表（origin/*） */
+  remoteBranches: BranchInfo[]
   /** 待 Push 的提交数 */
   commitsAhead: number
   /** 待 Pull 的提交数 */
@@ -84,14 +86,16 @@ interface AppStoreState {
   updateRepoSettings: (path: string, settings: Partial<RepoConfig>) => Promise<void>
 
   // ── Git 操作 ─────────────────────────────────────────────
-  /** 刷新仓库状态 */
-  refreshStatus: () => Promise<void>
-  /** 刷新提交历史 */
-  refreshHistory: () => Promise<void>
-  /** 刷新分支信息 */
-  refreshBranches: () => Promise<void>
-  /** 全量刷新 */
-  refreshAll: () => Promise<void>
+    /** 刷新本地全部状态（文件状态、历史、分支列表、当前分支、ahead/behind，不含远程 fetch） */
+    refreshAllLocal: () => Promise<void>
+    /** 刷新远程仓库状态（git fetch + 刷新分支列表与 ahead/behind） */
+    refreshRemote: () => Promise<void>
+    /** 刷新仓库状态（仅文件变更状态） */
+    refreshStatus: () => Promise<void>
+    /** 刷新提交历史 */
+    refreshHistory: () => Promise<void>
+    /** 全量主动刷新（fetch + 本地状态 + 历史） */
+    refreshAll: () => Promise<void>
   /** Add 文件到暂存区 */
   addFile: (path: string) => Promise<void>
   /** Add 所有文件 */
@@ -228,6 +232,7 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   commitHistory: [],
   currentBranch: '',
   branches: [],
+  remoteBranches: [],
   commitsAhead: 0,
   commitsBehind: 0,
   loading: false,
@@ -341,10 +346,11 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({
       repos: newRepos,
       currentRepo: newCurrent,
-      fileStatuses: newCurrent ? get().fileStatuses : [],
+            fileStatuses: newCurrent ? get().fileStatuses : [],
       commitHistory: newCurrent ? get().commitHistory : [],
       currentBranch: newCurrent ? get().currentBranch : '',
-      branches: newCurrent ? get().branches : []
+      branches: newCurrent ? get().branches : [],
+      remoteBranches: newCurrent ? get().remoteBranches : []
     })
     await persistConfig(newRepos, newCurrent?.path || null)
   },
@@ -375,10 +381,16 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       }
       set({ currentRepo: updatedRepo, repos: newRepos })
 
-      const state = get()
-      await state.refreshAll()
+            // 先同步刷新本地状态确保 UI 及时响应
+            const state = get()
+            await state.refreshAllLocal()
+            set({ loading: false })
+            // 异步获取远程状态（不阻塞 UI）
+            state.refreshRemote().catch(err =>
+              console.error('[AppStore] switchRepo 异步远程刷新失败:', err)
+            )
     } catch (err) {
-      set({ error: `切换仓库失败: ${err}`, loading: false })
+            set({ error: `切换仓库失败: ${err}`, loading: false })
     }
   },
 
@@ -408,65 +420,117 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   // ── Git 操作 ─────────────────────────────────────────────
 
-  refreshStatus: async () => {
-    try {
-      const response = await window.electronAPI.invokeGit('staging.status')
-      if (response.success) {
-        set({ fileStatuses: (response.data as FileStatusInfo[]) || [] })
+    /** 刷新本地全部状态（文件状态、历史、分支、ahead/behind，不含远程 fetch） */
+    refreshAllLocal: async () => {
+      try {
+        const state = get()
+        await Promise.all([
+          state.refreshStatus(),
+          state.refreshHistory(),
+          (async () => {
+            try {
+              const [branchRes, currentRes] = await Promise.all([
+                window.electronAPI.invokeGit('branch.list'),
+                window.electronAPI.invokeGit('branch.current')
+              ])
+              if (branchRes.success) {
+                set({ branches: (branchRes.data as BranchInfo[]) || [] })
+              }
+              if (currentRes.success && currentRes.data) {
+                const data = currentRes.data as { branch: string }
+                set({ currentBranch: data.branch })
+                const abRes = await window.electronAPI.invokeGit('branch.aheadBehind', { branch: data.branch })
+                if (abRes.success && abRes.data) {
+                  const ab = abRes.data as { ahead: number; behind: number }
+                  set({ commitsAhead: ab.ahead, commitsBehind: ab.behind })
+                } else {
+                  set({ commitsAhead: 0, commitsBehind: 0 })
+                }
+              }
+            } catch (err) {
+              console.error('[AppStore] refreshAllLocal 本地分支刷新失败:', err)
+            }
+          })()
+        ])
+      } catch (err) {
+        console.error('[AppStore] refreshAllLocal 失败:', err)
       }
-    } catch (err) {
-      console.error('[AppStore] refreshStatus 失败:', err)
-    }
-  },
+    },
 
-  refreshHistory: async () => {
-    try {
-      const response = await window.electronAPI.invokeGit('commit.log', { max: 50 })
-      if (response.success) {
-        set({ commitHistory: (response.data as CommitRecord[]) || [] })
-      }
-    } catch (err) {
-      console.error('[AppStore] refreshHistory 失败:', err)
-    }
-  },
-
-  refreshBranches: async () => {
-    try {
-      const { currentRepo } = get()
-      if (currentRepo) {
-        await window.electronAPI.invokeGit('remote.fetch', remotePayload(currentRepo))
-      }
-
-      const [branchRes, currentRes] = await Promise.all([
-        window.electronAPI.invokeGit('branch.list'),
-        window.electronAPI.invokeGit('branch.current')
-      ])
-      if (branchRes.success) {
-        set({ branches: (branchRes.data as BranchInfo[]) || [] })
-      }
-      if (currentRes.success && currentRes.data) {
-        const data = currentRes.data as { branch: string }
-        set({ currentBranch: data.branch })
-        
-        const abRes = await window.electronAPI.invokeGit('branch.aheadBehind', { branch: data.branch })
-        if (abRes.success && abRes.data) {
-          const ab = abRes.data as { ahead: number, behind: number }
-          set({ commitsAhead: ab.ahead, commitsBehind: ab.behind })
-        } else {
-          set({ commitsAhead: 0, commitsBehind: 0 })
+        /** 刷新远程仓库状态（git fetch + 获取远程跟踪分支 + 刷新分支列表与 ahead/behind） */
+    refreshRemote: async () => {
+      try {
+        const { currentRepo } = get()
+        if (currentRepo) {
+          await window.electronAPI.invokeGit('remote.fetch', remotePayload(currentRepo))
         }
-      }
-    } catch (err) {
-      console.error('[AppStore] refreshBranches 失败:', err)
-    }
-  },
 
-  refreshAll: async () => {
-    set({ loading: true })
-    const state = get()
-    await Promise.all([state.refreshStatus(), state.refreshHistory(), state.refreshBranches()])
-    set({ loading: false })
-  },
+        const [branchRes, remoteBranchRes, currentRes] = await Promise.all([
+          window.electronAPI.invokeGit('branch.list'),
+          window.electronAPI.invokeGit('branch.listRemote'),
+          window.electronAPI.invokeGit('branch.current')
+        ])
+        if (branchRes.success) {
+          set({ branches: (branchRes.data as BranchInfo[]) || [] })
+        }
+                if (remoteBranchRes.success) {
+          const rawRemoteBranches = (remoteBranchRes.data as BranchInfo[]) || []
+          // 过滤掉 origin/HEAD 等远程 HEAD 符号引用
+          set({ remoteBranches: rawRemoteBranches.filter(rb => rb.name !== 'HEAD' && !rb.name.endsWith('/HEAD')) })
+        }
+        if (currentRes.success && currentRes.data) {
+          const data = currentRes.data as { branch: string }
+          set({ currentBranch: data.branch })
+
+          const abRes = await window.electronAPI.invokeGit('branch.aheadBehind', { branch: data.branch })
+          if (abRes.success && abRes.data) {
+            const ab = abRes.data as { ahead: number; behind: number }
+            set({ commitsAhead: ab.ahead, commitsBehind: ab.behind })
+          } else {
+            set({ commitsAhead: 0, commitsBehind: 0 })
+          }
+        }
+      } catch (err) {
+        console.error('[AppStore] refreshRemote 失败:', err)
+      }
+    },
+
+    /** 刷新仓库状态（仅文件变更状态） */
+    refreshStatus: async () => {
+      try {
+        const response = await window.electronAPI.invokeGit('staging.status')
+        if (response.success) {
+          set({ fileStatuses: (response.data as FileStatusInfo[]) || [] })
+        }
+      } catch (err) {
+        console.error('[AppStore] refreshStatus 失败:', err)
+      }
+    },
+
+    /** 刷新提交历史 */
+    refreshHistory: async () => {
+      try {
+        const response = await window.electronAPI.invokeGit('commit.log', { max: 50 })
+        if (response.success) {
+          set({ commitHistory: (response.data as CommitRecord[]) || [] })
+        }
+      } catch (err) {
+        console.error('[AppStore] refreshHistory 失败:', err)
+      }
+    },
+
+    /** 主动全量刷新（fetch + 本地状态 + 历史） */
+    refreshAll: async () => {
+      set({ loading: true })
+      const state = get()
+      // 主动刷新：优先获取远程状态（fetch + 分支），同时并行拉取本地状态和历史
+      await Promise.all([
+        state.refreshRemote(),
+        state.refreshStatus(),
+        state.refreshHistory()
+      ])
+      set({ loading: false })
+    },
 
   addFile: async (path: string) => {
     set({ operationLoading: 'add' })
@@ -577,15 +641,39 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
     set({ operationLoading: null })
   },
 
-  checkoutBranch: async (branch: string) => {
+        checkoutBranch: async (branch: string) => {
     set({ operationLoading: 'checkout' })
     try {
-      const response = await window.electronAPI.invokeGit('branch.checkout', { branch })
-      if (!response.success) {
-        set({ error: `切换分支失败: ${response.error}`, operationLoading: null })
-        return
+      const { branches, remoteBranches } = get()
+      const isLocalBranch = branches.some(b => b.name === branch)
+
+      if (isLocalBranch) {
+        // 本地已存在分支：直接切换
+        const response = await window.electronAPI.invokeGit('branch.checkout', { branch })
+        if (!response.success) {
+          set({ error: `切换分支失败: ${response.error}`, operationLoading: null })
+          return
+        }
+        set({ successMessage: `已切换到分支 ${branch}` })
+      } else {
+        // 本地不存在 → 尝试从远程跟踪分支创建并切换
+        const remoteRefName = `origin/${branch}`
+        const remoteBranch = remoteBranches.find(rb => rb.name === remoteRefName)
+        if (!remoteBranch) {
+          set({ error: `本地不存在分支 ${branch}，且远程也无对应跟踪分支`, operationLoading: null })
+          return
+        }
+        const response = await window.electronAPI.invokeGit('branch.checkoutNew', {
+          branch,
+          startFrom: remoteBranch.hash
+        })
+        if (!response.success) {
+          set({ error: `创建并切换分支失败: ${response.error}`, operationLoading: null })
+          return
+        }
+        set({ successMessage: `已创建并切换到分支 ${branch}` })
       }
-      set({ successMessage: `已切换到分支 ${branch}` })
+
       await get().refreshAll()
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {

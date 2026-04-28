@@ -1644,3 +1644,26 @@ body {
 .ig-remote-detail .ig-form-group:last-child {
   margin-bottom: 0;
 }
+
+/* ── 分支标记（本地/远程标签） ─────────────────────────── */
+.ig-branch-name { flex: 1; }
+.ig-branch-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.ig-branch-tag-local {
+  background: rgba(88,166,255,0.12);
+  color: var(--accent-blue);
+}
+.ig-branch-tag-remote {
+  background: rgba(163,120,222,0.15);
+  color: #a378de;
+}
+.ig-dropdown-empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+

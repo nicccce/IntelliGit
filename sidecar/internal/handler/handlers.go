@@ -348,7 +348,8 @@ func handleCheckoutNew(ctx *Context) (any, error) {
 		return nil, err
 	}
 	var params struct {
-		Branch string `json:"branch"`
+		Branch    string `json:"branch"`
+		StartFrom string `json:"startFrom"`
 	}
 	if err := ctx.Bind(&params); err != nil {
 		return nil, err
@@ -356,7 +357,7 @@ func handleCheckoutNew(ctx *Context) (any, error) {
 	if params.Branch == "" {
 		return nil, errMissingParam("branch")
 	}
-	return nil, repo.CheckoutNewBranch(params.Branch)
+	return nil, repo.CheckoutNewBranch(params.Branch, params.StartFrom)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

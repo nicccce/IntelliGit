@@ -294,7 +294,7 @@ func TestPushOnlyPushesCurrentBranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("clone other: %v", err)
 	}
-	if err := other.CheckoutNewBranch("feature"); err != nil {
+	if err := other.CheckoutNewBranch("feature", "master"); err != nil {
 		t.Fatalf("checkout other feature: %v", err)
 	}
 	featurePath := filepath.Join(otherPath, "feature.txt")

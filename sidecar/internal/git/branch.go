@@ -133,17 +133,24 @@ func (r *Repository) Checkout(branch string) error {
 	return nil
 }
 
-// CheckoutNewBranch 创建并切换到新分支（git checkout -b <branch>）
-func (r *Repository) CheckoutNewBranch(branch string) error {
+// CheckoutNewBranch 创建并切换到新分支（git checkout -b <branch> [<startPoint>]）
+// 如果 startPoint 不为空，则从指定的 commit hash 创建分支；否则从当前 HEAD 创建。
+func (r *Repository) CheckoutNewBranch(branch string, startPoint string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
 	}
 
-	if err := wt.Checkout(&gogit.CheckoutOptions{
+	opts := &gogit.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branch),
 		Create: true,
-	}); err != nil {
+	}
+
+	if startPoint != "" {
+		opts.Hash = plumbing.NewHash(startPoint)
+	}
+
+	if err := wt.Checkout(opts); err != nil {
 		return fmt.Errorf("创建并切换分支失败 (%s): %w", branch, err)
 	}
 	return nil
