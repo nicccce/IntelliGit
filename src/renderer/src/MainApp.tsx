@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /**
  * @file MainApp.tsx — IntelliGit 正式前端界面
  * @description GitHub Desktop 风格的 Git 仓库管理界面。
@@ -14,7 +15,7 @@ function statusIcon(code: string): string {
     case 'A': return '＋'
     case 'D': return '✕'
     case 'R': return '➜'
-    case '?': return '?'
+    case '?': return '＋'
     default: return ' '
   }
 }
@@ -23,7 +24,7 @@ function statusColor(code: string): string {
     case 'M': return 'var(--accent-orange)'
     case 'A': return 'var(--accent-green)'
     case 'D': return 'var(--accent-red)'
-    case '?': return 'var(--text-muted)'
+    case '?': return 'var(--accent-green)'
     default: return 'var(--text-secondary)'
   }
 }
