@@ -1,0 +1,256 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); font-size: 13px; color: var(--color-text-primary); }
+.app { display: flex; flex-direction: column; height: 620px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); }
+.topbar { height: 40px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 10px; background: var(--color-background-secondary); flex-shrink: 0; }
+.topbar-logo { font-weight: 500; font-size: 13px; color: var(--color-text-primary); }
+.repo-selector { font-size: 12px; color: var(--color-text-secondary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 3px 8px; }
+.branch-badge { font-size: 11px; background: var(--color-background-info); color: var(--color-text-info); border-radius: var(--border-radius-md); padding: 2px 8px; }
+.nlp-box { flex: 1; font-size: 12px; color: var(--color-text-tertiary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 4px 10px; max-width: 240px; }
+.spacer { flex: 1; }
+.topbar-actions { display: flex; gap: 6px; }
+.tb-btn { font-size: 11px; padding: 3px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.tb-btn.push { color: var(--color-text-info); border-color: var(--color-border-info); }
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 52px; border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px; background: var(--color-background-secondary); flex-shrink: 0; }
+.nav-item { width: 36px; height: 36px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; color: var(--color-text-tertiary); }
+.nav-item.active { background: var(--color-background-primary); color: var(--color-text-info); border: 0.5px solid var(--color-border-tertiary); }
+.nav-item .badge { position: absolute; top: 4px; right: 4px; width: 14px; height: 14px; border-radius: 50%; background: #E24B4A; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+.nav-icon { font-size: 16px; }
+.content { display: flex; flex: 1; overflow: hidden; }
+.file-list { width: 200px; border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.file-list-header { padding: 8px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; justify-content: space-between; }
+.file-list-title { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.intent-toggle { font-size: 10px; color: var(--color-text-info); cursor: pointer; }
+.section-header { padding: 6px 10px; font-size: 11px; color: var(--color-text-tertiary); display: flex; align-items: center; justify-content: space-between; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.file-item { padding: 5px 10px; display: flex; align-items: center; gap: 6px; cursor: pointer; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.file-item.active { background: var(--color-background-info); }
+.file-status { font-size: 10px; font-weight: 500; width: 14px; text-align: center; border-radius: 3px; padding: 1px 0; }
+.file-status.M { color: #185FA5; background: #E6F1FB; }
+.file-status.A { color: #3B6D11; background: #EAF3DE; }
+.file-status.D { color: #A32D2D; background: #FCEBEB; }
+.file-name { font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-diff-stat { font-size: 10px; color: var(--color-text-tertiary); }
+.ast-tag { font-size: 10px; color: var(--color-text-tertiary); padding: 1px 5px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin-left: auto; }
+.diff-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.diff-header { padding: 8px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 8px; background: var(--color-background-secondary); }
+.diff-filename { font-size: 12px; font-weight: 500; font-family: var(--font-mono); }
+.diff-view-toggle { font-size: 11px; color: var(--color-text-tertiary); padding: 2px 6px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); cursor: pointer; }
+.diff-content { flex: 1; overflow: auto; font-family: var(--font-mono); font-size: 11px; }
+.diff-hunk-header { padding: 3px 10px; background: var(--color-background-info); color: var(--color-text-info); font-size: 10px; display: flex; align-items: center; gap: 8px; }
+.hunk-stage-btn { font-size: 10px; margin-left: auto; padding: 1px 6px; border: 0.5px solid var(--color-border-info); border-radius: 3px; color: var(--color-text-info); cursor: pointer; background: transparent; }
+.diff-line { display: flex; }
+.diff-line-num { width: 32px; text-align: right; padding: 1px 6px; color: var(--color-text-tertiary); font-size: 10px; background: var(--color-background-secondary); border-right: 0.5px solid var(--color-border-tertiary); flex-shrink: 0; user-select: none; }
+.diff-line-content { padding: 1px 8px; flex: 1; white-space: pre; }
+.diff-line.added .diff-line-content { background: #EAF3DE; color: #3B6D11; }
+.diff-line.removed .diff-line-content { background: #FCEBEB; color: #A32D2D; }
+.diff-line.added .diff-line-num { background: #C0DD97; color: #27500A; }
+.diff-line.removed .diff-line-num { background: #F7C1C1; color: #791F1F; }
+.commit-panel { width: 220px; border-left: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.commit-panel-header { padding: 8px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 11px; font-weight: 500; color: var(--color-text-secondary); background: var(--color-background-secondary); }
+.commit-panel-body { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.ai-btn { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 0.5px solid var(--color-border-info); border-radius: var(--border-radius-md); background: var(--color-background-info); color: var(--color-text-info); font-size: 12px; cursor: pointer; font-weight: 500; width: 100%; justify-content: center; }
+.ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-info); }
+.field-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+.commit-subject { width: 100%; font-size: 12px; padding: 6px 8px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-family: var(--font-sans); background: var(--color-background-primary); color: var(--color-text-primary); resize: none; }
+.commit-body { width: 100%; font-size: 11px; padding: 6px 8px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-family: var(--font-sans); height: 80px; background: var(--color-background-primary); color: var(--color-text-primary); resize: none; }
+.char-count { text-align: right; font-size: 10px; color: var(--color-text-tertiary); }
+.sandbox-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-text-secondary); }
+.toggle { width: 28px; height: 16px; border-radius: 8px; background: var(--color-border-secondary); position: relative; cursor: pointer; flex-shrink: 0; }
+.commit-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+.commit-btn { padding: 7px; border-radius: var(--border-radius-md); font-size: 12px; font-weight: 500; cursor: pointer; text-align: center; }
+.commit-btn.primary { background: #185FA5; color: white; border: none; }
+.commit-btn.secondary { background: transparent; border: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+.statusbar { height: 24px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 16px; background: var(--color-background-secondary); flex-shrink: 0; }
+.status-item { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-dot.green { background: #1D9E75; }
+.status-dot.blue { background: #185FA5; }
+.ai-generated-badge { font-size: 10px; padding: 2px 6px; background: var(--color-background-warning); color: var(--color-text-warning); border-radius: var(--border-radius-md); }
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <span class="topbar-logo">IntelliGit</span>
+    <span class="repo-selector">intelligit-app</span>
+    <span class="branch-badge">main</span>
+    <div class="nlp-box">告诉我你想做什么... (⌘K)</div>
+    <div class="spacer"></div>
+    <div class="topbar-actions">
+      <button class="tb-btn">Fetch</button>
+      <button class="tb-btn">Pull</button>
+      <button class="tb-btn push">Push ↑1</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-item active" title="提交工作区">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="10" height="2" rx="1" fill="currentColor"/></svg>
+        <span class="badge">3</span>
+      </div>
+      <div class="nav-item" title="分支拓扑图">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="12" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 6v4M6 4h4M10 5l-4 5.5" stroke="currentColor" stroke-width="1.2"/></svg>
+      </div>
+      <div class="nav-item" title="风险管控">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="7.4" y="6" width="1.2" height="4" rx="0.6" fill="currentColor"/><circle cx="8" cy="11.5" r="0.7" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item" title="NLP 助手">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 13h6M8 11v2" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="8" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item" title="沙箱验证">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 8l1.5 1.5L10 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1"></div>
+      <div class="nav-item" title="设置">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14M3.5 3.5l1 1M11.5 11.5l1 1M12.5 3.5l-1 1M4.5 11.5l-1 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="file-list">
+        <div class="file-list-header">
+          <span class="file-list-title">变更</span>
+          <span class="intent-toggle">按意图分组</span>
+        </div>
+
+        <div class="section-header">
+          <span>已暂存 (1)</span>
+          <span style="font-size:10px;color:var(--color-text-tertiary)">全部取消</span>
+        </div>
+        <div class="file-item">
+          <span class="file-status M">M</span>
+          <span class="file-name">auth.ts</span>
+          <span class="file-diff-stat" style="color:#3B6D11">+12</span>
+        </div>
+
+        <div class="section-header">
+          <span>未暂存 (3)</span>
+          <span style="font-size:10px;color:var(--color-text-info)">全部暂存</span>
+        </div>
+        <div class="file-item active">
+          <span class="file-status M">M</span>
+          <span class="file-name">user.model.ts</span>
+          <span class="file-diff-stat" style="color:#3B6D11">+5</span>
+          <span class="file-diff-stat" style="color:#A32D2D">-2</span>
+        </div>
+        <div class="file-item">
+          <span class="file-status A">A</span>
+          <span class="file-name">token.service.ts</span>
+          <span class="file-diff-stat" style="color:#3B6D11">+38</span>
+        </div>
+        <div class="file-item">
+          <span class="file-status D">D</span>
+          <span class="file-name">legacy-utils.ts</span>
+          <span class="file-diff-stat" style="color:#A32D2D">-67</span>
+        </div>
+      </div>
+
+      <div class="diff-view">
+        <div class="diff-header">
+          <span class="diff-filename">src/models/user.model.ts</span>
+          <span class="ast-tag">在 UserModel.validateToken 内</span>
+          <div class="spacer"></div>
+          <span class="diff-view-toggle">分栏</span>
+        </div>
+        <div class="diff-content">
+          <div class="diff-hunk-header">
+            @@ -42,7 +42,10 @@ class UserModel
+            <span style="color:#185FA5;font-size:10px;font-style:italic">函数: validateToken()</span>
+            <button class="hunk-stage-btn">暂存此块</button>
+          </div>
+          <div class="diff-line">
+            <span class="diff-line-num">42</span>
+            <span class="diff-line-content"> async validateToken(token: string) {</span>
+          </div>
+          <div class="diff-line">
+            <span class="diff-line-num">43</span>
+            <span class="diff-line-content">   const payload = jwt.verify(token, secret);</span>
+          </div>
+          <div class="diff-line removed">
+            <span class="diff-line-num">44</span>
+            <span class="diff-line-content">-  if (payload.exp &lt; Date.now()) return false;</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">44</span>
+            <span class="diff-line-content">+  const expiry = payload.exp * 1000;</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">45</span>
+            <span class="diff-line-content">+  if (expiry &lt; Date.now()) {</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">46</span>
+            <span class="diff-line-content">+    await this.refreshToken(token);</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">47</span>
+            <span class="diff-line-content">+    return true;</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">48</span>
+            <span class="diff-line-content">+  }</span>
+          </div>
+          <div class="diff-line">
+            <span class="diff-line-num">49</span>
+            <span class="diff-line-content">   return !!payload.userId;</span>
+          </div>
+          <div class="diff-line">
+            <span class="diff-line-num">50</span>
+            <span class="diff-line-content"> }</span>
+          </div>
+          <div class="diff-hunk-header" style="margin-top:4px">
+            @@ -78,4 +83,4 @@ class UserModel
+            <span style="color:#185FA5;font-size:10px;font-style:italic">函数: getUserById()</span>
+            <button class="hunk-stage-btn">暂存此块</button>
+          </div>
+          <div class="diff-line removed">
+            <span class="diff-line-num">78</span>
+            <span class="diff-line-content">-  const refreshThreshold = 60;</span>
+          </div>
+          <div class="diff-line added">
+            <span class="diff-line-num">78</span>
+            <span class="diff-line-content">+  const refreshThreshold = 300;</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="commit-panel">
+        <div class="commit-panel-header">提交</div>
+        <div class="commit-panel-body">
+          <button class="ai-btn">
+            <span class="ai-dot"></span>
+            AI 生成提交信息
+          </button>
+          <div>
+            <div class="field-label">主题 <span style="float:right;color:var(--color-text-tertiary)">47/50</span></div>
+            <textarea class="commit-subject" rows="2">fix(auth): 修复令牌过期后未自动刷新的问题</textarea>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <span class="ai-generated-badge">AI 生成</span>
+              <span style="font-size:10px;color:var(--color-text-tertiary)">请确认后提交</span>
+            </div>
+          </div>
+          <div>
+            <div class="field-label">详情</div>
+            <textarea class="commit-body">令牌过期判断使用了秒级时间戳与毫秒级 Date.now() 对比，导致令牌始终显示过期。同时新增自动刷新逻辑，避免用户被强制登出。</textarea>
+          </div>
+          <div class="sandbox-row">
+            <div class="toggle"></div>
+            <span>提交前运行沙箱验证</span>
+          </div>
+          <div class="commit-actions">
+            <div class="commit-btn primary">提交 (1 个文件已暂存)</div>
+            <div class="commit-btn secondary">提交并推送</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <div class="status-item"><span class="status-dot green"></span>引擎就绪</div>
+    <div class="status-item"><span class="status-dot blue"></span>API 已连接</div>
+    <div class="status-item" style="margin-left:auto">↑1 ↓0 · main</div>
+  </div>
+</div>

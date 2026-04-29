@@ -1,0 +1,183 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.app { display: flex; flex-direction: column; height: 620px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); font-family: var(--font-sans); font-size: 13px; color: var(--color-text-primary); }
+.topbar { height: 40px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 10px; background: var(--color-background-secondary); flex-shrink: 0; }
+.topbar-logo { font-weight: 500; font-size: 13px; }
+.repo-selector { font-size: 12px; color: var(--color-text-secondary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 3px 8px; }
+.branch-badge { font-size: 11px; background: var(--color-background-info); color: var(--color-text-info); border-radius: var(--border-radius-md); padding: 2px 8px; }
+.nlp-box-active { flex: 1; font-size: 12px; color: var(--color-text-primary); background: var(--color-background-primary); border: 1.5px solid #185FA5; border-radius: var(--border-radius-md); padding: 4px 10px; max-width: 240px; font-weight: 500; }
+.spacer { flex: 1; }
+.tb-btn { font-size: 11px; padding: 3px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.tb-btn.push { color: var(--color-text-info); border-color: var(--color-border-info); }
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 52px; border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px; background: var(--color-background-secondary); flex-shrink: 0; }
+.nav-item { width: 36px; height: 36px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-tertiary); }
+.nav-item.active { background: var(--color-background-primary); color: var(--color-text-info); border: 0.5px solid var(--color-border-tertiary); }
+.page-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+/* Main NLP full page */
+.nlp-page { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.nlp-page-header { padding: 16px 20px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.nlp-page-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+.nlp-page-sub { font-size: 12px; color: var(--color-text-secondary); }
+.nlp-input-area { padding: 14px 20px; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.nlp-input-big { width: 100%; font-size: 14px; padding: 10px 14px; border: 1.5px solid #185FA5; border-radius: var(--border-radius-lg); background: var(--color-background-primary); color: var(--color-text-primary); font-family: var(--font-sans); }
+.nlp-preview { margin-top: 8px; display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); }
+.preview-label { font-size: 11px; color: var(--color-text-tertiary); flex-shrink: 0; margin-top: 1px; }
+.preview-cmd { font-family: var(--font-mono); font-size: 13px; color: var(--color-text-primary); flex: 1; }
+.risk-safe { font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); background: #EAF3DE; color: #27500A; flex-shrink: 0; }
+.risk-high { font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); background: #FAEEDA; color: #633806; flex-shrink: 0; }
+.risk-danger { font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); background: #FCEBEB; color: #791F1F; flex-shrink: 0; }
+.exec-row { display: flex; gap: 8px; margin-top: 8px; }
+.exec-btn { padding: 6px 16px; border-radius: var(--border-radius-md); font-size: 12px; cursor: pointer; font-weight: 500; }
+.exec-btn.confirm { background: #185FA5; color: white; border: none; }
+.exec-btn.cancel { background: transparent; border: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+.history-section { flex: 1; overflow: auto; }
+.history-header { padding: 10px 20px 6px; font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between; }
+.history-item { padding: 10px 20px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: flex-start; gap: 12px; }
+.history-item:hover { background: var(--color-background-secondary); }
+.history-time { font-size: 10px; color: var(--color-text-tertiary); flex-shrink: 0; width: 60px; padding-top: 1px; }
+.history-body { flex: 1; }
+.history-nl { font-size: 12px; color: var(--color-text-primary); margin-bottom: 3px; }
+.history-cmd { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary); }
+.history-result { font-size: 10px; padding: 1px 6px; border-radius: var(--border-radius-md); flex-shrink: 0; margin-top: 2px; }
+.history-result.ok { background: #EAF3DE; color: #27500A; }
+.history-result.fail { background: #FCEBEB; color: #791F1F; }
+.quick-actions { padding: 10px 20px; border-top: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); display: flex; gap: 6px; flex-wrap: wrap; }
+.quick-chip { font-size: 11px; padding: 4px 10px; border: 0.5px solid var(--color-border-tertiary); border-radius: 20px; background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; }
+.quick-chip:hover { border-color: var(--color-border-info); color: var(--color-text-info); }
+.statusbar { height: 24px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 16px; background: var(--color-background-secondary); flex-shrink: 0; }
+.status-item { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-dot.green { background: #1D9E75; }
+.status-dot.blue { background: #185FA5; }
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <span class="topbar-logo">IntelliGit</span>
+    <span class="repo-selector">intelligit-app</span>
+    <span class="branch-badge">main</span>
+    <div class="nlp-box-active">把刚才的提交撤销，保留代码</div>
+    <div class="spacer"></div>
+    <button class="tb-btn">Fetch</button>
+    <button class="tb-btn">Pull</button>
+    <button class="tb-btn push">Push ↑1</button>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="10" height="2" rx="1" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="12" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 6v4M6 4h4" stroke="currentColor" stroke-width="1.2"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="7.4" y="6" width="1.2" height="4" rx="0.6" fill="currentColor"/><circle cx="8" cy="11.5" r="0.7" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="8" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 8l1.5 1.5L10 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1"></div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+
+    <div class="page-content">
+      <div class="nlp-page">
+        <div class="nlp-page-header">
+          <div class="nlp-page-title">自然语言 Git 助手</div>
+          <div class="nlp-page-sub">用自然语言描述你想做的操作，AI 将转译为 Git 命令并在执行前请求确认。</div>
+        </div>
+
+        <div class="nlp-input-area">
+          <input class="nlp-input-big" value="把刚才的提交撤销，但我不想丢掉修改的代码" />
+          <div class="nlp-preview">
+            <span class="preview-label">转译为</span>
+            <span class="preview-cmd">git reset --soft HEAD~1</span>
+            <span class="risk-high">🟡 高危</span>
+          </div>
+          <div style="font-size:11px;color:#854F0B;margin-top:6px;padding:0 2px">此操作将移动 HEAD 指针到上一个 commit，暂存区和工作区的代码会被保留。</div>
+          <div class="exec-row">
+            <button class="exec-btn confirm">确认执行</button>
+            <button class="exec-btn cancel">取消</button>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <span style="font-size:11px;color:var(--color-text-tertiary);padding:4px 0;">常用操作：</span>
+          <span class="quick-chip">撤销最近一次提交</span>
+          <span class="quick-chip">切换到新分支</span>
+          <span class="quick-chip">查看最近的修改记录</span>
+          <span class="quick-chip">把 dev 合并过来</span>
+          <span class="quick-chip">推送到远程</span>
+        </div>
+
+        <div class="history-section">
+          <div class="history-header">
+            <span>执行历史</span>
+            <span style="font-size:11px;color:var(--color-text-tertiary);font-weight:400;text-transform:none;letter-spacing:0">今天 · 共 5 条</span>
+          </div>
+
+          <div class="history-item">
+            <span class="history-time">14:02</span>
+            <div class="history-body">
+              <div class="history-nl">创建一个新分支叫 feature-login 并切换过去</div>
+              <div class="history-cmd">git checkout -b feature-login</div>
+            </div>
+            <span class="history-result ok">成功</span>
+          </div>
+
+          <div class="history-item">
+            <span class="history-time">13:45</span>
+            <div class="history-body">
+              <div class="history-nl">看看最近三天谁改了 auth.ts</div>
+              <div class="history-cmd">git log --since="3 days ago" -- src/services/auth.ts</div>
+            </div>
+            <span class="history-result ok">成功</span>
+          </div>
+
+          <div class="history-item">
+            <span class="history-time">13:20</span>
+            <div class="history-body">
+              <div class="history-nl">强制推送到远程</div>
+              <div class="history-cmd">git push --force</div>
+              <div style="font-size:10px;color:#854F0B;margin-top:2px">已阻止：需在设置中显式解锁极高危操作</div>
+            </div>
+            <span class="history-result fail">已阻止</span>
+          </div>
+
+          <div class="history-item">
+            <span class="history-time">11:58</span>
+            <div class="history-body">
+              <div class="history-nl">把 dev 分支的内容合并过来</div>
+              <div class="history-cmd">git merge dev</div>
+            </div>
+            <span class="history-result ok">成功</span>
+          </div>
+
+          <div class="history-item">
+            <span class="history-time">10:30</span>
+            <div class="history-body">
+              <div class="history-nl">把最新代码推到远程</div>
+              <div class="history-cmd">git push origin main</div>
+            </div>
+            <span class="history-result ok">成功</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <div class="status-item"><span class="status-dot green"></span>引擎就绪</div>
+    <div class="status-item"><span class="status-dot blue"></span>API 已连接</div>
+    <div class="status-item" style="margin-left:auto">↑1 ↓0 · main</div>
+  </div>
+</div>

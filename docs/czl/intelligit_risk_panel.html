@@ -1,0 +1,210 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.app { display: flex; flex-direction: column; height: 620px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); font-family: var(--font-sans); font-size: 13px; color: var(--color-text-primary); }
+.topbar { height: 40px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 10px; background: var(--color-background-secondary); flex-shrink: 0; }
+.topbar-logo { font-weight: 500; font-size: 13px; }
+.repo-selector { font-size: 12px; color: var(--color-text-secondary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 3px 8px; }
+.branch-badge { font-size: 11px; background: var(--color-background-info); color: var(--color-text-info); border-radius: var(--border-radius-md); padding: 2px 8px; }
+.nlp-box { flex: 1; font-size: 12px; color: var(--color-text-tertiary); background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 4px 10px; max-width: 240px; }
+.spacer { flex: 1; }
+.tb-btn { font-size: 11px; padding: 3px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.tb-btn.push { color: var(--color-text-info); border-color: var(--color-border-info); }
+.main { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 52px; border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px; background: var(--color-background-secondary); flex-shrink: 0; }
+.nav-item { width: 36px; height: 36px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-tertiary); }
+.nav-item.active { background: var(--color-background-primary); color: var(--color-text-danger); border: 0.5px solid var(--color-border-tertiary); }
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.merge-selector { padding: 10px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; background: var(--color-background-secondary); flex-shrink: 0; }
+.branch-pill { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.branch-pill .dot { width: 7px; height: 7px; border-radius: 50%; }
+.arrow { font-size: 14px; color: var(--color-text-tertiary); }
+.recheck-btn { font-size: 11px; padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; margin-left: auto; }
+.alert-banner { padding: 8px 16px; background: #FCEBEB; border-bottom: 0.5px solid #F7C1C1; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.alert-icon { width: 16px; height: 16px; border-radius: 50%; background: #E24B4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.alert-text { font-size: 12px; color: #791F1F; }
+.tab-bar { display: flex; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); flex-shrink: 0; }
+.tab { padding: 8px 16px; font-size: 12px; cursor: pointer; color: var(--color-text-secondary); border-bottom: 2px solid transparent; }
+.tab.active { color: var(--color-text-primary); border-bottom-color: #185FA5; font-weight: 500; }
+.two-col { display: flex; flex: 1; overflow: hidden; }
+.conflict-list { width: 280px; border-right: 0.5px solid var(--color-border-tertiary); overflow: auto; flex-shrink: 0; }
+.conflict-item { border-bottom: 0.5px solid var(--color-border-tertiary); }
+.conflict-item-header { padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.conflict-item-header:hover { background: var(--color-background-secondary); }
+.conflict-item-header.active { background: #FCEBEB; }
+.conflict-file { font-size: 12px; font-family: var(--font-mono); flex: 1; }
+.conflict-count { font-size: 10px; color: var(--color-text-danger); background: #FCEBEB; padding: 1px 6px; border-radius: var(--border-radius-md); }
+.conflict-expand { font-size: 10px; color: var(--color-text-tertiary); }
+.conflict-detail { padding: 0 12px 10px; }
+.three-col-diff { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; margin-top: 6px; }
+.diff-col { overflow: hidden; }
+.diff-col-header { padding: 3px 6px; font-size: 10px; font-weight: 500; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.diff-col-header.ancestor { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+.diff-col-header.ours { background: #EAF3DE; color: #27500A; }
+.diff-col-header.theirs { background: #E6F1FB; color: #0C447C; }
+.diff-col + .diff-col { border-left: 0.5px solid var(--color-border-tertiary); }
+.diff-code { padding: 5px 6px; font-size: 10px; font-family: var(--font-mono); line-height: 1.5; color: var(--color-text-primary); background: var(--color-background-primary); }
+.diff-code.ours { background: #EAF3DE; }
+.diff-code.theirs { background: #E6F1FB; }
+.ai-fix-btn { margin-top: 7px; width: 100%; padding: 5px; font-size: 11px; border: 0.5px solid var(--color-border-info); border-radius: var(--border-radius-md); background: var(--color-background-info); color: var(--color-text-info); cursor: pointer; text-align: center; }
+.semantic-list { padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+.semantic-item { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; }
+.semantic-item-header { padding: 7px 10px; display: flex; align-items: flex-start; gap: 8px; }
+.risk-tag { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: var(--border-radius-md); flex-shrink: 0; margin-top: 1px; }
+.risk-tag.high { background: #FCEBEB; color: #A32D2D; }
+.risk-tag.mid { background: #FAEEDA; color: #854F0B; }
+.risk-tag.low { background: #E6F1FB; color: #185FA5; }
+.semantic-desc { font-size: 12px; line-height: 1.4; }
+.semantic-loc { font-size: 10px; color: var(--color-text-tertiary); font-family: var(--font-mono); margin-top: 3px; }
+.ai-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.ai-panel-header { padding: 8px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); font-size: 11px; font-weight: 500; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+.ai-dot { width: 6px; height: 6px; border-radius: 50%; background: #185FA5; }
+.ai-panel-body { flex: 1; padding: 10px 12px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.strategy-block { background: var(--color-background-info); border: 0.5px solid var(--color-border-info); border-radius: var(--border-radius-md); padding: 8px 10px; }
+.strategy-title { font-size: 11px; font-weight: 500; color: var(--color-text-info); margin-bottom: 4px; }
+.strategy-text { font-size: 11px; color: var(--color-text-primary); line-height: 1.5; }
+.code-block { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 8px; font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--color-text-primary); }
+.apply-btn { padding: 6px; border-radius: var(--border-radius-md); background: #185FA5; color: white; font-size: 12px; cursor: pointer; text-align: center; border: none; }
+.chat-input-row { padding: 8px 12px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; }
+.chat-input { flex: 1; font-size: 12px; padding: 5px 8px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); color: var(--color-text-primary); }
+.chat-send { padding: 5px 10px; border-radius: var(--border-radius-md); background: var(--color-background-info); color: var(--color-text-info); border: none; font-size: 12px; cursor: pointer; }
+.statusbar { height: 24px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; padding: 0 12px; gap: 16px; background: var(--color-background-secondary); flex-shrink: 0; }
+.status-item { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.status-dot.green { background: #1D9E75; }
+.status-dot.blue { background: #185FA5; }
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <span class="topbar-logo">IntelliGit</span>
+    <span class="repo-selector">intelligit-app</span>
+    <span class="branch-badge">main</span>
+    <div class="nlp-box">告诉我你想做什么... (⌘K)</div>
+    <div class="spacer"></div>
+    <button class="tb-btn">Fetch</button>
+    <button class="tb-btn">Pull</button>
+    <button class="tb-btn push">Push ↑1</button>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="2" rx="1" fill="currentColor"/><rect x="2" y="7" width="8" height="2" rx="1" fill="currentColor"/><rect x="2" y="12" width="10" height="2" rx="1" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="12" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 6v4M6 4h4" stroke="currentColor" stroke-width="1.2"/></svg>
+      </div>
+      <div class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="7.4" y="6" width="1.2" height="4" rx="0.6" fill="currentColor"/><circle cx="8" cy="11.5" r="0.7" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="8" rx="2" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="8" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>
+      </div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M6 8l1.5 1.5L10 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1"></div>
+      <div class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v1.5M8 12.5V14M2 8h1.5M12.5 8H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="merge-selector">
+        <div class="branch-pill"><span class="dot" style="background:#185FA5"></span>main</div>
+        <span class="arrow">←</span>
+        <div class="branch-pill"><span class="dot" style="background:#E24B4A"></span>fix/token-bug <span style="font-size:10px;color:var(--color-text-tertiary)">▼</span></div>
+        <button class="recheck-btn">重新检测</button>
+      </div>
+
+      <div class="alert-banner">
+        <div class="alert-icon">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1L9 9H1L5 1z" fill="white"/><rect x="4.5" y="4" width="1" height="3" rx="0.5" fill="#E24B4A"/><circle cx="5" cy="8" r="0.5" fill="#E24B4A"/></svg>
+        </div>
+        <span class="alert-text">检测到 2 处文本冲突、1 处语义碰撞，合并前请先处理冲突</span>
+        <div class="spacer"></div>
+        <span style="font-size:11px;color:#A32D2D;cursor:pointer">查看全部</span>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab active">影子合并预检 (2)</div>
+        <div class="tab">语义冲突告警 (1)</div>
+      </div>
+
+      <div class="two-col">
+        <div class="conflict-list">
+          <div class="conflict-item">
+            <div class="conflict-item-header active">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L11 10H1L6 1z" fill="#E24B4A"/><rect x="5.5" y="4" width="1" height="3" rx="0.5" fill="white"/><circle cx="6" cy="8.5" r="0.5" fill="white"/></svg>
+              <span class="conflict-file">src/models/user.model.ts</span>
+              <span class="conflict-count">2 处</span>
+              <span class="conflict-expand">▲</span>
+            </div>
+            <div class="conflict-detail">
+              <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:5px">冲突区域 #1 · 第 44–50 行 · UserModel.validateToken</div>
+              <div class="three-col-diff">
+                <div class="diff-col">
+                  <div class="diff-col-header ancestor">祖先版本</div>
+                  <div class="diff-code">if (payload.exp<br>&lt; Date.now())<br>  return false;</div>
+                </div>
+                <div class="diff-col">
+                  <div class="diff-col-header ours">我们 (main)</div>
+                  <div class="diff-code ours">const exp =<br>payload.exp*1000;<br>if (exp&lt;Date.now())<br>  refresh();</div>
+                </div>
+                <div class="diff-col">
+                  <div class="diff-col-header theirs">他们 (fix/token)</div>
+                  <div class="diff-code theirs">if (!payload.exp)<br>  throw Error();<br>return payload<br>  .isValid;</div>
+                </div>
+              </div>
+              <button class="ai-fix-btn">AI 修复建议</button>
+            </div>
+          </div>
+
+          <div class="conflict-item">
+            <div class="conflict-item-header">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1L11 10H1L6 1z" fill="#E24B4A"/><rect x="5.5" y="4" width="1" height="3" rx="0.5" fill="white"/><circle cx="6" cy="8.5" r="0.5" fill="white"/></svg>
+              <span class="conflict-file">src/services/auth.ts</span>
+              <span class="conflict-count">1 处</span>
+              <span class="conflict-expand">▼</span>
+            </div>
+          </div>
+
+          <div style="padding:12px;text-align:center;border-top:0.5px solid var(--color-border-tertiary)">
+            <div style="font-size:11px;color:var(--color-text-tertiary);margin-bottom:8px">解决所有冲突后可执行合并</div>
+            <div style="padding:7px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-tertiary);font-size:12px;cursor:not-allowed">立即合并（不可用）</div>
+          </div>
+        </div>
+
+        <div class="ai-panel">
+          <div class="ai-panel-header">
+            <span class="ai-dot"></span>
+            AI 冲突修复助手 · user.model.ts #1
+          </div>
+          <div class="ai-panel-body">
+            <div class="strategy-block">
+              <div class="strategy-title">推荐策略</div>
+              <div class="strategy-text">建议保留 <strong style="font-weight:500">main</strong> 分支对时间戳单位的修正（秒→毫秒），同时补充 <strong style="font-weight:500">fix/token-bug</strong> 分支新增的空值校验逻辑，两者并不冲突，可以合并。</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:5px">建议代码</div>
+              <div class="code-block">if (!payload.exp) throw new Error();<br>const exp = payload.exp * 1000;<br>if (exp &lt; Date.now()) {<br>  await this.refreshToken(token);<br>  return true;<br>}<br>return payload.isValid;</div>
+            </div>
+            <button class="apply-btn">应用建议</button>
+            <div style="font-size:11px;color:var(--color-text-secondary)">对此建议有疑问？可在下方追问。</div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-input" placeholder="追问 AI，例如：为什么不保留 theirs 的版本？" />
+            <button class="chat-send">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <div class="status-item"><span class="status-dot green"></span>引擎就绪</div>
+    <div class="status-item"><span class="status-dot blue"></span>API 已连接</div>
+    <div class="status-item" style="margin-left:auto">↑1 ↓0 · main</div>
+  </div>
+</div>
