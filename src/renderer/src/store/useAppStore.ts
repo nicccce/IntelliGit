@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /**
  * @file 应用状态管理（Zustand）
  * @description 管理仓库列表、当前仓库、配置持久化、Git 状态等全局状态。
@@ -154,7 +155,7 @@ interface RemoteInfo {
 
 /**
  * 检测远程仓库实际配置，并与存储配置比对。
- * 若 remoteUrl 未变化则保留原有认证，否则清空认证。
+ * 若对应类型的 URL 未变化则保留原有认证，否则清空认证。
  */
 async function detectAndSyncRemote(
   path: string,
@@ -171,7 +172,8 @@ async function detectAndSyncRemote(
       // 仓库没有配置 origin 远程
       if (storedRepo?.remoteType && storedRepo.remoteType !== 'none') {
         // 之前有远程配置但现在仓库里没有了，重置为 none
-        return { remoteType: 'none' as const, remoteUrl: undefined,
+        return { remoteType: 'none' as const,
+          httpRemoteUrl: undefined, sshRemoteUrl: undefined,
           authUsername: undefined, authPassword: undefined,
           sshKeyPath: undefined, sshPassword: undefined }
       }
@@ -180,22 +182,26 @@ async function detectAndSyncRemote(
 
     const inferredType = inferRemoteType(origin.fetchUrl)
 
-    // 判断远程地址是否与存储的一致
-    const urlChanged = storedRepo?.remoteUrl !== origin.fetchUrl
+    // 根据推断的类型判断对应 URL 是否与存储的一致
+    const storedUrl = inferredType === 'http' ? storedRepo?.httpRemoteUrl : storedRepo?.sshRemoteUrl
+    const urlChanged = storedUrl !== origin.fetchUrl
 
     if (urlChanged || !storedRepo?.remoteType || storedRepo.remoteType === 'none') {
-      // 地址变了（或之前没有配置）→ 使用新地址并清空认证
-      return {
-        remoteType: inferredType,
-        remoteUrl: origin.fetchUrl,
-        authUsername: undefined,
-        authPassword: undefined,
-        sshKeyPath: undefined,
-        sshPassword: undefined
+      // 地址变了（或之前没有配置）→ 使用新地址并清空对应类型的认证
+      const patch: Partial<RepoConfig> = { remoteType: inferredType }
+      if (inferredType === 'http') {
+        patch.httpRemoteUrl = origin.fetchUrl
+        patch.authUsername = undefined
+        patch.authPassword = undefined
+      } else if (inferredType === 'ssh') {
+        patch.sshRemoteUrl = origin.fetchUrl
+        patch.sshKeyPath = undefined
+        patch.sshPassword = undefined
       }
+      return patch
     }
 
-    // 地址未变 → 保持原认证
+    // 地址未变 → 保持原认证（但仍确保 remoteType 同步）
     return null
   } catch {
     console.warn('[detectAndSyncRemote] 远程检测失败')
@@ -207,15 +213,15 @@ function remotePayload(repo: RepoConfig | null): Record<string, unknown> {
   const payload: Record<string, unknown> = { remote: 'origin' }
   if (!repo || !repo.remoteType || repo.remoteType === 'none') return payload
 
-  if (repo.remoteUrl) payload.url = repo.remoteUrl
-
   if (repo.remoteType === 'http') {
+    if (repo.httpRemoteUrl) payload.url = repo.httpRemoteUrl
     if (repo?.authUsername) payload.username = repo.authUsername
     if (repo?.authPassword) payload.password = repo.authPassword
     return payload
   }
 
   if (repo.remoteType === 'ssh') {
+    if (repo.sshRemoteUrl) payload.url = repo.sshRemoteUrl
     if (repo?.sshKeyPath) payload.sshKeyPath = repo.sshKeyPath
     if (repo?.sshPassword) payload.sshPassword = repo.sshPassword
     return payload
@@ -396,7 +402,6 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
     updateRepoSettings: async (path: string, settings: Partial<RepoConfig>) => {
     const { repos, currentRepo } = get()
-    const oldRepo = repos.find((r) => r.path === path)
     const newRepos = repos.map((r) => (r.path === path ? { ...r, ...settings } : r))
     const newCurrent = currentRepo?.path === path ? { ...currentRepo, ...settings } : currentRepo
     set({ repos: newRepos, currentRepo: newCurrent, successMessage: '设置已保存' })
@@ -404,12 +409,13 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
     // 同步远程仓库地址到 Git 仓库
     try {
-      if (settings.remoteType === 'none' && oldRepo?.remoteUrl) {
+      if (settings.remoteType === 'none') {
         // 用户选择了"无"，删除 origin 远程
         await window.electronAPI.invokeGit('remote.remove', { name: 'origin' })
-      } else if (settings.remoteUrl !== undefined && settings.remoteUrl) {
-        // 远程地址被设置或修改，同步到 Git
-        await window.electronAPI.invokeGit('remote.setUrl', { name: 'origin', url: settings.remoteUrl })
+      } else if (settings.remoteType === 'http' && settings.httpRemoteUrl) {
+        await window.electronAPI.invokeGit('remote.setUrl', { name: 'origin', url: settings.httpRemoteUrl })
+      } else if (settings.remoteType === 'ssh' && settings.sshRemoteUrl) {
+        await window.electronAPI.invokeGit('remote.setUrl', { name: 'origin', url: settings.sshRemoteUrl })
       }
     } catch (err) {
       console.warn('[AppStore] 同步远程地址到 Git 失败:', err)

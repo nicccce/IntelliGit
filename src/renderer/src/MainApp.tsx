@@ -424,11 +424,12 @@ function RepoSidebar(): React.JSX.Element {
 // ═══════════════════════════════════════════════════════════════
 function Toolbar(): React.JSX.Element {
   const { currentRepo, currentBranch, branches, remoteBranches, activeView, setActiveView,
-      pull, push, refreshAll, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
+      pull, push, refreshAll, refreshAllLocal, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
     const [branchDropdown, setBranchDropdown] = useState(false)
 
-    const hasCommitsToPush = commitsAhead > 0 && commitsBehind === 0
-    const hasCommitsToPull = commitsBehind > 0
+    const hasRemote = currentRepo?.remoteType && currentRepo.remoteType !== 'none'
+    const hasCommitsToPush = hasRemote && commitsAhead > 0 && commitsBehind === 0
+    const hasCommitsToPull = hasRemote && commitsBehind > 0
 
     // 构建合并分支列表：本地分支 + 远程特有分支
     const localBranchNames = new Set(branches.map(b => b.name))
@@ -489,25 +490,27 @@ function Toolbar(): React.JSX.Element {
           </button>
         ))}
       </div>
-      <div className="ig-toolbar-actions">
-        <button 
-          className="ig-action-btn" 
-          onClick={hasCommitsToPush ? push : pull}
-          disabled={!currentRepo || !!operationLoading} 
-          title={hasCommitsToPush ? "Push commits" : "Pull commits"}
-        >
-          {operationLoading === 'push' || operationLoading === 'pull' ? (
-            <span className="spinner" /> 
-          ) : hasCommitsToPush ? (
-            `⬆ Push ${commitsAhead}`
-          ) : hasCommitsToPull ? (
-            `⬇ Pull ${commitsBehind}`
-          ) : (
-            '⬇ Pull'
-          )}
-        </button>
-        <button className="ig-icon-btn" onClick={refreshAll}
-          disabled={!currentRepo || !!operationLoading} title="刷新">
+            <div className="ig-toolbar-actions">
+        {hasRemote && (
+          <button 
+            className="ig-action-btn" 
+            onClick={hasCommitsToPush ? push : pull}
+            disabled={!currentRepo || !!operationLoading} 
+            title={hasCommitsToPush ? "Push commits" : "Pull commits"}
+          >
+            {operationLoading === 'push' || operationLoading === 'pull' ? (
+              <span className="spinner" /> 
+            ) : hasCommitsToPush ? (
+              `⬆ Push ${commitsAhead}`
+            ) : hasCommitsToPull ? (
+              `⬇ Pull ${commitsBehind}`
+            ) : (
+              '⬇ Pull'
+            )}
+          </button>
+        )}
+        <button className="ig-icon-btn" onClick={hasRemote ? refreshAll : refreshAllLocal}
+          disabled={!currentRepo || !!operationLoading} title={hasRemote ? '刷新（含远程）' : '刷新'}>
           🔄
         </button>
       </div>
@@ -659,7 +662,8 @@ function SettingsView(): React.JSX.Element {
   const [commitAuthorName, setCommitAuthorName] = useState<string>(() => currentRepo?.commitAuthorName || '')
   const [commitAuthorEmail, setCommitAuthorEmail] = useState<string>(() => currentRepo?.commitAuthorEmail || '')
   const [remoteType, setRemoteType] = useState<'none' | 'http' | 'ssh'>(() => currentRepo?.remoteType || 'none')
-  const [remoteUrl, setRemoteUrl] = useState<string>(() => currentRepo?.remoteUrl || '')
+  const [httpRemoteUrl, setHttpRemoteUrl] = useState<string>(() => currentRepo?.httpRemoteUrl || '')
+  const [sshRemoteUrl, setSshRemoteUrl] = useState<string>(() => currentRepo?.sshRemoteUrl || '')
   const [username, setUsername] = useState<string>(() => currentRepo?.authUsername || '')
   const [password, setPassword] = useState<string>(() => currentRepo?.authPassword || '')
   const [sshKeyPath, setSshKeyPath] = useState<string>(() => currentRepo?.sshKeyPath || '')
@@ -674,27 +678,15 @@ function SettingsView(): React.JSX.Element {
 
   const handleRemoteTypeChange = (type: 'none' | 'http' | 'ssh'): void => {
     setRemoteType(type)
-    if (type === 'none') {
-      setRemoteUrl('')
-      setUsername('')
-      setPassword('')
-      setSshKeyPath('')
-      setSshPassword('')
-    } else if (type === 'http') {
-      setSshKeyPath('')
-      setSshPassword('')
-    } else if (type === 'ssh') {
-      setUsername('')
-      setPassword('')
-    }
   }
 
   const handleSave = (): void => {
     updateRepoSettings(currentRepo.path, {
       commitAuthorName: commitAuthorName.trim() || undefined,
       commitAuthorEmail: commitAuthorEmail.trim() || undefined,
-      remoteType,
-      remoteUrl: remoteType !== 'none' ? remoteUrl.trim() || undefined : undefined,
+            remoteType,
+      httpRemoteUrl: remoteType === 'http' ? httpRemoteUrl.trim() || undefined : undefined,
+      sshRemoteUrl: remoteType === 'ssh' ? sshRemoteUrl.trim() || undefined : undefined,
       authUsername: remoteType === 'http' ? username.trim() || undefined : undefined,
       authPassword: remoteType === 'http' ? password.trim() || undefined : undefined,
       sshKeyPath: remoteType === 'ssh' ? sshKeyPath.trim() || undefined : undefined,
@@ -768,15 +760,28 @@ function SettingsView(): React.JSX.Element {
         </div>
         {remoteType !== 'none' && (
           <div className="ig-remote-detail">
-            <div className="ig-form-group">
-              <label>远程仓库地址</label>
-              <input
-                type="text"
-                value={remoteUrl}
-                onChange={e => setRemoteUrl(e.target.value)}
-                placeholder={remoteType === 'http' ? 'https://github.com/user/repo.git' : 'git@github.com:user/repo.git'}
-              />
-            </div>
+                        {remoteType === 'http' && (
+              <div className="ig-form-group">
+                <label>HTTP(S) 远程地址</label>
+                <input
+                  type="text"
+                  value={httpRemoteUrl}
+                  onChange={e => setHttpRemoteUrl(e.target.value)}
+                  placeholder="https://github.com/user/repo.git"
+                />
+              </div>
+            )}
+            {remoteType === 'ssh' && (
+              <div className="ig-form-group">
+                <label>SSH 远程地址</label>
+                <input
+                  type="text"
+                  value={sshRemoteUrl}
+                  onChange={e => setSshRemoteUrl(e.target.value)}
+                  placeholder="git@github.com:user/repo.git"
+                />
+              </div>
+                        )}
             {remoteType === 'http' && (
               <>
                 <p className="ig-hint">HTTP(S) 认证</p>

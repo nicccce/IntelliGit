@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /**
  * @file Sidecar 通信协议的共享类型定义
  * @description 定义主进程 <-> Sidecar <-> 渲染进程之间的通信数据结构。
@@ -58,8 +59,10 @@ export interface RepoConfig {
   name: string
   /** 远程仓库形式：无 / HTTP(S) / SSH */
   remoteType?: 'none' | 'http' | 'ssh'
-  /** 远程仓库地址 */
-  remoteUrl?: string
+  /** HTTP(S) 远程仓库地址 */
+  httpRemoteUrl?: string
+  /** SSH 远程仓库地址 */
+  sshRemoteUrl?: string
   /** Commit 作者名称，用于写入提交历史 */
   commitAuthorName?: string
   /** Commit 作者邮箱，用于 GitHub 贡献归属 */
