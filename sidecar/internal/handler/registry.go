@@ -45,6 +45,11 @@ func RegisterAll(r *Router) {
 	r.Register("remote.pull", handlePull)           // Pull（带进度）
 	r.Register("remote.push", handlePush)           // Push（带进度）
 
+	// ── Merge 工作流（为后续冲突解决 UI 预留） ────────────────────────────
+	r.Register("merge.status", handleMergeStatus)       // 检查是否处于 merge 中间状态
+	r.Register("merge.abort", handleMergeAbort)         // 放弃当前 merge
+	r.Register("merge.continue", handleMergeContinue)   // 解决冲突后完成 merge 提交
+
 	// ── Diff ────────────────────────────────────────────────────────────────
 	r.Register("diff.commits", handleDiffCommits)             // 两个 commit 之间的差异
 	r.Register("diff.withParent", handleDiffWithParent)       // commit 与父 commit 的差异

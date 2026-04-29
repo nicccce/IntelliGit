@@ -73,3 +73,38 @@ type ChunkInfo struct {
 	Content string `json:"content"` // 具体文本内容
 	Type    string `json:"type"`    // "Add", "Delete", "Equal"
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Merge 冲突相关类型（为后续 merge 功能预留）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// MergeConflictInfo 描述一次 merge 冲突的详细信息
+type MergeConflictInfo struct {
+	// ConflictedFiles 冲突文件的路径列表
+	ConflictedFiles []string `json:"conflictedFiles"`
+	// Message merge 命令的原始输出
+	Message string `json:"message"`
+	// MergingBranch 正在合并的分支/引用名
+	MergingBranch string `json:"mergingBranch"`
+}
+
+// MergeConflictError 表示 merge 操作产生了冲突。
+// 实现 error 接口，可通过 errors.As 提取结构化冲突信息。
+// 前端可据此展示冲突文件列表并引导用户解决。
+type MergeConflictError struct {
+	Info MergeConflictInfo
+}
+
+func (e *MergeConflictError) Error() string {
+	return "合并冲突，请手动解决后提交: " + e.Info.Message
+}
+
+// MergeStatusResult 描述当前仓库的 merge 状态
+type MergeStatusResult struct {
+	// Merging 当前是否处于 merge 中间状态（存在 .git/MERGE_HEAD）
+	Merging bool `json:"merging"`
+	// ConflictedFiles 冲突文件列表（仅当 Merging=true 时有值）
+	ConflictedFiles []string `json:"conflictedFiles,omitempty"`
+	// MergeHead 正在合并的 commit hash（MERGE_HEAD 的内容）
+	MergeHead string `json:"mergeHead,omitempty"`
+}

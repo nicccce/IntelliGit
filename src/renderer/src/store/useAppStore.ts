@@ -158,7 +158,7 @@ interface RemoteInfo {
  * 若对应类型的 URL 未变化则保留原有认证，否则清空认证。
  */
 async function detectAndSyncRemote(
-  path: string,
+  _path: string,
   storedRepo: RepoConfig | undefined
 ): Promise<Partial<RepoConfig> | null> {
   try {

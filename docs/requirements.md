@@ -82,16 +82,17 @@ Node.js 主进程（Electron Main Process）负责 Go Sidecar 进程的完整生
 
 | 操作类型 | 路由目标 | 典型操作 | 路由理由 |
 |---------|---------|---------|---------|
-| **只读 / 内存级操作** | Go Sidecar (libgit2) | `status`, `diff`, `log`, `blame`, 冲突预判, 分支列表 | 绕过系统文件 I/O 瓶颈，利用 libgit2 的内存索引实现高速读取 |
-| **写入操作（本地）** | Go Sidecar (libgit2) | `add`, `commit`, `branch create/delete`, `checkout`, `reset`, `stash` | libgit2 可安全地完成本地写入操作 |
-| **网络与鉴权操作** | 宿主机 Git CLI | `clone`, `push`, `pull`, `fetch`, `remote add/remove` | 全面继承用户本地的 SSH Key、GPG 签名、Credential Helper 及网络代理配置 |
-| **复杂工作区操作** | 宿主机 Git CLI（降级） | `merge`（实际执行时）, `rebase`（实际执行时） | 确保与用户 `.gitconfig` 中的 merge strategy、hook 脚本完全兼容 |
+| **只读 / 内存级操作** | Go Sidecar (go-git) | `status`, `diff`, `log`, `blame`, 冲突预判, 分支列表 | 统一通过 Sidecar 读取仓库对象和索引，减少 Renderer/Main 进程对 Git 细节的感知 |
+| **写入操作（本地）** | Go Sidecar (go-git) | `add`, `commit`, `branch create/delete`, `checkout`, `reset`, `stash` | go-git 在 Sidecar 内完成本地写入，并由统一错误模型返回给前端 |
+| **网络与鉴权操作** | Go Sidecar (go-git + 显式鉴权) | `clone`, `push`, `pull`, `fetch`, `remote add/remove/set-url` | 远程操作统一走 go-git；HTTPS 使用用户名 + Token，SSH 使用密钥路径 + passphrase，避免依赖宿主机 Credential Manager 弹出交互式登录 |
+| **复杂工作区操作** | Go Sidecar (go-git 优先) | `merge`, `rebase`, 冲突检测与解决辅助 | 复杂操作在 Sidecar 内显式建模；若 go-git 语义不足，需在需求和实现中单独定义兼容策略，而不是默认落回交互式 Git CLI |
 
 **路由决策流程**：
 1. Renderer 进程发起 Git 操作请求
-2. Main 进程的 **EngineRouter** 模块根据操作类型查询路由表
-3. 若路由至 Sidecar：通过 JSON-RPC 下发指令
-4. 若路由至 Git CLI：Main 进程直接通过 `child_process.spawn` 执行 `git` 命令，并解析 stdout/stderr 输出
+2. Main 进程通过 IPC 将命令和参数转发给 Sidecar
+3. Sidecar 通过 JSON-RPC 路由到对应的 go-git 操作封装
+4. 远程操作由仓库配置生成鉴权参数：HTTPS 传入 `username` / `password(token)`，SSH 传入 `sshKeyPath` / `sshPassword`
+5. Sidecar 返回结构化结果、错误和进度通知；默认不触发宿主机 Git CLI 或系统 Credential Manager 的交互式登录窗口
 
 ---
 

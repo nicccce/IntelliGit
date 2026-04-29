@@ -2,10 +2,12 @@ package git
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	gogit "github.com/go-git/go-git/v5"
@@ -109,19 +111,48 @@ func (r *Repository) Fetch(remoteName string, auth *AuthMethod, progress io.Writ
 
 	err := r.repo.Fetch(fetchOpts)
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
-		return fmt.Errorf("fetch 失败 (%s): %w", remoteName, err)
+		return wrapAuthError(fmt.Errorf("fetch 失败 (%s): %w", remoteName, err))
 	}
 	return nil
 }
 
-// Pull 拉取并合并远程分支（git pull）
+// Pull 拉取并合并远程分支（分层策略）
+// 第一层：尝试 go-git fast-forward pull（通过 app 管理的凭据认证）
+// 第二层：若 non-fast-forward，则用 go-git fetch + 本地 git merge（纯本地操作，不触发凭据弹窗）
 func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Writer) error {
 	branchRef, err := r.currentBranchReferenceName()
 	if err != nil {
 		return err
 	}
 
-	return r.runGitCommand(progress, "pull", "--no-rebase", "--no-edit", remoteName, branchRef.Short())
+	// ── 第一层：go-git Pull (fast-forward) ──────────────────────────────
+	wt, err := r.repo.Worktree()
+	if err != nil {
+		return fmt.Errorf("获取 worktree 失败: %w", err)
+	}
+
+	pullOpts := &gogit.PullOptions{
+		RemoteName:    remoteName,
+		ReferenceName: branchRef,
+		Auth:          resolveAuth(auth),
+		Progress:      progress,
+	}
+
+	err = wt.Pull(pullOpts)
+	if err == nil || err == gogit.NoErrAlreadyUpToDate {
+		return nil // fast-forward 成功或已是最新
+	}
+
+	// 非 non-fast-forward 错误（认证、网络等），直接返回友好提示
+	if !errors.Is(err, gogit.ErrNonFastForwardUpdate) {
+		return wrapAuthError(fmt.Errorf("pull 失败 (%s): %w", remoteName, err))
+	}
+
+	// ── 第二层：go-git Fetch + 本地 git merge ────────────────────────────
+	// 第一层的 pull 内部已执行 fetch，远程引用已更新。
+	// 这里直接执行本地 merge，不涉及网络，不会触发 Git Credential Manager 弹窗。
+	remoteRef := fmt.Sprintf("%s/%s", remoteName, branchRef.Short())
+	return r.runLocalMerge(progress, remoteRef)
 }
 
 // Push 推送本地提交到远程仓库（git push）
@@ -175,9 +206,16 @@ func (r *Repository) currentBranchReferenceName() (plumbing.ReferenceName, error
 	return headRef.Name(), nil
 }
 
-func (r *Repository) runGitCommand(progress io.Writer, args ...string) error {
-	cmd := exec.Command("git", append([]string{"-C", r.path}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_MERGE_AUTOEDIT=no")
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Merge 操作（为后续 merge 功能预留完整工作流）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// runLocalMerge 执行本地 git merge（纯本地操作，不涉及网络，不会触发凭据弹窗）。
+// ref 为要合并的引用，如 "origin/main"。
+// 当发生冲突时返回 *MergeConflictError，前端可通过 errors.As 提取冲突文件列表。
+func (r *Repository) runLocalMerge(progress io.Writer, ref string) error {
+	cmd := exec.Command("git", "-C", r.path, "merge", "--no-edit", ref)
+	cmd.Env = nonInteractiveEnv()
 
 	var output bytes.Buffer
 	writer := io.Writer(&output)
@@ -192,9 +230,138 @@ func (r *Repository) runGitCommand(progress io.Writer, args ...string) error {
 		if message == "" {
 			message = err.Error()
 		}
-		return fmt.Errorf("git %s 失败: %s", strings.Join(args, " "), message)
+		// 检测合并冲突 → 返回结构化 MergeConflictError
+		if strings.Contains(message, "CONFLICT") || strings.Contains(message, "Automatic merge failed") {
+			return &MergeConflictError{
+				Info: MergeConflictInfo{
+					ConflictedFiles: parseConflictedFiles(message),
+					Message:         message,
+					MergingBranch:   ref,
+				},
+			}
+		}
+		return fmt.Errorf("merge 失败: %s", message)
 	}
 	return nil
+}
+
+// MergeStatus 检查当前仓库是否处于 merge 中间状态。
+// 通过检测 .git/MERGE_HEAD 文件是否存在来判断。
+// 后续可扩展返回冲突文件列表、MERGE_MSG 等信息。
+func (r *Repository) MergeStatus() (*MergeStatusResult, error) {
+	result := &MergeStatusResult{}
+
+	// 检查 MERGE_HEAD 是否存在
+	mergeHeadPath := filepath.Join(r.path, ".git", "MERGE_HEAD")
+	data, err := os.ReadFile(mergeHeadPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return result, nil // 没有正在进行的 merge
+		}
+		return nil, fmt.Errorf("检查 merge 状态失败: %w", err)
+	}
+
+	result.Merging = true
+	result.MergeHead = strings.TrimSpace(string(data))
+
+	// 获取冲突文件列表（通过 git diff --name-only --diff-filter=U）
+	cmd := exec.Command("git", "-C", r.path, "diff", "--name-only", "--diff-filter=U")
+	cmd.Env = nonInteractiveEnv()
+	out, err := cmd.Output()
+	if err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if line != "" {
+				result.ConflictedFiles = append(result.ConflictedFiles, line)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// MergeAbort 放弃当前正在进行的 merge（git merge --abort）。
+// 前端可在用户不想解决冲突时调用此方法回退到 merge 之前的状态。
+func (r *Repository) MergeAbort() error {
+	cmd := exec.Command("git", "-C", r.path, "merge", "--abort")
+	cmd.Env = nonInteractiveEnv()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		message := strings.TrimSpace(string(out))
+		if message == "" {
+			message = err.Error()
+		}
+		return fmt.Errorf("merge abort 失败: %s", message)
+	}
+	return nil
+}
+
+// MergeContinue 在用户解决完冲突并 add 后，完成 merge 提交。
+// 等价于用户手动执行 git commit（merge 场景下 Git 会自动生成 merge commit message）。
+// 后续可扩展支持自定义 commit message。
+func (r *Repository) MergeContinue(message string) error {
+	args := []string{"-C", r.path, "commit", "--no-edit"}
+	if message != "" {
+		args = []string{"-C", r.path, "commit", "-m", message}
+	}
+	cmd := exec.Command("git", args...)
+	cmd.Env = nonInteractiveEnv()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		errMsg := strings.TrimSpace(string(out))
+		if errMsg == "" {
+			errMsg = err.Error()
+		}
+		return fmt.Errorf("merge continue 失败: %s", errMsg)
+	}
+	return nil
+}
+
+// nonInteractiveEnv 返回一组确保 Git 不会弹出任何交互式提示的环境变量。
+// 所有调用系统 git CLI 的方法都应使用此 env，防止 Credential Manager 弹窗阻塞进程。
+func nonInteractiveEnv() []string {
+	return append(os.Environ(),
+		"GIT_MERGE_AUTOEDIT=no",
+		"GIT_TERMINAL_PROMPT=0",  // 禁止终端提示
+		"GCM_INTERACTIVE=never", // 禁止 Git Credential Manager 交互
+	)
+}
+
+// parseConflictedFiles 从 git merge 输出中解析冲突文件列表。
+// 格式示例: "CONFLICT (content): Merge conflict in path/to/file.go"
+func parseConflictedFiles(output string) []string {
+	var files []string
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "CONFLICT") && strings.Contains(line, "Merge conflict in ") {
+			idx := strings.Index(line, "Merge conflict in ")
+			if idx >= 0 {
+				file := strings.TrimSpace(line[idx+len("Merge conflict in "):])
+				if file != "" {
+					files = append(files, file)
+				}
+			}
+		}
+	}
+	return files
+}
+
+// wrapAuthError 将 go-git 的认证错误包装为用户友好的提示
+func wrapAuthError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, transport.ErrAuthenticationRequired) ||
+		errors.Is(err, transport.ErrAuthorizationFailed) {
+		return fmt.Errorf("认证失败，请在设置页检查凭据配置: %w", err)
+	}
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "authentication") ||
+		strings.Contains(errMsg, "Authorization") ||
+		strings.Contains(errMsg, "401") ||
+		strings.Contains(errMsg, "403") {
+		return fmt.Errorf("认证失败，请在设置页检查凭据配置: %w", err)
+	}
+	return err
 }
 
 // resolveAuth 将 AuthMethod 转换为 go-git 的 transport.AuthMethod

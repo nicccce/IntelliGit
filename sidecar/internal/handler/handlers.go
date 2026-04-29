@@ -5,6 +5,7 @@ package handler
 // └──────────────────────────────────────────────────────────────────────────────┘
 
 import (
+	"errors"
 	"fmt"
 
 	"intelligit-sidecar/internal/git"
@@ -484,7 +485,16 @@ func handlePull(ctx *Context) (any, error) {
 		remote = "origin"
 	}
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
-	return nil, repo.Pull(remote, params.toAuthMethod(), pw)
+	err = repo.Pull(remote, params.toAuthMethod(), pw)
+	if err != nil {
+		// 检测是否为结构化冲突错误，返回冲突详情供前端使用
+		var conflictErr *git.MergeConflictError
+		if errors.As(err, &conflictErr) {
+			return conflictErr.Info, err
+		}
+		return nil, err
+	}
+	return nil, nil
 }
 
 func handlePush(ctx *Context) (any, error) {
@@ -502,6 +512,40 @@ func handlePush(ctx *Context) (any, error) {
 	}
 	pw := NewProgressWriter(ctx.Notifier, ctx.RequestID)
 	return nil, repo.Push(remote, params.toAuthMethod(), pw)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Merge 工作流（为后续冲突解决 UI 预留）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+func handleMergeStatus(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	return repo.MergeStatus()
+}
+
+func handleMergeAbort(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	return nil, repo.MergeAbort()
+}
+
+func handleMergeContinue(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Message string `json:"message"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	return nil, repo.MergeContinue(params.Message)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
