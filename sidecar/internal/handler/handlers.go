@@ -647,6 +647,168 @@ func handleListFilesAtCommit(ctx *Context) (any, error) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  工作区 Diff（支持 hunk 暂存的前置接口）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+func handleDiffWorkdir(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	return repo.DiffWorkdir(params.Path)
+}
+
+func handleDiffStaged(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	return repo.DiffStaged(params.Path)
+}
+
+func handleDiffWorkdirRaw(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	raw, err := repo.DiffWorkdirRaw(params.Path)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"diff": raw}, nil
+}
+
+func handleDiffStagedRaw(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Path string `json:"path"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	raw, err := repo.DiffStagedRaw(params.Path)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"diff": raw}, nil
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Hunk / Patch 暂存
+// ═══════════════════════════════════════════════════════════════════════════════
+
+func handleApplyPatch(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Patch string `json:"patch"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Patch == "" {
+		return nil, errMissingParam("patch")
+	}
+	return nil, repo.ApplyPatch(params.Patch)
+}
+
+func handleUnstageHunk(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Patch string `json:"patch"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Patch == "" {
+		return nil, errMissingParam("patch")
+	}
+	return nil, repo.UnstageHunk(params.Patch)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Commit 操作（Reset / Checkout Commit / LogAll）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+func handleResetToCommit(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Hash string `json:"hash"`
+		Mode string `json:"mode"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Hash == "" {
+		return nil, errMissingParam("hash")
+	}
+	if params.Mode == "" {
+		params.Mode = "mixed"
+	}
+	return nil, repo.ResetToCommit(params.Hash, params.Mode)
+}
+
+func handleCheckoutCommit(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Hash string `json:"hash"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	if params.Hash == "" {
+		return nil, errMissingParam("hash")
+	}
+	return nil, repo.CheckoutCommit(params.Hash)
+}
+
+func handleLogAll(ctx *Context) (any, error) {
+	repo, err := ctx.Repo()
+	if err != nil {
+		return nil, err
+	}
+	var params struct {
+		Max int `json:"max"`
+	}
+	if err := ctx.Bind(&params); err != nil {
+		return nil, err
+	}
+	return repo.LogAll(params.Max)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  辅助函数
 // ═══════════════════════════════════════════════════════════════════════════════
 

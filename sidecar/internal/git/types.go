@@ -11,6 +11,7 @@ type CommitInfo struct {
 	Date         time.Time `json:"date"`
 	Message      string    `json:"message"`
 	ParentHashes []string  `json:"parentHashes"`
+	Refs         []string  `json:"refs,omitempty"`
 }
 
 // StatusCode 对应 go-git 的 StatusCode，用更友好的字符串表示

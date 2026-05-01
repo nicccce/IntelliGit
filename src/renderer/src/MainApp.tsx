@@ -519,11 +519,47 @@ function Toolbar(): React.JSX.Element {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  变更视图
+//  Diff 视图组件
+// ═══════════════════════════════════════════════════════════════
+function DiffView(): React.JSX.Element {
+  const { workdirDiff, selectedFilePath } = useAppStore()
+  if (!selectedFilePath) return <div className="ig-diff-empty">← 选择文件查看差异</div>
+  if (!workdirDiff || workdirDiff.filePatches.length === 0) return <div className="ig-diff-empty">无差异内容</div>
+
+  return (
+    <div className="ig-diff-scroll">
+      {workdirDiff.filePatches.map((fp, fi) => (
+        <div key={fi}>
+          {fp.isBinary ? <div className="ig-diff-binary">二进制文件</div> : fp.chunks.map((chunk, ci) => {
+            const lines = chunk.content.replace(/\n$/, '').split('\n')
+            return (
+              <div key={ci} className="ig-diff-chunk">
+                {chunk.type !== 'Equal' && (
+                  <div className="ig-diff-hunk-hdr">
+                    <span>{chunk.type === 'Add' ? '新增' : '删除'} {lines.length} 行</span>
+                  </div>
+                )}
+                {lines.map((line, li) => (
+                  <div key={li} className={`ig-diff-line ${chunk.type === 'Add' ? 'added' : chunk.type === 'Delete' ? 'removed' : ''}`}>
+                    <span className="ig-diff-ln">{li + 1}</span>
+                    <span className="ig-diff-lc">{chunk.type === 'Add' ? '+' : chunk.type === 'Delete' ? '-' : ' '} {line}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  变更视图（参照 intelligit_commit_workspace.html）
 // ═══════════════════════════════════════════════════════════════
 function ChangesView(): React.JSX.Element {
   const { fileStatuses, addFile, addAll, removeFile, createCommit,
-    operationLoading, currentRepo } = useAppStore()
+    operationLoading, currentRepo, selectedFilePath, selectFile } = useAppStore()
   const [commitMsg, setCommitMsg] = useState('')
 
   const staged = fileStatuses.filter(f => f.staging !== ' ' && f.staging !== '?')
@@ -548,7 +584,6 @@ function ChangesView(): React.JSX.Element {
   return (
     <div className="ig-changes-view" id="changes-view">
       <div className="ig-file-lists">
-        {/* 已暂存 */}
         <div className="ig-file-section">
           <div className="ig-file-section-header">
             <h3>已暂存 ({staged.length})</h3>
@@ -557,59 +592,57 @@ function ChangesView(): React.JSX.Element {
             {staged.length === 0 ? (
               <div className="ig-file-empty">无暂存文件</div>
             ) : staged.map(f => (
-              <div key={`s-${f.path}`} className="ig-file-item">
-                <span className="ig-file-status" style={{ color: statusColor(f.staging) }}>
-                  {statusIcon(f.staging)}
-                </span>
+              <div key={`s-${f.path}`}
+                className={`ig-file-item ${selectedFilePath === f.path ? 'active' : ''}`}
+                onClick={() => selectFile(f.path)}>
+                <span className="ig-file-status" style={{ color: statusColor(f.staging) }}>{statusIcon(f.staging)}</span>
                 <span className="ig-file-path">{f.path}</span>
                 <button className="ig-icon-btn ig-icon-btn-sm" title="取消暂存"
-                  onClick={() => removeFile(f.path)}>−</button>
+                  onClick={(e) => { e.stopPropagation(); removeFile(f.path) }}>−</button>
               </div>
             ))}
           </div>
         </div>
-        {/* 未暂存 */}
         <div className="ig-file-section">
           <div className="ig-file-section-header">
             <h3>未暂存 ({unstaged.length})</h3>
             <button className="ig-sm-btn" onClick={addAll}
-              disabled={unstaged.length === 0 || !!operationLoading}>
-              全部暂存
-            </button>
+              disabled={unstaged.length === 0 || !!operationLoading}>全部暂存</button>
           </div>
           <div className="ig-file-list">
             {unstaged.length === 0 ? (
               <div className="ig-file-empty">工作区干净 ✨</div>
             ) : unstaged.map(f => (
-              <div key={`u-${f.path}`} className="ig-file-item">
-                <span className="ig-file-status" style={{ color: statusColor(f.worktree || f.staging) }}>
-                  {statusIcon(f.worktree || f.staging)}
-                </span>
+              <div key={`u-${f.path}`}
+                className={`ig-file-item ${selectedFilePath === f.path ? 'active' : ''}`}
+                onClick={() => selectFile(f.path)}>
+                <span className="ig-file-status" style={{ color: statusColor(f.worktree || f.staging) }}>{statusIcon(f.worktree || f.staging)}</span>
                 <span className="ig-file-path">{f.path}</span>
                 <button className="ig-icon-btn ig-icon-btn-sm" title="暂存"
-                  onClick={() => addFile(f.path)}>＋</button>
+                  onClick={(e) => { e.stopPropagation(); addFile(f.path) }}>＋</button>
               </div>
             ))}
           </div>
         </div>
       </div>
+      {/* Diff 视图 */}
+      <div className="ig-diff-view">
+        <div className="ig-diff-header"><span className="ig-diff-title">{selectedFilePath || '选择文件查看差异'}</span></div>
+        <DiffView />
+      </div>
       {/* 提交面板 */}
       <div className="ig-commit-panel">
-        <textarea
-          id="commit-message"
-          className="ig-commit-input"
-          placeholder="输入提交信息…"
-          value={commitMsg}
-          onChange={(e) => setCommitMsg(e.target.value)}
-          rows={3}
-        />
-        <button
-          id="btn-commit"
-          className="btn btn-primary ig-commit-btn"
+        <div className="ig-commit-panel-top">提交</div>
+        <button className="ig-ai-btn" disabled title="AI 生成提交信息（即将推出）">
+          <span className="ig-ai-dot" /> AI 生成提交信息
+        </button>
+        <textarea id="commit-message" className="ig-commit-input"
+          placeholder="输入提交信息…" value={commitMsg}
+          onChange={(e) => setCommitMsg(e.target.value)} rows={3} />
+        <button id="btn-commit" className="btn btn-primary ig-commit-btn"
           onClick={handleCommit}
-          disabled={!commitMsg.trim() || staged.length === 0 || !!operationLoading}
-        >
-          {operationLoading === 'commit' ? <><span className="spinner" /> 提交中…</> : `提交到 ${useAppStore.getState().currentBranch || 'main'}`}
+          disabled={!commitMsg.trim() || staged.length === 0 || !!operationLoading}>
+          {operationLoading === 'commit' ? <><span className="spinner" /> 提交中…</> : `提交 (${staged.length} 个文件已暂存)`}
         </button>
       </div>
     </div>
@@ -617,38 +650,158 @@ function ChangesView(): React.JSX.Element {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  历史视图
+//  历史视图（参照 intelligit_branch_graph.html）
 // ═══════════════════════════════════════════════════════════════
-function HistoryView(): React.JSX.Element {
-  const { commitHistory, currentRepo } = useAppStore()
+const GRAPH_COLORS = ['#58a6ff', '#3fb950', '#bc8cff', '#f0883e', '#f85149', '#d29922', '#79c0ff', '#56d364']
 
-  if (!currentRepo) {
-    return <div className="ig-empty-view"><h3>选择仓库查看历史</h3></div>
-  }
+function HistoryView(): React.JSX.Element {
+  const { allCommitHistory, branches, remoteBranches, currentRepo,
+    selectedCommit, selectedCommitFiles, selectCommit,
+    fetchAllHistory, checkoutCommit, resetToCommit, operationLoading } = useAppStore()
+  const [branchFilter, setBranchFilter] = useState('')
+  const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard'>('mixed')
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+
+  useEffect(() => { if (currentRepo) fetchAllHistory() }, [currentRepo])
+
+  if (!currentRepo) return <div className="ig-empty-view"><h3>选择仓库查看历史</h3></div>
+
+  const allBranches = [...branches, ...remoteBranches]
+  const filtered = allBranches.filter(b => !branchFilter || b.name.toLowerCase().includes(branchFilter.toLowerCase()))
+
+  // 简化的 lane 分配：根据 commit 的第一个 ref 或 parentHash 分配颜色
+  const laneMap = new Map<string, number>()
+  let nextLane = 0
+  allCommitHistory.forEach(c => {
+    if (!laneMap.has(c.hash)) {
+      const refLane = c.refs && c.refs.length > 0 ? c.refs[0] : c.parentHashes?.[0] || c.hash
+      if (!laneMap.has(refLane)) laneMap.set(refLane, nextLane++ % GRAPH_COLORS.length)
+      laneMap.set(c.hash, laneMap.get(refLane) || 0)
+    }
+  })
 
   return (
     <div className="ig-history-view" id="history-view">
-      <div className="ig-history-header">
-        <h3>提交历史 ({commitHistory.length})</h3>
-      </div>
-      <div className="ig-history-list">
-        {commitHistory.length === 0 ? (
-          <div className="ig-file-empty">暂无提交记录</div>
-        ) : commitHistory.map((c) => (
-          <div key={c.hash} className="ig-commit-item">
-            <div className="ig-commit-dot" />
-            <div className="ig-commit-info">
-              <div className="ig-commit-msg">{c.message}</div>
-              <div className="ig-commit-meta">
-                <span className="ig-commit-author">{c.author}</span>
-                <span className="ig-commit-hash">{c.shortHash}</span>
-                <span className="ig-commit-date">
-                  {new Date(c.date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
+      {/* 左侧分支面板 */}
+      <div className="ig-branch-panel">
+        <div className="ig-branch-panel-hdr"><h3>分支</h3></div>
+        <input className="ig-branch-search" placeholder="搜索分支…"
+          value={branchFilter} onChange={e => setBranchFilter(e.target.value)} />
+        <div className="ig-branch-list">
+          {filtered.map(b => (
+            <div key={b.name} className={`ig-branch-item ${b.isHead ? 'current' : ''}`}>
+              <span className="ig-branch-dot" style={{background: b.isRemote ? 'var(--accent-orange)' : 'var(--accent-green)'}} />
+              <span className="ig-branch-name">{b.name}</span>
+              {b.isHead && <span className="ig-branch-badge">HEAD</span>}
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </div>
+
+      {/* 中间 Commit Graph */}
+      <div className="ig-graph-area">
+        <div className="ig-graph-header"><h3>Commit Graph ({allCommitHistory.length})</h3></div>
+        <div className="ig-graph-list">
+          {allCommitHistory.length === 0 ? (
+            <div className="ig-file-empty">暂无提交记录</div>
+          ) : allCommitHistory.map((c) => {
+            const lane = laneMap.get(c.hash) || 0
+            const color = GRAPH_COLORS[lane % GRAPH_COLORS.length]
+            const isMerge = (c.parentHashes?.length || 0) > 1
+            return (
+              <div key={c.hash}
+                className={`ig-graph-row ${selectedCommit?.hash === c.hash ? 'selected' : ''}`}
+                onClick={() => selectCommit(c)}>
+                <div className="ig-graph-lane">
+                  <svg width="20" height="32" viewBox="0 0 20 32">
+                    <line x1="10" y1="0" x2="10" y2="32" stroke={color} strokeWidth="2" opacity="0.4" />
+                    {isMerge ? (
+                      <rect x="4" y="10" width="12" height="12" rx="2" fill={color} />
+                    ) : (
+                      <circle cx="10" cy="16" r="5" fill={color} />
+                    )}
+                  </svg>
+                </div>
+                <div className="ig-graph-info">
+                  <div className="ig-graph-msg">
+                    {c.message?.split('\n')[0]}
+                    {c.refs && c.refs.map(r => (
+                      <span key={r} className="ig-ref-badge">{r}</span>
+                    ))}
+                  </div>
+                  <div className="ig-graph-meta">
+                    <span>{c.author}</span>
+                    <span className="ig-graph-hash">{c.shortHash}</span>
+                    <span>{new Date(c.date).toLocaleString('zh-CN', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 右侧 Commit 详情面板 */}
+      <div className="ig-detail-panel">
+        {selectedCommit ? (
+          <>
+            <div className="ig-detail-hdr"><h3>Commit 详情</h3></div>
+            <div className="ig-detail-body">
+              <div className="ig-detail-hash"><code>{selectedCommit.hash}</code></div>
+              <div className="ig-detail-msg">{selectedCommit.message}</div>
+              <div className="ig-detail-meta">
+                <span>{selectedCommit.author}</span>
+                <span>{new Date(selectedCommit.date).toLocaleString('zh-CN')}</span>
+              </div>
+              {selectedCommitFiles.length > 0 && (
+                <div className="ig-detail-files">
+                  <div className="ig-detail-files-hdr">变更文件 ({selectedCommitFiles.length})</div>
+                  {selectedCommitFiles.map((f, i) => (
+                    <div key={i} className="ig-detail-file">
+                      <span className="ig-file-status" style={{color: f.action==='insert'?'var(--accent-green)':f.action==='delete'?'var(--accent-red)':'var(--accent-blue)'}}>
+                        {f.action === 'insert' ? 'A' : f.action === 'delete' ? 'D' : 'M'}
+                      </span>
+                      <span>{f.to || f.from}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* 操作按钮 */}
+              <div className="ig-detail-actions">
+                <button className="ig-action-btn" onClick={() => checkoutCommit(selectedCommit.hash)}
+                  disabled={!!operationLoading}>
+                  Checkout 到此 Commit
+                </button>
+                <button className="ig-action-btn warn" onClick={() => setShowResetConfirm(true)}
+                  disabled={!!operationLoading}>
+                  Reset 到此 Commit
+                </button>
+              </div>
+              {showResetConfirm && (
+                <div className="ig-reset-confirm">
+                  <div className="ig-reset-label">Reset 模式:</div>
+                  <div className="ig-reset-modes">
+                    {(['soft','mixed','hard'] as const).map(m => (
+                      <label key={m} className={`ig-reset-opt ${resetMode===m?'active':''}`}>
+                        <input type="radio" name="resetMode" checked={resetMode===m} onChange={()=>setResetMode(m)} />
+                        --{m}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="ig-reset-btns">
+                    <button className="ig-action-btn warn"
+                      onClick={async () => { await resetToCommit(selectedCommit.hash, resetMode); setShowResetConfirm(false) }}>
+                      确认 Reset
+                    </button>
+                    <button className="ig-action-btn" onClick={() => setShowResetConfirm(false)}>取消</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="ig-detail-empty">← 选择 commit 查看详情</div>
+        )}
       </div>
     </div>
   )

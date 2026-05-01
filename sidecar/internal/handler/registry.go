@@ -56,4 +56,17 @@ func RegisterAll(r *Router) {
 	r.Register("diff.commitPatch", handleGetCommitPatch)      // 获取完整的 patch 详情
 	r.Register("diff.fileContent", handleFileContentAtCommit) // 读取某 commit 中的文件内容
 	r.Register("diff.listFiles", handleListFilesAtCommit)     // 列出某 commit 中的所有文件
+	r.Register("diff.workdir", handleDiffWorkdir)             // 工作区未暂存变更的结构化 diff
+	r.Register("diff.staged", handleDiffStaged)               // 已暂存变更的结构化 diff
+	r.Register("diff.workdirRaw", handleDiffWorkdirRaw)       // 工作区 unified diff 原始输出
+	r.Register("diff.stagedRaw", handleDiffStagedRaw)         // 暂存区 unified diff 原始输出
+
+	// ── Hunk / Patch 暂存 ────────────────────────────────────────────────
+	r.Register("staging.applyPatch", handleApplyPatch)     // 应用 patch 到暂存区（hunk/行级暂存）
+	r.Register("staging.unstageHunk", handleUnstageHunk)   // 从暂存区移除 patch（取消 hunk 暂存）
+
+	// ── Commit 操作 ──────────────────────────────────────────────────────
+	r.Register("commit.reset", handleResetToCommit)            // Reset 到指定 commit
+	r.Register("commit.checkoutCommit", handleCheckoutCommit)  // Checkout 到指定 commit（detached HEAD）
+	r.Register("commit.logAll", handleLogAll)                  // 获取所有分支的 commit 历史
 }

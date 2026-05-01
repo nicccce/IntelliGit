@@ -23,6 +23,7 @@ export interface CommitRecord {
   date: string
   message: string
   parentHashes: string[]
+  refs?: string[]
 }
 
 /** 分支信息 */
@@ -31,6 +32,21 @@ export interface BranchInfo {
   isRemote: boolean
   isHead: boolean
   hash: string
+}
+
+/** Diff 文件 Patch 详情 */
+export interface PatchDetail {
+  filePatches: FilePatchInfo[]
+}
+export interface FilePatchInfo {
+  isBinary: boolean
+  fromPath: string
+  toPath: string
+  chunks: ChunkInfo[]
+}
+export interface ChunkInfo {
+  content: string
+  type: 'Add' | 'Delete' | 'Equal'
 }
 
 interface AppStoreState {
@@ -69,6 +85,20 @@ interface AppStoreState {
   successMessage: string | null
   /** 当前视图 */
   activeView: 'changes' | 'history' | 'settings'
+
+  // ── Diff / Hunk 暂存状态 ──────────────────────────────────
+  /** 当前选中的文件路径（用于显示 diff） */
+  selectedFilePath: string | null
+  /** 当前文件的工作区 diff */
+  workdirDiff: PatchDetail | null
+  /** 全分支 commit 历史 */
+  allCommitHistory: CommitRecord[]
+  /** 当前选中的 commit（用于详情面板） */
+  selectedCommit: CommitRecord | null
+  /** 选中 commit 的变更文件列表 */
+  selectedCommitFiles: Array<{action: string; from: string; to: string}>
+  /** Diff 比较结果 */
+  diffCompareResult: PatchDetail | null
 
   // ── 配置操作 ─────────────────────────────────────────────
   /** 初始化加载配置 */
@@ -119,6 +149,30 @@ interface AppStoreState {
   clearError: () => void
   /** 清除成功消息 */
   clearSuccess: () => void
+
+  // ── Diff / Hunk 暂存操作 ──────────────────────────────────
+  /** 选择文件并加载其 diff */
+  selectFile: (path: string) => Promise<void>
+  /** 应用 patch 到暂存区 (hunk/行级暂存) */
+  applyPatch: (patch: string) => Promise<void>
+  /** 取消 hunk 暂存 */
+  unstageHunk: (patch: string) => Promise<void>
+  /** 获取文件的原始 diff（用于构造 patch） */
+  fetchRawDiff: (path: string) => Promise<string>
+
+  // ── Commit Graph 操作 ─────────────────────────────────────
+  /** 获取全分支 commit 历史 */
+  fetchAllHistory: () => Promise<void>
+  /** 选中一个 commit 并加载详情 */
+  selectCommit: (commit: CommitRecord | null) => Promise<void>
+  /** Diff 比较两个 commit */
+  diffTwoCommits: (hashA: string, hashB: string) => Promise<void>
+
+  // ── Commit 操作 ──────────────────────────────────────────
+  /** Checkout 到指定 commit (detached HEAD) */
+  checkoutCommit: (hash: string) => Promise<void>
+  /** Reset 到指定 commit */
+  resetToCommit: (hash: string, mode: string) => Promise<void>
 }
 
 /** 从路径中提取仓库名称 */
@@ -246,6 +300,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   error: null,
   successMessage: null,
   activeView: 'changes',
+  selectedFilePath: null,
+  workdirDiff: null,
+  allCommitHistory: [],
+  selectedCommit: null,
+  selectedCommitFiles: [],
+  diffCompareResult: null,
 
   // ── 配置操作 ─────────────────────────────────────────────
 
@@ -692,5 +752,141 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
 
   setActiveView: (view) => set({ activeView: view }),
   clearError: () => set({ error: null }),
-  clearSuccess: () => set({ successMessage: null })
+  clearSuccess: () => set({ successMessage: null }),
+
+  // ── Diff / Hunk 暂存操作 ──────────────────────────────────
+
+  selectFile: async (path: string) => {
+    set({ selectedFilePath: path, workdirDiff: null })
+    try {
+      const response = await window.electronAPI.invokeGit('diff.workdir', { path })
+      if (response.success && response.data) {
+        set({ workdirDiff: response.data as PatchDetail })
+      }
+    } catch (err) {
+      console.error('[AppStore] selectFile diff 失败:', err)
+    }
+  },
+
+  applyPatch: async (patch: string) => {
+    try {
+      const response = await window.electronAPI.invokeGit('staging.applyPatch', { patch })
+      if (!response.success) {
+        set({ error: `Hunk 暂存失败: ${response.error}` })
+        return
+      }
+      // 刷新状态和 diff
+      await get().refreshStatus()
+      const { selectedFilePath } = get()
+      if (selectedFilePath) {
+        await get().selectFile(selectedFilePath)
+      }
+    } catch (err) {
+      set({ error: `Hunk 暂存失败: ${err}` })
+    }
+  },
+
+  unstageHunk: async (patch: string) => {
+    try {
+      const response = await window.electronAPI.invokeGit('staging.unstageHunk', { patch })
+      if (!response.success) {
+        set({ error: `取消 Hunk 暂存失败: ${response.error}` })
+        return
+      }
+      await get().refreshStatus()
+      const { selectedFilePath } = get()
+      if (selectedFilePath) {
+        await get().selectFile(selectedFilePath)
+      }
+    } catch (err) {
+      set({ error: `取消 Hunk 暂存失败: ${err}` })
+    }
+  },
+
+  fetchRawDiff: async (path: string) => {
+    try {
+      const response = await window.electronAPI.invokeGit('diff.workdirRaw', { path })
+      if (response.success && response.data) {
+        return (response.data as { diff: string }).diff
+      }
+    } catch (err) {
+      console.error('[AppStore] fetchRawDiff 失败:', err)
+    }
+    return ''
+  },
+
+  // ── Commit Graph 操作 ─────────────────────────────────────
+
+  fetchAllHistory: async () => {
+    try {
+      const response = await window.electronAPI.invokeGit('commit.logAll', { max: 200 })
+      if (response.success && response.data) {
+        set({ allCommitHistory: (response.data as CommitRecord[]) || [] })
+      }
+    } catch (err) {
+      console.error('[AppStore] fetchAllHistory 失败:', err)
+    }
+  },
+
+  selectCommit: async (commit: CommitRecord | null) => {
+    set({ selectedCommit: commit, selectedCommitFiles: [] })
+    if (!commit) return
+    try {
+      const response = await window.electronAPI.invokeGit('diff.withParent', { hash: commit.hash })
+      if (response.success && response.data) {
+        set({ selectedCommitFiles: response.data as Array<{action: string; from: string; to: string}> })
+      }
+    } catch (err) {
+      console.error('[AppStore] selectCommit 失败:', err)
+    }
+  },
+
+  diffTwoCommits: async (hashA: string, hashB: string) => {
+    set({ diffCompareResult: null })
+    try {
+      const response = await window.electronAPI.invokeGit('diff.commits', { hashA, hashB })
+      if (response.success && response.data) {
+        set({ diffCompareResult: response.data as PatchDetail })
+      }
+    } catch (err) {
+      console.error('[AppStore] diffTwoCommits 失败:', err)
+    }
+  },
+
+  // ── Commit 操作 ──────────────────────────────────────────
+
+  checkoutCommit: async (hash: string) => {
+    set({ operationLoading: 'checkoutCommit' })
+    try {
+      const response = await window.electronAPI.invokeGit('commit.checkoutCommit', { hash })
+      if (!response.success) {
+        set({ error: `Checkout 失败: ${response.error}`, operationLoading: null })
+        return
+      }
+      set({ successMessage: `已切换到 commit ${hash.slice(0, 8)}` })
+      await get().refreshAllLocal()
+      setTimeout(() => set({ successMessage: null }), 3000)
+    } catch (err) {
+      set({ error: `Checkout 失败: ${err}` })
+    }
+    set({ operationLoading: null })
+  },
+
+  resetToCommit: async (hash: string, mode: string) => {
+    set({ operationLoading: 'reset' })
+    try {
+      const response = await window.electronAPI.invokeGit('commit.reset', { hash, mode })
+      if (!response.success) {
+        set({ error: `Reset 失败: ${response.error}`, operationLoading: null })
+        return
+      }
+      set({ successMessage: `已 Reset 到 ${hash.slice(0, 8)} (--${mode})` })
+      await get().refreshAllLocal()
+      await get().fetchAllHistory()
+      setTimeout(() => set({ successMessage: null }), 3000)
+    } catch (err) {
+      set({ error: `Reset 失败: ${err}` })
+    }
+    set({ operationLoading: null })
+  }
 }))
