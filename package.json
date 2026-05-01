@@ -24,8 +24,10 @@
     "build:linux": "npm run build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.2.2",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "antd": "^6.3.7",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

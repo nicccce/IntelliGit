@@ -442,3 +442,700 @@
   display: flex;
   gap: 6px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   IntelliGit workbench refresh — Ant Design + light/dark themes
+   ═══════════════════════════════════════════════════════════════ */
+:root,
+[data-theme='dark'] {
+  --bg-primary: #0f1218;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #1d2430;
+  --bg-glass: rgba(22, 27, 34, 0.86);
+  --border-primary: #303845;
+  --border-secondary: #3a4554;
+  --border-focus: rgba(47, 129, 247, 0.45);
+  --text-primary: #e8edf4;
+  --text-secondary: #a6b0bf;
+  --text-muted: #748093;
+  --accent-blue: #2f81f7;
+  --accent-purple: #8b6bd6;
+  --accent-green: #1f9d6f;
+  --accent-red: #e05252;
+  --accent-orange: #c98a2c;
+  --surface-hover: rgba(232, 237, 244, 0.06);
+  --surface-active: rgba(47, 129, 247, 0.14);
+  --surface-strong: #222a36;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 8px 26px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 16px 42px rgba(0, 0, 0, 0.36);
+  --gradient-brand: linear-gradient(135deg, #2f81f7 0%, #1f9d6f 100%);
+  --gradient-surface: linear-gradient(180deg, rgba(29, 36, 48, 0.96) 0%, rgba(22, 27, 34, 0.98) 100%);
+  --diff-add-bg: rgba(31, 157, 111, 0.14);
+  --diff-add-hover: rgba(31, 157, 111, 0.22);
+  --diff-remove-bg: rgba(224, 82, 82, 0.14);
+  --diff-remove-hover: rgba(224, 82, 82, 0.22);
+}
+
+[data-theme='light'] {
+  --bg-primary: #f5f7fb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eef2f7;
+  --bg-glass: rgba(255, 255, 255, 0.88);
+  --border-primary: #d8dee8;
+  --border-secondary: #c8d0dc;
+  --border-focus: rgba(24, 95, 165, 0.32);
+  --text-primary: #1f2937;
+  --text-secondary: #546179;
+  --text-muted: #7a8799;
+  --accent-blue: #185fa5;
+  --accent-purple: #6f56b3;
+  --accent-green: #1d9e75;
+  --accent-red: #d64545;
+  --accent-orange: #ba7517;
+  --surface-hover: rgba(24, 95, 165, 0.06);
+  --surface-active: rgba(24, 95, 165, 0.11);
+  --surface-strong: #e9eef6;
+  --shadow-sm: 0 1px 2px rgba(31, 41, 55, 0.08);
+  --shadow-md: 0 8px 24px rgba(31, 41, 55, 0.1);
+  --shadow-lg: 0 16px 44px rgba(31, 41, 55, 0.14);
+  --gradient-brand: linear-gradient(135deg, #185fa5 0%, #1d9e75 100%);
+  --gradient-surface: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --diff-add-bg: #e9f6ef;
+  --diff-add-hover: #daf0e5;
+  --diff-remove-bg: #fdeaea;
+  --diff-remove-hover: #f9dada;
+}
+
+html,
+body,
+#root,
+.ig-ant-root,
+.ig-ant-root .ant-app {
+  height: 100%;
+}
+
+body {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.ig-app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.ig-workbench {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+}
+
+.ig-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+}
+
+.ig-activity-rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+}
+
+.ig-rail-brand {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--accent-blue);
+  background: var(--bg-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ig-rail-item {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ig-rail-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.ig-rail-item.active {
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  border-color: var(--border-primary);
+}
+
+.ig-rail-spacer {
+  flex: 1;
+}
+
+.ig-sidebar {
+  width: 260px;
+  min-width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+}
+
+.ig-sidebar-header {
+  height: 48px;
+  padding: 7px 10px 7px 12px;
+  background: var(--bg-secondary);
+}
+
+.ig-sidebar-header h2,
+.ig-branch-panel-hdr h3,
+.ig-graph-header h3,
+.ig-detail-hdr h3,
+.ig-commit-panel-top,
+.ig-file-section-header h3 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ig-sidebar-subtitle {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.ig-header-icon-btn.ant-btn {
+  color: var(--text-secondary);
+}
+
+.ig-header-icon-btn.ant-btn:hover {
+  color: var(--accent-blue);
+  background: var(--surface-hover);
+}
+
+.ig-sidebar-list {
+  padding: 6px;
+}
+
+.ig-sidebar-empty {
+  padding: 24px 12px;
+}
+
+.ig-sidebar-empty .ant-empty-description,
+.ig-file-list .ant-empty-description,
+.ig-empty-view .ant-empty-description,
+.ig-graph-list .ant-empty-description {
+  color: var(--text-muted);
+}
+
+.ig-sidebar-item {
+  min-height: 48px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.ig-sidebar-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-sidebar-item.active {
+  background: var(--surface-active);
+  border-left: 1px solid var(--accent-blue);
+  border-color: var(--border-primary);
+}
+
+.ig-sidebar-item-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--accent-blue);
+  background: var(--bg-primary);
+}
+
+.ig-sidebar-item-name {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.ig-sidebar-item-path {
+  color: var(--text-muted);
+}
+
+.ig-remove-btn.ant-btn {
+  opacity: 0;
+  color: var(--text-muted);
+}
+
+.ig-sidebar-item:hover .ig-remove-btn.ant-btn {
+  opacity: 1;
+}
+
+.ig-toolbar {
+  min-height: 46px;
+  padding: 7px 10px 7px 12px;
+  gap: 10px;
+  background: var(--bg-glass);
+  border-bottom: 1px solid var(--border-primary);
+  backdrop-filter: blur(14px);
+}
+
+.ig-toolbar-left {
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-toolbar-repo-name {
+  flex-shrink: 0;
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-branch-picker.ant-btn {
+  height: 28px;
+  max-width: 170px;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+  font-family: var(--font-mono);
+}
+
+.ig-branch-menu-item {
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ig-command-placeholder {
+  min-width: 180px;
+  max-width: 280px;
+  flex: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  font-size: 12px;
+}
+
+.ig-command-placeholder span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-view-segment {
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.ig-segment-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ig-toolbar-actions {
+  margin-left: 0;
+}
+
+.ig-notification.ant-alert {
+  margin: 8px 10px 0;
+  padding: 7px 12px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.ig-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ig-loading-screen,
+.ig-empty-view {
+  background: var(--bg-primary);
+}
+
+.ig-changes-view {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 260px minmax(360px, 1fr) 280px;
+  gap: 0;
+  background: var(--border-primary);
+}
+
+.ig-file-lists,
+.ig-branch-panel,
+.ig-detail-panel,
+.ig-commit-panel {
+  background: var(--bg-secondary);
+}
+
+.ig-file-lists {
+  padding: 0;
+  gap: 0;
+}
+
+.ig-file-section {
+  border: 0;
+  border-radius: 0;
+  background: var(--bg-secondary);
+}
+
+.ig-file-section + .ig-file-section {
+  border-top: 1px solid var(--border-primary);
+}
+
+.ig-file-section-header,
+.ig-diff-header,
+.ig-graph-header,
+.ig-branch-panel-hdr,
+.ig-detail-hdr,
+.ig-commit-panel-top {
+  min-height: 36px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.ig-file-section-header {
+  display: flex;
+  align-items: center;
+}
+
+.ig-file-list {
+  max-height: none;
+  padding: 4px;
+}
+
+.ig-file-item {
+  min-height: 30px;
+  margin-bottom: 2px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+}
+
+.ig-file-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-file-item.active {
+  background: var(--surface-active) !important;
+  border-color: var(--border-focus) !important;
+}
+
+.ig-file-status-badge,
+.ig-file-status {
+  width: 20px;
+  min-width: 20px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.ig-file-path {
+  color: var(--text-primary);
+}
+
+.ig-diff-view,
+.ig-graph-area {
+  background: var(--bg-primary);
+}
+
+.ig-diff-title {
+  color: var(--text-secondary);
+}
+
+.ig-diff-scroll {
+  color: var(--text-secondary);
+}
+
+.ig-diff-chunk {
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.ig-diff-hunk-hdr {
+  background: var(--surface-active);
+  border-bottom-color: var(--border-focus);
+  color: var(--accent-blue);
+}
+
+.ig-diff-line:hover {
+  background: var(--surface-hover);
+}
+
+.ig-diff-line.added {
+  background: var(--diff-add-bg);
+}
+
+.ig-diff-line.added:hover {
+  background: var(--diff-add-hover);
+}
+
+.ig-diff-line.removed {
+  background: var(--diff-remove-bg);
+}
+
+.ig-diff-line.removed:hover {
+  background: var(--diff-remove-hover);
+}
+
+.ig-commit-panel {
+  border-left: 1px solid var(--border-primary);
+  gap: 10px;
+  padding: 0;
+}
+
+.ig-commit-panel > :not(.ig-commit-panel-top) {
+  margin-left: 12px;
+  margin-right: 12px;
+}
+
+.ig-commit-panel-top {
+  color: var(--text-secondary);
+}
+
+.ig-ai-btn.ant-btn {
+  width: calc(100% - 24px);
+  margin-top: 12px;
+  justify-content: center;
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  border-color: var(--border-focus);
+}
+
+.ig-commit-input.ant-input {
+  margin-bottom: 0;
+  background: var(--bg-primary);
+}
+
+.ig-sandbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ig-commit-btn.ant-btn {
+  width: calc(100% - 24px);
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+
+.ig-history-view {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 220px minmax(400px, 1fr) 320px;
+  gap: 0;
+  background: var(--border-primary);
+}
+
+.ig-branch-search.ant-input {
+  width: calc(100% - 16px);
+  margin: 8px;
+  background: var(--bg-primary);
+}
+
+.ig-branch-item {
+  min-height: 30px;
+  margin: 2px 4px;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+
+.ig-branch-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-branch-item.current {
+  background: var(--surface-active);
+}
+
+.ig-graph-row {
+  min-height: 42px;
+  padding: 5px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 72%, transparent);
+}
+
+.ig-graph-row:hover {
+  background: var(--surface-hover);
+}
+
+.ig-graph-row.selected {
+  background: var(--surface-active);
+  border-left: 3px solid var(--accent-blue);
+}
+
+.ig-graph-msg {
+  gap: 6px;
+}
+
+.ig-detail-body {
+  padding: 12px;
+}
+
+.ig-detail-hash code {
+  background: var(--surface-active);
+  color: var(--accent-blue);
+}
+
+.ig-detail-files {
+  border-top-color: var(--border-primary);
+}
+
+.ig-detail-file {
+  min-height: 28px;
+  padding: 4px 0;
+}
+
+.ig-detail-actions,
+.ig-reset-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ig-reset-confirm {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+}
+
+.ig-reset-confirm .ant-select {
+  width: 100%;
+}
+
+.ig-settings-view {
+  max-width: 760px;
+  height: 100%;
+  padding: 22px 26px;
+  overflow-y: auto;
+}
+
+.ig-settings-section {
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.ig-settings-section:last-of-type {
+  border-bottom: 0;
+}
+
+.ig-settings-info,
+.ig-remote-detail {
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
+  border-radius: 8px;
+}
+
+.ig-remote-type-group.ant-segmented {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.ig-form-group .ant-input,
+.ig-form-group .ant-input-password,
+.ig-form-group .ant-input-affix-wrapper {
+  background: var(--bg-primary);
+}
+
+.ig-modal-body {
+  padding: 4px 0 0;
+}
+
+.ig-path-alert.ant-alert {
+  margin-top: 8px;
+  padding: 6px 10px;
+}
+
+.ig-statusbar {
+  min-height: 26px;
+  padding: 0 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+}
+
+.ig-statusbar span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .ig-sidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+
+  .ig-command-placeholder {
+    display: none;
+  }
+
+  .ig-changes-view {
+    grid-template-columns: 220px minmax(320px, 1fr);
+  }
+
+  .ig-commit-panel {
+    display: none;
+  }
+
+  .ig-history-view {
+    grid-template-columns: 190px minmax(320px, 1fr);
+  }
+
+  .ig-detail-panel {
+    display: none;
+  }
+}

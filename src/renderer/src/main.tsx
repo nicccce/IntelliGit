@@ -1,3 +1,4 @@
+import 'antd/dist/reset.css'
 import './assets/main.css'
 import './assets/features.css'
 

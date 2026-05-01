@@ -6,19 +6,104 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  App as AntApp,
+  Alert,
+  Badge,
+  Button,
+  ConfigProvider,
+  Dropdown,
+  Empty,
+  Input,
+  Modal,
+  Segmented,
+  Select,
+  Spin,
+  Switch,
+  Tag,
+  Tooltip,
+  theme as antdTheme
+} from 'antd'
+import type { MenuProps, ThemeConfig } from 'antd'
+import {
+  BranchesOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  CloudDownloadOutlined,
+  CloudUploadOutlined,
+  CodeOutlined,
+  DeleteOutlined,
+  FolderAddOutlined,
+  FolderOpenOutlined,
+  HistoryOutlined,
+  MoonOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SettingOutlined,
+  SunOutlined,
+  ThunderboltOutlined
+} from '@ant-design/icons'
 import { useAppStore } from './store'
 
-// ── 文件状态图标映射 ─────────────────────────────────────────
-function statusIcon(code: string): string {
-  switch (code) {
-    case 'M': return '●'
-    case 'A': return '＋'
-    case 'D': return '✕'
-    case 'R': return '➜'
-    case '?': return '＋'
-    default: return ' '
+type AppThemeMode = 'light' | 'dark'
+type AppView = 'changes' | 'history' | 'settings'
+
+const { TextArea } = Input
+
+const VIEW_OPTIONS: Array<{ value: AppView; label: string; icon: React.ReactNode }> = [
+  { value: 'changes', label: '变更', icon: <CodeOutlined /> },
+  { value: 'history', label: '历史', icon: <HistoryOutlined /> },
+  { value: 'settings', label: '设置', icon: <SettingOutlined /> }
+]
+
+const ANT_THEME_TOKENS: Record<AppThemeMode, ThemeConfig> = {
+  dark: {
+    algorithm: antdTheme.darkAlgorithm,
+    token: {
+      colorPrimary: '#2f81f7',
+      colorSuccess: '#1f9d6f',
+      colorWarning: '#b7791f',
+      colorError: '#e05252',
+      colorInfo: '#2f81f7',
+      borderRadius: 6,
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      colorBgBase: '#0f1218',
+      colorBgContainer: '#161b22',
+      colorBorder: '#303845',
+      colorTextBase: '#e8edf4'
+    },
+    components: {
+      Button: { controlHeight: 30, borderRadius: 6 },
+      Input: { controlHeight: 30, borderRadius: 6 },
+      Modal: { borderRadiusLG: 8 },
+      Segmented: { borderRadius: 6 }
+    }
+  },
+  light: {
+    algorithm: antdTheme.defaultAlgorithm,
+    token: {
+      colorPrimary: '#185fa5',
+      colorSuccess: '#1d9e75',
+      colorWarning: '#ba7517',
+      colorError: '#d64545',
+      colorInfo: '#185fa5',
+      borderRadius: 6,
+      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      colorBgBase: '#f5f7fb',
+      colorBgContainer: '#ffffff',
+      colorBorder: '#d8dee8',
+      colorTextBase: '#1f2937'
+    },
+    components: {
+      Button: { controlHeight: 30, borderRadius: 6 },
+      Input: { controlHeight: 30, borderRadius: 6 },
+      Modal: { borderRadiusLG: 8 },
+      Segmented: { borderRadius: 6 }
+    }
   }
 }
+
+// ── 文件状态展示映射 ─────────────────────────────────────────
 function statusColor(code: string): string {
   switch (code) {
     case 'M': return 'var(--accent-orange)'
@@ -29,12 +114,67 @@ function statusColor(code: string): string {
   }
 }
 
+function statusLabel(code: string): string {
+  switch (code) {
+    case 'M': return 'M'
+    case 'A': return 'A'
+    case 'D': return 'D'
+    case 'R': return 'R'
+    case '?': return 'U'
+    default: return ' '
+  }
+}
+
+function ActivityRail({
+  themeMode,
+  onToggleTheme
+}: {
+  themeMode: AppThemeMode
+  onToggleTheme: () => void
+}): React.JSX.Element {
+  const { activeView, setActiveView, fileStatuses } = useAppStore()
+  const changeCount = fileStatuses.filter(f => f.staging !== ' ' || f.worktree !== ' ').length
+
+  return (
+    <nav className="ig-activity-rail" aria-label="主导航">
+      <div className="ig-rail-brand">IG</div>
+      {VIEW_OPTIONS.map((item) => {
+        const button = (
+          <button
+            key={item.value}
+            className={`ig-rail-item ${activeView === item.value ? 'active' : ''}`}
+            type="button"
+            onClick={() => setActiveView(item.value)}
+            aria-label={item.label}
+          >
+            {item.icon}
+          </button>
+        )
+        return (
+          <Tooltip key={item.value} title={item.label} placement="right">
+            {item.value === 'changes' ? (
+              <Badge size="small" count={changeCount} overflowCount={99} offset={[-2, 4]}>
+                {button}
+              </Badge>
+            ) : button}
+          </Tooltip>
+        )
+      })}
+      <div className="ig-rail-spacer" />
+      <Tooltip title={themeMode === 'dark' ? '切换到白天模式' : '切换到黑夜模式'} placement="right">
+        <button className="ig-rail-item" type="button" onClick={onToggleTheme} aria-label="切换主题">
+          {themeMode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+        </button>
+      </Tooltip>
+    </nav>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  仓库侧边栏
 // ═══════════════════════════════════════════════════════════════
 function RepoSidebar(): React.JSX.Element {
   const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } = useAppStore()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [modal, setModal] = useState<'create' | 'add' | 'clone' | null>(null)
   const [loadingAction, setLoadingAction] = useState(false)
 
@@ -48,6 +188,16 @@ function RepoSidebar(): React.JSX.Element {
   const [createLocationIsRepo, setCreateLocationIsRepo] = useState<boolean | null>(null)
   const [cloneLocationExists, setCloneLocationExists] = useState<boolean | null>(null)
   const [cloneLocationIsEmpty, setCloneLocationIsEmpty] = useState<boolean | null>(null)
+
+  const repoMenuItems: MenuProps['items'] = [
+    { key: 'create', icon: <FolderAddOutlined />, label: '创建仓库' },
+    { key: 'add', icon: <FolderOpenOutlined />, label: '添加仓库' },
+    { key: 'clone', icon: <CloudDownloadOutlined />, label: '克隆仓库' }
+  ]
+
+  const handleRepoMenuClick: MenuProps['onClick'] = ({ key }) => {
+    setModal(key as 'create' | 'add' | 'clone')
+  }
 
   const closeModal = useCallback(() => {
     setModal(null)
@@ -140,7 +290,7 @@ function RepoSidebar(): React.JSX.Element {
     } finally {
       setLoadingAction(false)
     }
-  }, [createLocation, createRepo, createRepoName, closeModal])
+  }, [createLocation, createLocationExists, createRepo, createRepoName, closeModal])
 
   const handleAddConfirm = useCallback(async () => {
     setModalError(null)
@@ -219,50 +369,38 @@ function RepoSidebar(): React.JSX.Element {
     }
   }, [cloneLocation, cloneRepo, cloneUrl, cloneLocationExists, cloneLocationIsEmpty, closeModal])
 
-  useEffect(() => {
-    const handleOutside = (): void => setMenuOpen(false)
-    if (menuOpen) {
-      document.addEventListener('click', handleOutside)
-      return () => document.removeEventListener('click', handleOutside)
-    }
-    return undefined
-  }, [menuOpen])
+  const modalTitle = modal === 'create' ? '创建仓库' : modal === 'add' ? '添加仓库' : '克隆仓库'
+  const confirmLabel = modal === 'clone' ? '开始克隆' : modal === 'create' ? '创建' : '添加'
+  const confirmDisabled = loadingAction ||
+    (modal === 'add' && !createLocation.trim()) ||
+    (modal === 'create' && (!createRepoName.trim() || !createLocation.trim())) ||
+    (modal === 'clone' && (!cloneUrl.trim() || !cloneLocation.trim()))
+  const handleConfirm = modal === 'add' ? handleAddConfirm : modal === 'create' ? handleCreateConfirm : handleCloneConfirm
 
   return (
     <aside className="ig-sidebar" id="repo-sidebar">
       <div className="ig-sidebar-header">
-        <h2>仓库</h2>
-        <div className="ig-repo-actions">
-          <button
-            id="btn-add-repo"
-            className="ig-icon-btn"
-            title="仓库操作"
-            onClick={(event) => { event.stopPropagation(); setMenuOpen(!menuOpen) }}
-            disabled={loadingAction}
-          >
-            {loadingAction ? '…' : '＋'}
-          </button>
-          {menuOpen && (
-            <div className="ig-dropdown ig-repo-dropdown" onClick={(e) => e.stopPropagation()}>
-              <div className="ig-dropdown-item" onClick={() => { setModal('create'); setMenuOpen(false) }}>
-                创建仓库
-              </div>
-              <div className="ig-dropdown-item" onClick={() => { setModal('add'); setMenuOpen(false) }}>
-                添加仓库
-              </div>
-              <div className="ig-dropdown-item" onClick={() => { setModal('clone'); setMenuOpen(false) }}>
-                克隆仓库
-              </div>
-            </div>
-          )}
+        <div>
+          <h2>仓库</h2>
+          <span className="ig-sidebar-subtitle">{repos.length} 个工作区</span>
         </div>
+        <Dropdown menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }} trigger={['click']} placement="bottomRight">
+          <Button
+            id="btn-add-repo"
+            className="ig-header-icon-btn"
+            type="text"
+            icon={<PlusOutlined />}
+            loading={loadingAction}
+            aria-label="仓库操作"
+          />
+        </Dropdown>
       </div>
 
       <div className="ig-sidebar-list">
         {repos.length === 0 ? (
           <div className="ig-sidebar-empty">
-            <p>尚无仓库</p>
-            <p className="ig-hint">点击 ＋ 新建、添加或克隆仓库</p>
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无仓库" />
+            <p className="ig-hint">点击右上角按钮新建、添加或克隆仓库</p>
           </div>
         ) : (
           repos.map((r) => (
@@ -272,149 +410,134 @@ function RepoSidebar(): React.JSX.Element {
               onClick={() => switchRepo(r.path)}
               title={r.path}
             >
-              <div className="ig-sidebar-item-icon">📁</div>
+              <div className="ig-sidebar-item-icon"><FolderOpenOutlined /></div>
               <div className="ig-sidebar-item-info">
                 <span className="ig-sidebar-item-name">{r.name}</span>
                 <span className="ig-sidebar-item-path">{r.path}</span>
               </div>
-              <button
-                className="ig-icon-btn ig-icon-btn-sm ig-remove-btn"
+              <Button
+                className="ig-remove-btn"
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
                 title="移除仓库"
                 onClick={(e) => { e.stopPropagation(); removeRepo(r.path) }}
-              >✕</button>
+              />
             </div>
           ))
         )}
       </div>
 
-      {modal && (
-        <div className="ig-modal-backdrop">
-          <div className="ig-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ig-modal-header">
-              <h3>{modal === 'create' ? '创建仓库' : modal === 'add' ? '添加仓库' : '克隆仓库'}</h3>
-            </div>
-            <div className="ig-modal-body">
-              {modal === 'create' && (
-                <>
-                  <div className="ig-form-group">
-                    <label>仓库名称</label>
-                    <input
-                      type="text"
-                      value={createRepoName}
-                      onChange={(e) => setCreateRepoName(e.target.value)}
-                      placeholder="请输入仓库名称"
-                    />
-                  </div>
-                  <div className="ig-form-group">
-                    <label>存储位置</label>
-                    <div className="ig-input-with-button">
-                      <input
-                        type="text"
-                        value={createLocation}
-                        onChange={(e) => handleCreateLocationChange(e.target.value)}
-                        placeholder="请输入或选择仓库位置"
-                      />
-                      <button className="btn btn-secondary" onClick={handleChooseCreateLocation}>选择</button>
-                    </div>
-                    {createLocation.trim() && (
-                      <div className={`ig-path-status ${createLocationExists === true ? 'exists' : createLocationExists === false ? 'not-exists' : ''}`}>
-                        {createLocationExists === true ? '✓ 目录存在' : createLocationExists === false ? '✗ 目录不存在' : '检查中...'}
-                      </div>
-                    )}
-                  </div>
-                </>
+      <Modal
+        open={!!modal}
+        title={modalTitle}
+        onCancel={closeModal}
+        destroyOnHidden
+        footer={[
+          <Button key="cancel" onClick={closeModal}>取消</Button>,
+          <Button key="ok" type="primary" loading={loadingAction} disabled={confirmDisabled} onClick={handleConfirm}>
+            {confirmLabel}
+          </Button>
+        ]}
+      >
+        <div className="ig-modal-body">
+          {modal === 'create' && (
+            <>
+              <div className="ig-form-group">
+                <label>仓库名称</label>
+                <Input
+                  value={createRepoName}
+                  onChange={(e) => setCreateRepoName(e.target.value)}
+                  placeholder="请输入仓库名称"
+                />
+              </div>
+              <div className="ig-form-group">
+                <label>存储位置</label>
+                <Input.Search
+                  value={createLocation}
+                  onChange={(e) => handleCreateLocationChange(e.target.value)}
+                  onSearch={handleChooseCreateLocation}
+                  enterButton="选择"
+                  placeholder="请输入或选择仓库位置"
+                />
+                {createLocation.trim() && (
+                  <Alert
+                    className="ig-path-alert"
+                    type={createLocationExists === true ? 'success' : createLocationExists === false ? 'error' : 'info'}
+                    showIcon
+                    message={createLocationExists === true ? '目录存在' : createLocationExists === false ? '目录不存在' : '检查中...'}
+                  />
+                )}
+              </div>
+            </>
+          )}
+          {modal === 'add' && (
+            <div className="ig-form-group">
+              <label>仓库路径</label>
+              <Input.Search
+                value={createLocation}
+                onChange={(e) => handleCreateLocationChange(e.target.value)}
+                onSearch={handleChooseCreateLocation}
+                enterButton="选择"
+                placeholder="请输入或选择现有仓库路径"
+              />
+              {createLocation.trim() && (
+                <Alert
+                  className="ig-path-alert"
+                  type={createLocationExists === true ? 'success' : createLocationExists === false ? 'error' : 'info'}
+                  showIcon
+                  message={createLocationExists === true ? '目录存在' : createLocationExists === false ? '目录不存在' : '检查中...'}
+                />
               )}
-              {modal === 'add' && (
-                <>
-                  <div className="ig-form-group">
-                    <label>仓库路径</label>
-                    <div className="ig-input-with-button">
-                      <input
-                        type="text"
-                        value={createLocation}
-                        onChange={(e) => handleCreateLocationChange(e.target.value)}
-                        placeholder="请输入或选择现有仓库路径"
-                      />
-                      <button className="btn btn-secondary" onClick={handleChooseCreateLocation}>选择</button>
-                    </div>
-                    {createLocation.trim() && (
-                      <div className={`ig-path-status ${createLocationExists === true ? 'exists' : createLocationExists === false ? 'not-exists' : ''}`}>
-                        {createLocationExists === true ? '✓ 目录存在' : createLocationExists === false ? '✗ 目录不存在' : '检查中...'}
-                      </div>
-                    )}
-                    {createLocationExists === true && createLocationIsRepo !== null && (
-                      <div className={`ig-path-status ${createLocationIsRepo ? 'exists' : 'not-exists'}`}>
-                        {createLocationIsRepo ? '✓ 有效 Git 仓库' : '✗ 不是 Git 仓库'}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-              {modal === 'clone' && (
-                <>
-                  <div className="ig-form-group">
-                    <label>远程仓库地址</label>
-                    <input
-                      type="text"
-                      value={cloneUrl}
-                      onChange={(e) => setCloneUrl(e.target.value)}
-                      placeholder="https://github.com/user/repo.git"
-                    />
-                  </div>
-                  <div className="ig-form-group">
-                    <label>克隆位置</label>
-                    <div className="ig-input-with-button">
-                      <input
-                        type="text"
-                        value={cloneLocation}
-                        onChange={(e) => handleCloneLocationChange(e.target.value)}
-                        placeholder="请输入或选择空目录作为克隆位置"
-                      />
-                      <button className="btn btn-secondary" onClick={handleChooseCloneLocation}>选择</button>
-                    </div>
-                    {cloneLocation.trim() && (
-                      <div className={`ig-path-status ${cloneLocationExists === true ? 'exists' : cloneLocationExists === false ? 'not-exists' : ''}`}>
-                        {cloneLocationExists === true ? '✓ 目录存在' : cloneLocationExists === false ? '✗ 目录不存在' : '检查中...'}
-                        {cloneLocationExists === true && cloneLocationIsEmpty === true && '，且为空目录'}
-                        {cloneLocationExists === true && cloneLocationIsEmpty === false && '，但不为空目录'}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-              {modalError && <div className="ig-form-error">{modalError}</div>}
-            </div>
-            <div className="ig-modal-footer">
-              <button className="btn btn-secondary" onClick={closeModal}>取消</button>
-              {modal === 'add' ? (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleAddConfirm}
-                  disabled={!createLocation || loadingAction}
-                >
-                  {loadingAction ? <><span className="spinner" /> 正在验证…</> : '确认'}
-                </button>
-              ) : modal === 'create' ? (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleCreateConfirm}
-                  disabled={!createRepoName.trim() || !createLocation || loadingAction}
-                >
-                  {loadingAction ? <><span className="spinner" /> 创建中…</> : '确认'}
-                </button>
-              ) : (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleCloneConfirm}
-                  disabled={!cloneUrl.trim() || !cloneLocation || loadingAction}
-                >
-                  {loadingAction ? <><span className="spinner" /> 克隆中…</> : '确认'}
-                </button>
+              {createLocationExists === true && createLocationIsRepo !== null && (
+                <Alert
+                  className="ig-path-alert"
+                  type={createLocationIsRepo ? 'success' : 'error'}
+                  showIcon
+                  message={createLocationIsRepo ? '有效 Git 仓库' : '不是 Git 仓库'}
+                />
               )}
             </div>
-          </div>
+          )}
+          {modal === 'clone' && (
+            <>
+              <div className="ig-form-group">
+                <label>远程仓库地址</label>
+                <Input
+                  value={cloneUrl}
+                  onChange={(e) => setCloneUrl(e.target.value)}
+                  placeholder="https://github.com/user/repo.git"
+                />
+              </div>
+              <div className="ig-form-group">
+                <label>克隆位置</label>
+                <Input.Search
+                  value={cloneLocation}
+                  onChange={(e) => handleCloneLocationChange(e.target.value)}
+                  onSearch={handleChooseCloneLocation}
+                  enterButton="选择"
+                  placeholder="请输入或选择空目录作为克隆位置"
+                />
+                {cloneLocation.trim() && (
+                  <Alert
+                    className="ig-path-alert"
+                    type={cloneLocationExists === true && cloneLocationIsEmpty === true ? 'success' : cloneLocationExists === false || cloneLocationIsEmpty === false ? 'error' : 'info'}
+                    showIcon
+                    message={
+                      cloneLocationExists === true && cloneLocationIsEmpty === true
+                        ? '目录存在，且为空目录'
+                        : cloneLocationExists === true && cloneLocationIsEmpty === false
+                          ? '目录存在，但不为空目录'
+                          : cloneLocationExists === false ? '目录不存在' : '检查中...'
+                    }
+                  />
+                )}
+              </div>
+            </>
+          )}
+          {modalError && <Alert type="error" showIcon message={modalError} />}
         </div>
-      )}
+      </Modal>
     </aside>
   )
 }
@@ -425,9 +548,8 @@ function RepoSidebar(): React.JSX.Element {
 function Toolbar(): React.JSX.Element {
   const { currentRepo, currentBranch, branches, remoteBranches, activeView, setActiveView,
       pull, push, refreshAll, refreshAllLocal, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
-    const [branchDropdown, setBranchDropdown] = useState(false)
 
-    const hasRemote = currentRepo?.remoteType && currentRepo.remoteType !== 'none'
+    const hasRemote = Boolean(currentRepo?.remoteType && currentRepo.remoteType !== 'none')
     const hasCommitsToPush = hasRemote && commitsAhead > 0 && commitsBehind === 0
     const hasCommitsToPull = hasRemote && commitsBehind > 0
 
@@ -440,6 +562,22 @@ function Toolbar(): React.JSX.Element {
       ...branches.filter(b => !b.isRemote),
       ...remoteOnlyBranches
     ]
+    const branchMenuItems: MenuProps['items'] = mergedBranches.length === 0
+      ? [{ key: '__empty', label: '无分支', disabled: true }]
+      : mergedBranches.map((b) => {
+        const isRemoteOnly = remoteOnlyBranches.some(rb => rb.name === b.name)
+        return {
+          key: b.name,
+          label: (
+            <div className="ig-branch-menu-item">
+              <span>{b.isHead ? <CheckOutlined /> : <BranchesOutlined />}</span>
+              <span className="ig-branch-name">{b.name}</span>
+              {isRemoteOnly && <Tag color="blue">远程</Tag>}
+              {!isRemoteOnly && b.name !== currentBranch && <Tag>本地</Tag>}
+            </div>
+          )
+        }
+      })
 
     return (
       <header className="ig-toolbar" id="main-toolbar">
@@ -448,71 +586,57 @@ function Toolbar(): React.JSX.Element {
             {currentRepo ? currentRepo.name : 'IntelliGit'}
           </div>
           {currentBranch && (
-            <div className="ig-branch-picker" onClick={() => setBranchDropdown(!branchDropdown)}>
-              <span className="ig-branch-icon">⎇</span>
-              <span>{currentBranch}</span>
-              <span className="ig-caret">▾</span>
-              {branchDropdown && (
-                <div className="ig-dropdown" onClick={(e) => e.stopPropagation()}>
-                  {mergedBranches.length === 0 ? (
-                    <div className="ig-dropdown-item ig-dropdown-empty">无分支</div>
-                  ) : mergedBranches.map(b => {
-                    const isRemoteOnly = remoteOnlyBranches.some(rb => rb.name === b.name)
-                    return (
-                      <div
-                        key={b.name}
-                        className={`ig-dropdown-item ${b.isHead ? 'active' : ''}`}
-                        onClick={() => {
-                          checkoutBranch(b.name)
-                          setBranchDropdown(false)
-                        }}
-                      >
-                        {b.isHead && <span className="ig-check">✓</span>}
-                        <span className="ig-branch-name">{b.name}</span>
-                        {isRemoteOnly && <span className="ig-branch-tag ig-branch-tag-remote">远程</span>}
-                        {!isRemoteOnly && b.name !== currentBranch && <span className="ig-branch-tag ig-branch-tag-local">本地</span>}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <Dropdown
+              menu={{
+                items: branchMenuItems,
+                onClick: ({ key }) => {
+                  if (key !== '__empty') checkoutBranch(String(key))
+                }
+              }}
+              trigger={['click']}
+            >
+              <Button className="ig-branch-picker" size="small" icon={<BranchesOutlined />}>
+                {currentBranch}
+              </Button>
+            </Dropdown>
           )}
+          <div className="ig-command-placeholder">
+            <ThunderboltOutlined />
+            <span>告诉我你想做什么... (Ctrl K)</span>
+          </div>
       </div>
-      <div className="ig-toolbar-tabs">
-        {(['changes', 'history', 'settings'] as const).map(v => (
-          <button
-            key={v}
-            className={`ig-tab ${activeView === v ? 'active' : ''}`}
-            onClick={() => setActiveView(v)}
-          >
-            {v === 'changes' ? '📝 变更' : v === 'history' ? '📜 历史' : '⚙ 设置'}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        className="ig-view-segment"
+        value={activeView}
+        onChange={(value) => setActiveView(value as AppView)}
+        options={VIEW_OPTIONS.map((item) => ({
+          value: item.value,
+          label: <span className="ig-segment-label">{item.icon}{item.label}</span>
+        }))}
+      />
             <div className="ig-toolbar-actions">
         {hasRemote && (
-          <button 
-            className="ig-action-btn" 
+          <Button
+            type={hasCommitsToPush ? 'primary' : 'default'}
+            size="small"
+            icon={hasCommitsToPush ? <CloudUploadOutlined /> : <CloudDownloadOutlined />}
             onClick={hasCommitsToPush ? push : pull}
-            disabled={!currentRepo || !!operationLoading} 
+            disabled={!currentRepo || !!operationLoading}
+            loading={operationLoading === 'push' || operationLoading === 'pull'}
             title={hasCommitsToPush ? "Push commits" : "Pull commits"}
           >
-            {operationLoading === 'push' || operationLoading === 'pull' ? (
-              <span className="spinner" /> 
-            ) : hasCommitsToPush ? (
-              `⬆ Push ${commitsAhead}`
-            ) : hasCommitsToPull ? (
-              `⬇ Pull ${commitsBehind}`
-            ) : (
-              '⬇ Pull'
-            )}
-          </button>
+            {hasCommitsToPush ? `Push ${commitsAhead}` : hasCommitsToPull ? `Pull ${commitsBehind}` : 'Pull'}
+          </Button>
         )}
-        <button className="ig-icon-btn" onClick={hasRemote ? refreshAll : refreshAllLocal}
-          disabled={!currentRepo || !!operationLoading} title={hasRemote ? '刷新（含远程）' : '刷新'}>
-          🔄
-        </button>
+        <Tooltip title={hasRemote ? '刷新（含远程）' : '刷新'}>
+          <Button
+            className="ig-header-icon-btn"
+            type="text"
+            icon={<ReloadOutlined />}
+            onClick={hasRemote ? refreshAll : refreshAllLocal}
+            disabled={!currentRepo || !!operationLoading}
+          />
+        </Tooltip>
       </div>
     </header>
   )
@@ -561,6 +685,7 @@ function ChangesView(): React.JSX.Element {
   const { fileStatuses, addFile, addAll, removeFile, createCommit,
     operationLoading, currentRepo, selectedFilePath, selectFile } = useAppStore()
   const [commitMsg, setCommitMsg] = useState('')
+  const [runSandbox, setRunSandbox] = useState(false)
 
   const staged = fileStatuses.filter(f => f.staging !== ' ' && f.staging !== '?')
   const unstaged = fileStatuses.filter(f => f.worktree !== ' ' || f.staging === '?')
@@ -574,8 +699,7 @@ function ChangesView(): React.JSX.Element {
   if (!currentRepo) {
     return (
       <div className="ig-empty-view">
-        <div className="ig-empty-icon">📂</div>
-        <h3>选择一个仓库开始</h3>
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择一个仓库开始" />
         <p>从左侧添加或选择 Git 仓库</p>
       </div>
     )
@@ -590,15 +714,21 @@ function ChangesView(): React.JSX.Element {
           </div>
           <div className="ig-file-list">
             {staged.length === 0 ? (
-              <div className="ig-file-empty">无暂存文件</div>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="无暂存文件" />
             ) : staged.map(f => (
               <div key={`s-${f.path}`}
                 className={`ig-file-item ${selectedFilePath === f.path ? 'active' : ''}`}
                 onClick={() => selectFile(f.path)}>
-                <span className="ig-file-status" style={{ color: statusColor(f.staging) }}>{statusIcon(f.staging)}</span>
+                <span className="ig-file-status-badge" style={{ color: statusColor(f.staging) }}>{statusLabel(f.staging)}</span>
                 <span className="ig-file-path">{f.path}</span>
-                <button className="ig-icon-btn ig-icon-btn-sm" title="取消暂存"
-                  onClick={(e) => { e.stopPropagation(); removeFile(f.path) }}>−</button>
+                <Tooltip title="取消暂存">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CloseOutlined />}
+                    onClick={(e) => { e.stopPropagation(); removeFile(f.path) }}
+                  />
+                </Tooltip>
               </div>
             ))}
           </div>
@@ -606,20 +736,26 @@ function ChangesView(): React.JSX.Element {
         <div className="ig-file-section">
           <div className="ig-file-section-header">
             <h3>未暂存 ({unstaged.length})</h3>
-            <button className="ig-sm-btn" onClick={addAll}
-              disabled={unstaged.length === 0 || !!operationLoading}>全部暂存</button>
+            <Button size="small" type="link" onClick={addAll}
+              disabled={unstaged.length === 0 || !!operationLoading}>全部暂存</Button>
           </div>
           <div className="ig-file-list">
             {unstaged.length === 0 ? (
-              <div className="ig-file-empty">工作区干净 ✨</div>
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="工作区干净" />
             ) : unstaged.map(f => (
               <div key={`u-${f.path}`}
                 className={`ig-file-item ${selectedFilePath === f.path ? 'active' : ''}`}
                 onClick={() => selectFile(f.path)}>
-                <span className="ig-file-status" style={{ color: statusColor(f.worktree || f.staging) }}>{statusIcon(f.worktree || f.staging)}</span>
+                <span className="ig-file-status-badge" style={{ color: statusColor(f.worktree || f.staging) }}>{statusLabel(f.worktree || f.staging)}</span>
                 <span className="ig-file-path">{f.path}</span>
-                <button className="ig-icon-btn ig-icon-btn-sm" title="暂存"
-                  onClick={(e) => { e.stopPropagation(); addFile(f.path) }}>＋</button>
+                <Tooltip title="暂存">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    onClick={(e) => { e.stopPropagation(); addFile(f.path) }}
+                  />
+                </Tooltip>
               </div>
             ))}
           </div>
@@ -633,17 +769,22 @@ function ChangesView(): React.JSX.Element {
       {/* 提交面板 */}
       <div className="ig-commit-panel">
         <div className="ig-commit-panel-top">提交</div>
-        <button className="ig-ai-btn" disabled title="AI 生成提交信息（即将推出）">
-          <span className="ig-ai-dot" /> AI 生成提交信息
-        </button>
-        <textarea id="commit-message" className="ig-commit-input"
+        <Button className="ig-ai-btn" icon={<ThunderboltOutlined />} disabled title="AI 生成提交信息（即将推出）">
+          AI 生成提交信息
+        </Button>
+        <TextArea id="commit-message" className="ig-commit-input"
           placeholder="输入提交信息…" value={commitMsg}
           onChange={(e) => setCommitMsg(e.target.value)} rows={3} />
-        <button id="btn-commit" className="btn btn-primary ig-commit-btn"
+        <div className="ig-sandbox-row">
+          <Switch size="small" checked={runSandbox} onChange={setRunSandbox} />
+          <span>提交前运行沙箱验证</span>
+        </div>
+        <Button id="btn-commit" className="ig-commit-btn" type="primary"
           onClick={handleCommit}
-          disabled={!commitMsg.trim() || staged.length === 0 || !!operationLoading}>
-          {operationLoading === 'commit' ? <><span className="spinner" /> 提交中…</> : `提交 (${staged.length} 个文件已暂存)`}
-        </button>
+          disabled={!commitMsg.trim() || staged.length === 0 || !!operationLoading}
+          loading={operationLoading === 'commit'}>
+          {`提交 (${staged.length} 个文件已暂存)`}
+        </Button>
       </div>
     </div>
   )
@@ -652,7 +793,7 @@ function ChangesView(): React.JSX.Element {
 // ═══════════════════════════════════════════════════════════════
 //  历史视图（参照 intelligit_branch_graph.html）
 // ═══════════════════════════════════════════════════════════════
-const GRAPH_COLORS = ['#58a6ff', '#3fb950', '#bc8cff', '#f0883e', '#f85149', '#d29922', '#79c0ff', '#56d364']
+const GRAPH_COLORS = ['#185fa5', '#1d9e75', '#7c5cc4', '#ba7517', '#e24b4a', '#6f7c12', '#2387a8', '#546179']
 
 function HistoryView(): React.JSX.Element {
   const { allCommitHistory, branches, remoteBranches, currentRepo,
@@ -662,9 +803,9 @@ function HistoryView(): React.JSX.Element {
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard'>('mixed')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
-  useEffect(() => { if (currentRepo) fetchAllHistory() }, [currentRepo])
+  useEffect(() => { if (currentRepo) fetchAllHistory() }, [currentRepo, fetchAllHistory])
 
-  if (!currentRepo) return <div className="ig-empty-view"><h3>选择仓库查看历史</h3></div>
+  if (!currentRepo) return <div className="ig-empty-view"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择仓库查看历史" /></div>
 
   const allBranches = [...branches, ...remoteBranches]
   const filtered = allBranches.filter(b => !branchFilter || b.name.toLowerCase().includes(branchFilter.toLowerCase()))
@@ -685,14 +826,14 @@ function HistoryView(): React.JSX.Element {
       {/* 左侧分支面板 */}
       <div className="ig-branch-panel">
         <div className="ig-branch-panel-hdr"><h3>分支</h3></div>
-        <input className="ig-branch-search" placeholder="搜索分支…"
+        <Input className="ig-branch-search" placeholder="搜索分支…"
           value={branchFilter} onChange={e => setBranchFilter(e.target.value)} />
         <div className="ig-branch-list">
           {filtered.map(b => (
             <div key={b.name} className={`ig-branch-item ${b.isHead ? 'current' : ''}`}>
               <span className="ig-branch-dot" style={{background: b.isRemote ? 'var(--accent-orange)' : 'var(--accent-green)'}} />
               <span className="ig-branch-name">{b.name}</span>
-              {b.isHead && <span className="ig-branch-badge">HEAD</span>}
+              {b.isHead && <Tag color="blue">HEAD</Tag>}
             </div>
           ))}
         </div>
@@ -703,7 +844,7 @@ function HistoryView(): React.JSX.Element {
         <div className="ig-graph-header"><h3>Commit Graph ({allCommitHistory.length})</h3></div>
         <div className="ig-graph-list">
           {allCommitHistory.length === 0 ? (
-            <div className="ig-file-empty">暂无提交记录</div>
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无提交记录" />
           ) : allCommitHistory.map((c) => {
             const lane = laneMap.get(c.hash) || 0
             const color = GRAPH_COLORS[lane % GRAPH_COLORS.length]
@@ -726,7 +867,7 @@ function HistoryView(): React.JSX.Element {
                   <div className="ig-graph-msg">
                     {c.message?.split('\n')[0]}
                     {c.refs && c.refs.map(r => (
-                      <span key={r} className="ig-ref-badge">{r}</span>
+                      <Tag key={r} color="blue">{r}</Tag>
                     ))}
                   </div>
                   <div className="ig-graph-meta">
@@ -768,39 +909,40 @@ function HistoryView(): React.JSX.Element {
               )}
               {/* 操作按钮 */}
               <div className="ig-detail-actions">
-                <button className="ig-action-btn" onClick={() => checkoutCommit(selectedCommit.hash)}
-                  disabled={!!operationLoading}>
+                <Button onClick={() => checkoutCommit(selectedCommit.hash)}
+                  disabled={!!operationLoading} icon={<BranchesOutlined />}>
                   Checkout 到此 Commit
-                </button>
-                <button className="ig-action-btn warn" onClick={() => setShowResetConfirm(true)}
+                </Button>
+                <Button danger onClick={() => setShowResetConfirm(true)}
                   disabled={!!operationLoading}>
                   Reset 到此 Commit
-                </button>
+                </Button>
               </div>
               {showResetConfirm && (
                 <div className="ig-reset-confirm">
                   <div className="ig-reset-label">Reset 模式:</div>
-                  <div className="ig-reset-modes">
-                    {(['soft','mixed','hard'] as const).map(m => (
-                      <label key={m} className={`ig-reset-opt ${resetMode===m?'active':''}`}>
-                        <input type="radio" name="resetMode" checked={resetMode===m} onChange={()=>setResetMode(m)} />
-                        --{m}
-                      </label>
-                    ))}
-                  </div>
+                  <Select
+                    value={resetMode}
+                    onChange={setResetMode}
+                    options={[
+                      { value: 'soft', label: '--soft' },
+                      { value: 'mixed', label: '--mixed' },
+                      { value: 'hard', label: '--hard' }
+                    ]}
+                  />
                   <div className="ig-reset-btns">
-                    <button className="ig-action-btn warn"
+                    <Button danger
                       onClick={async () => { await resetToCommit(selectedCommit.hash, resetMode); setShowResetConfirm(false) }}>
                       确认 Reset
-                    </button>
-                    <button className="ig-action-btn" onClick={() => setShowResetConfirm(false)}>取消</button>
+                    </Button>
+                    <Button onClick={() => setShowResetConfirm(false)}>取消</Button>
                   </div>
                 </div>
               )}
             </div>
           </>
         ) : (
-          <div className="ig-detail-empty">← 选择 commit 查看详情</div>
+          <div className="ig-detail-empty">选择 commit 查看详情</div>
         )}
       </div>
     </div>
@@ -826,7 +968,7 @@ function SettingsView(): React.JSX.Element {
   // ensures full remount when the selected repository changes.
 
   if (!currentRepo) {
-    return <div className="ig-empty-view"><h3>选择仓库进行设置</h3></div>
+    return <div className="ig-empty-view"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择仓库进行设置" /></div>
   }
 
   const handleRemoteTypeChange = (type: 'none' | 'http' | 'ssh'): void => {
@@ -867,57 +1009,35 @@ function SettingsView(): React.JSX.Element {
         <p className="ig-hint">用于新建 Commit；GitHub 贡献统计按提交邮箱匹配账号</p>
         <div className="ig-form-group">
           <label>作者名称</label>
-          <input type="text" value={commitAuthorName} onChange={e => setCommitAuthorName(e.target.value)}
+          <Input value={commitAuthorName} onChange={e => setCommitAuthorName(e.target.value)}
             placeholder="留空时使用 Git 配置或认证用户名" />
         </div>
         <div className="ig-form-group">
           <label>作者邮箱</label>
-          <input type="email" value={commitAuthorEmail} onChange={e => setCommitAuthorEmail(e.target.value)}
+          <Input value={commitAuthorEmail} onChange={e => setCommitAuthorEmail(e.target.value)}
             placeholder="your-email@example.com" />
         </div>
       </div>
       <div className="ig-settings-section">
         <h3>远程仓库</h3>
         <p className="ig-hint">选择远程仓库形式以配置 Push/Pull 等操作使用的远程地址与认证</p>
-        <div className="ig-remote-type-group">
-          <label className={`ig-remote-option ${remoteType === 'none' ? 'active' : ''}`}>
-            <input
-              type="radio"
-              name="remoteType"
-              value="none"
-              checked={remoteType === 'none'}
-              onChange={() => handleRemoteTypeChange('none')}
-            />
-            <span>无</span>
-          </label>
-          <label className={`ig-remote-option ${remoteType === 'http' ? 'active' : ''}`}>
-            <input
-              type="radio"
-              name="remoteType"
-              value="http"
-              checked={remoteType === 'http'}
-              onChange={() => handleRemoteTypeChange('http')}
-            />
-            <span>HTTP(S)</span>
-          </label>
-          <label className={`ig-remote-option ${remoteType === 'ssh' ? 'active' : ''}`}>
-            <input
-              type="radio"
-              name="remoteType"
-              value="ssh"
-              checked={remoteType === 'ssh'}
-              onChange={() => handleRemoteTypeChange('ssh')}
-            />
-            <span>SSH</span>
-          </label>
-        </div>
+        <Segmented
+          className="ig-remote-type-group"
+          block
+          value={remoteType}
+          onChange={(value) => handleRemoteTypeChange(value as 'none' | 'http' | 'ssh')}
+          options={[
+            { value: 'none', label: '无' },
+            { value: 'http', label: 'HTTP(S)' },
+            { value: 'ssh', label: 'SSH' }
+          ]}
+        />
         {remoteType !== 'none' && (
           <div className="ig-remote-detail">
                         {remoteType === 'http' && (
               <div className="ig-form-group">
                 <label>HTTP(S) 远程地址</label>
-                <input
-                  type="text"
+                <Input
                   value={httpRemoteUrl}
                   onChange={e => setHttpRemoteUrl(e.target.value)}
                   placeholder="https://github.com/user/repo.git"
@@ -927,8 +1047,7 @@ function SettingsView(): React.JSX.Element {
             {remoteType === 'ssh' && (
               <div className="ig-form-group">
                 <label>SSH 远程地址</label>
-                <input
-                  type="text"
+                <Input
                   value={sshRemoteUrl}
                   onChange={e => setSshRemoteUrl(e.target.value)}
                   placeholder="git@github.com:user/repo.git"
@@ -940,12 +1059,12 @@ function SettingsView(): React.JSX.Element {
                 <p className="ig-hint">HTTP(S) 认证</p>
                 <div className="ig-form-group">
                   <label>用户名</label>
-                  <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                  <Input value={username} onChange={e => setUsername(e.target.value)}
                     placeholder="用户名" />
                 </div>
                 <div className="ig-form-group">
                   <label>密码 / Token</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  <Input.Password value={password} onChange={e => setPassword(e.target.value)}
                     placeholder="口令" />
                 </div>
               </>
@@ -955,12 +1074,12 @@ function SettingsView(): React.JSX.Element {
                 <p className="ig-hint">SSH 认证</p>
                 <div className="ig-form-group">
                   <label>SSH 密钥路径</label>
-                  <input type="text" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)}
+                  <Input value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)}
                     placeholder="~/.ssh/id_rsa" />
                 </div>
                 <div className="ig-form-group">
                   <label>SSH 密钥密码</label>
-                  <input type="password" value={sshPassword} onChange={e => setSshPassword(e.target.value)}
+                  <Input.Password value={sshPassword} onChange={e => setSshPassword(e.target.value)}
                     placeholder="（可选）" />
                 </div>
               </>
@@ -968,7 +1087,7 @@ function SettingsView(): React.JSX.Element {
           </div>
         )}
       </div>
-      <button className="btn btn-primary" onClick={handleSave}>保存设置</button>
+      <Button type="primary" onClick={handleSave}>保存设置</Button>
     </div>
   )
 }
@@ -980,16 +1099,26 @@ function NotificationBar(): React.JSX.Element | null {
   const { error, successMessage, clearError, clearSuccess } = useAppStore()
   if (error) {
     return (
-      <div className="ig-notification ig-notification-error" onClick={clearError}>
-        <span>⚠ {error}</span><span className="ig-notification-close">✕</span>
-      </div>
+      <Alert
+        className="ig-notification"
+        type="error"
+        showIcon
+        closable
+        message={error}
+        onClose={clearError}
+      />
     )
   }
   if (successMessage) {
     return (
-      <div className="ig-notification ig-notification-success" onClick={clearSuccess}>
-        <span>✓ {successMessage}</span>
-      </div>
+      <Alert
+        className="ig-notification"
+        type="success"
+        showIcon
+        closable
+        message={successMessage}
+        onClose={clearSuccess}
+      />
     )
   }
   return null
@@ -1005,6 +1134,20 @@ function MainApp(): React.JSX.Element {
   const { configLoaded, loadConfig, activeView, loading, currentRepo,
       refreshAllLocal } = useAppStore()
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [themeMode, setThemeMode] = useState<AppThemeMode>(() => {
+    const saved = window.localStorage.getItem('intelligit.theme')
+    return saved === 'light' || saved === 'dark' ? saved : 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themeMode
+    document.body.dataset.theme = themeMode
+    window.localStorage.setItem('intelligit.theme', themeMode)
+  }, [themeMode])
+
+  const toggleTheme = useCallback(() => {
+    setThemeMode((mode) => mode === 'dark' ? 'light' : 'dark')
+  }, [])
 
   useEffect(() => {
     loadConfig()
@@ -1031,37 +1174,48 @@ function MainApp(): React.JSX.Element {
         timerRef.current = null
       }
     }
-  }, [currentRepo?.path, refreshAllLocal])
+  }, [currentRepo, refreshAllLocal])
 
   if (!configLoaded) {
     return (
-      <div className="ig-loading-screen">
-        <div className="spinner" />
-        <p>加载中…</p>
-      </div>
+      <ConfigProvider theme={ANT_THEME_TOKENS[themeMode]}>
+        <AntApp>
+          <div className="ig-loading-screen">
+            <Spin size="large" />
+            <p>加载中…</p>
+          </div>
+        </AntApp>
+      </ConfigProvider>
     )
   }
 
   return (
-    <div className="ig-app">
-      <RepoSidebar />
-      <div className="ig-main">
-        <Toolbar />
-        <NotificationBar />
-        {loading && currentRepo && (
-          <div className="ig-loading-bar"><div className="ig-loading-bar-inner" /></div>
-        )}
-        <main className="ig-content">
-          {activeView === 'changes' && <ChangesView />}
-          {activeView === 'history' && <HistoryView />}
-          {activeView === 'settings' && <SettingsView key={currentRepo?.path || 'settings'} />}
-        </main>
-        <footer className="ig-statusbar">
-          <span>{currentRepo ? `📂 ${currentRepo.path}` : 'IntelliGit'}</span>
-          <span>Electron + React + Go Sidecar</span>
-        </footer>
-      </div>
-    </div>
+    <ConfigProvider theme={ANT_THEME_TOKENS[themeMode]}>
+      <AntApp className="ig-ant-root">
+        <div className={`ig-app theme-${themeMode}`}>
+          <RepoSidebar />
+          <div className="ig-workbench">
+            <ActivityRail themeMode={themeMode} onToggleTheme={toggleTheme} />
+            <div className="ig-main">
+              <Toolbar />
+              <NotificationBar />
+              {loading && currentRepo && (
+                <div className="ig-loading-bar"><div className="ig-loading-bar-inner" /></div>
+              )}
+              <main className="ig-content">
+                {activeView === 'changes' && <ChangesView />}
+                {activeView === 'history' && <HistoryView />}
+                {activeView === 'settings' && <SettingsView key={currentRepo?.path || 'settings'} />}
+              </main>
+              <footer className="ig-statusbar">
+                <span>{currentRepo ? currentRepo.path : 'IntelliGit'}</span>
+                <span>Electron + React + Go Sidecar</span>
+              </footer>
+            </div>
+          </div>
+        </div>
+      </AntApp>
+    </ConfigProvider>
   )
 }
 
