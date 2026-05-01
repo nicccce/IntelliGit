@@ -34,3 +34,32 @@
 *   **Zustand 前端 Store** 已全面打通 `invokeGit` 相关新接口，支持 `activeView`, 选中高亮及 `loading` 状态。
 *   所有的样式已使用预定义的 CSS Variables (`features.css`)，保持整体界面的色彩统一和视觉协调。
 
+## 4. 前端界面二次完善
+
+在完成核心 Git 功能后，继续依据 `docs/czl/intelligit_branch_graph.html` 与 `docs/czl/intelligit_commit_workspace.html` 对正式前端界面进行了视觉和交互完善。
+
+*   **引入成熟组件库**:
+    *   新增依赖 `antd` 与 `@ant-design/icons`，并在 `src/renderer/src/main.tsx` 中引入 Ant Design reset 样式。
+    *   在 `MainApp.tsx` 中使用 Ant Design 的 `ConfigProvider`, `Button`, `Dropdown`, `Modal`, `Segmented`, `Input`, `Select`, `Switch`, `Tag`, `Alert`, `Tooltip`, `Empty` 等组件替换原有粗糙控件。
+*   **明暗主题支持**:
+    *   新增 `dark` / `light` 两套 Ant Design token，并与 CSS Variables 同步。
+    *   主题状态写入 `localStorage`，用户切换后能够保持偏好。
+    *   左侧导航提供主题切换按钮，支持黑夜与白天两种配色。
+*   **整体布局调整**:
+    *   将界面改为更贴近设计稿的「顶部栏 + 左侧 52px 图标导航 + 中间工作区 + 底部状态栏」结构。
+    *   顶部栏展示 IntelliGit 标识、当前仓库选择器、当前分支选择器、自然语言命令入口占位、Fetch/Pull/Push 等操作。
+    *   底部状态栏展示引擎状态、API 连接状态、当前仓库路径、ahead/behind 与当前分支信息。
+*   **仓库切换交互优化**:
+    *   移除了最左侧占用过宽空间的仓库列表列。
+    *   将仓库切换改为左侧图标栏中的仓库缩略图，点击缩略图即可切换仓库。
+    *   缩略图栏底部保留添加入口，支持创建仓库、添加现有仓库、克隆远程仓库。
+    *   顶部栏仓库选择器也支持从下拉列表快速切换仓库。
+*   **提交工作区与历史视图视觉完善**:
+    *   Changes View 保持设计稿中的三栏结构：文件列表、Diff 主视图、提交面板。
+    *   History View 保持三栏结构：分支列表、Commit Graph、Commit 详情面板。
+    *   文件状态、Diff 增删行、Commit refs、Reset 模式等控件统一换为组件化样式。
+*   **验证结果**:
+    *   `npm.cmd run typecheck:web` 通过。
+    *   `npx.cmd eslint src/renderer/src/MainApp.tsx src/renderer/src/main.tsx` 通过。
+    *   `npm.cmd run build` 通过。
+    *   全量 `npm.cmd run lint` 仍会受到项目原有 `App.tsx` 测试模式条件 Hook 问题和历史 Prettier 警告影响，非本次前端界面改造新增问题。
