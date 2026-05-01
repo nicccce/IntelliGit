@@ -522,6 +522,7 @@ body {
 
 .ig-app {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -531,6 +532,7 @@ body {
 
 .ig-workbench {
   min-width: 0;
+  min-height: 0;
   flex: 1;
   display: flex;
 }
@@ -553,6 +555,93 @@ body {
   padding: 8px 0;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-primary);
+}
+
+.ig-repo-dock {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ig-repo-thumb-list {
+  max-height: 174px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.ig-repo-thumb-list::-webkit-scrollbar {
+  display: none;
+}
+
+.ig-repo-thumb {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.ig-repo-thumb:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.ig-repo-thumb.active {
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  border-color: var(--accent-blue);
+}
+
+.ig-repo-thumb.active::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  width: 3px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-blue);
+}
+
+.ig-repo-thumb-add {
+  color: var(--accent-green);
+  border-style: dashed;
+}
+
+.ig-repo-thumb-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 260px;
+}
+
+.ig-repo-thumb-tooltip span {
+  opacity: 0.72;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.ig-rail-divider {
+  width: 28px;
+  height: 1px;
+  margin: 2px 0;
+  background: var(--border-primary);
 }
 
 .ig-rail-brand {
@@ -701,8 +790,8 @@ body {
 }
 
 .ig-toolbar {
-  min-height: 46px;
-  padding: 7px 10px 7px 12px;
+  min-height: 42px;
+  padding: 6px 10px 6px 12px;
   gap: 10px;
   background: var(--bg-glass);
   border-bottom: 1px solid var(--border-primary);
@@ -714,15 +803,59 @@ body {
   flex: 1;
 }
 
-.ig-toolbar-repo-name {
+.ig-topbar-logo {
   flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ig-repo-selector.ant-btn {
   max-width: 180px;
   overflow: hidden;
   color: var(--text-primary);
-  background: none;
-  -webkit-text-fill-color: currentColor;
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ig-repo-menu-item {
+  min-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ig-repo-menu-avatar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.ig-repo-menu-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ig-repo-menu-text strong,
+.ig-repo-menu-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-repo-menu-text small {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .ig-branch-picker.ant-btn {
@@ -789,6 +922,7 @@ body {
 
 .ig-content {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -1099,18 +1233,49 @@ body {
 }
 
 .ig-statusbar {
-  min-height: 26px;
+  min-height: 24px;
   padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   color: var(--text-muted);
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-primary);
 }
 
-.ig-statusbar span:first-child {
+.ig-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.ig-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.ig-status-dot.green {
+  background: var(--accent-green);
+}
+
+.ig-status-dot.blue {
+  background: var(--accent-blue);
+}
+
+.ig-status-path {
   min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ig-status-tail {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-family: var(--font-mono);
 }
 
 @media (max-width: 980px) {

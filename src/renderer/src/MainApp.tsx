@@ -32,13 +32,11 @@ import {
   CloudDownloadOutlined,
   CloudUploadOutlined,
   CodeOutlined,
-  DeleteOutlined,
   FolderAddOutlined,
   FolderOpenOutlined,
   HistoryOutlined,
   MoonOutlined,
   PlusOutlined,
-  ReloadOutlined,
   SettingOutlined,
   SunOutlined,
   ThunderboltOutlined
@@ -125,6 +123,19 @@ function statusLabel(code: string): string {
   }
 }
 
+function repoInitials(name: string): string {
+  const parts = name
+    .replace(/\.git$/i, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  }
+
+  return (parts[0] || name || 'IG').slice(0, 2).toUpperCase()
+}
+
 function ActivityRail({
   themeMode,
   onToggleTheme
@@ -138,6 +149,8 @@ function ActivityRail({
   return (
     <nav className="ig-activity-rail" aria-label="主导航">
       <div className="ig-rail-brand">IG</div>
+      <RepoSidebar />
+      <div className="ig-rail-divider" />
       {VIEW_OPTIONS.map((item) => {
         const button = (
           <button
@@ -174,7 +187,7 @@ function ActivityRail({
 //  仓库侧边栏
 // ═══════════════════════════════════════════════════════════════
 function RepoSidebar(): React.JSX.Element {
-  const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } = useAppStore()
+  const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo } = useAppStore()
   const [modal, setModal] = useState<'create' | 'add' | 'clone' | null>(null)
   const [loadingAction, setLoadingAction] = useState(false)
 
@@ -378,55 +391,41 @@ function RepoSidebar(): React.JSX.Element {
   const handleConfirm = modal === 'add' ? handleAddConfirm : modal === 'create' ? handleCreateConfirm : handleCloneConfirm
 
   return (
-    <aside className="ig-sidebar" id="repo-sidebar">
-      <div className="ig-sidebar-header">
-        <div>
-          <h2>仓库</h2>
-          <span className="ig-sidebar-subtitle">{repos.length} 个工作区</span>
-        </div>
-        <Dropdown menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }} trigger={['click']} placement="bottomRight">
-          <Button
-            id="btn-add-repo"
-            className="ig-header-icon-btn"
-            type="text"
-            icon={<PlusOutlined />}
-            loading={loadingAction}
-            aria-label="仓库操作"
-          />
-        </Dropdown>
-      </div>
-
-      <div className="ig-sidebar-list">
-        {repos.length === 0 ? (
-          <div className="ig-sidebar-empty">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无仓库" />
-            <p className="ig-hint">点击右上角按钮新建、添加或克隆仓库</p>
-          </div>
-        ) : (
-          repos.map((r) => (
-            <div
-              key={r.path}
-              className={`ig-sidebar-item ${currentRepo?.path === r.path ? 'active' : ''}`}
-              onClick={() => switchRepo(r.path)}
-              title={r.path}
-            >
-              <div className="ig-sidebar-item-icon"><FolderOpenOutlined /></div>
-              <div className="ig-sidebar-item-info">
-                <span className="ig-sidebar-item-name">{r.name}</span>
-                <span className="ig-sidebar-item-path">{r.path}</span>
+    <aside className="ig-repo-dock" id="repo-sidebar" aria-label="仓库缩略图">
+      <div className="ig-repo-thumb-list">
+        {repos.map((r) => (
+          <Tooltip
+            key={r.path}
+            title={
+              <div className="ig-repo-thumb-tooltip">
+                <strong>{r.name}</strong>
+                <span>{r.path}</span>
               </div>
-              <Button
-                className="ig-remove-btn"
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                title="移除仓库"
-                onClick={(e) => { e.stopPropagation(); removeRepo(r.path) }}
-              />
-            </div>
-          ))
-        )}
+            }
+            placement="right"
+          >
+            <button
+              className={`ig-repo-thumb ${currentRepo?.path === r.path ? 'active' : ''}`}
+              type="button"
+              onClick={() => switchRepo(r.path)}
+              aria-label={`切换到仓库 ${r.name}`}
+            >
+              <span>{repoInitials(r.name)}</span>
+            </button>
+          </Tooltip>
+        ))}
       </div>
+      <Dropdown menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }} trigger={['click']} placement="bottomRight">
+        <button
+          id="btn-add-repo"
+          className="ig-repo-thumb ig-repo-thumb-add"
+          type="button"
+          aria-label="仓库操作"
+          disabled={loadingAction}
+        >
+          {loadingAction ? <Spin size="small" /> : <PlusOutlined />}
+        </button>
+      </Dropdown>
 
       <Modal
         open={!!modal}
@@ -546,7 +545,7 @@ function RepoSidebar(): React.JSX.Element {
 //  顶部工具栏
 // ═══════════════════════════════════════════════════════════════
 function Toolbar(): React.JSX.Element {
-  const { currentRepo, currentBranch, branches, remoteBranches, activeView, setActiveView,
+  const { repos, currentRepo, currentBranch, branches, remoteBranches, switchRepo,
       pull, push, refreshAll, refreshAllLocal, operationLoading, checkoutBranch, commitsAhead, commitsBehind } = useAppStore()
 
     const hasRemote = Boolean(currentRepo?.remoteType && currentRepo.remoteType !== 'none')
@@ -578,13 +577,39 @@ function Toolbar(): React.JSX.Element {
           )
         }
       })
+    const repoSwitchItems: MenuProps['items'] = repos.length === 0
+      ? [{ key: '__empty', label: '暂无仓库', disabled: true }]
+      : repos.map((repo) => ({
+        key: repo.path,
+        label: (
+          <div className="ig-repo-menu-item">
+            <span className="ig-repo-menu-avatar">{repoInitials(repo.name)}</span>
+            <span className="ig-repo-menu-text">
+              <strong>{repo.name}</strong>
+              <small>{repo.path}</small>
+            </span>
+            {currentRepo?.path === repo.path && <CheckOutlined />}
+          </div>
+        )
+      }))
 
     return (
       <header className="ig-toolbar" id="main-toolbar">
         <div className="ig-toolbar-left">
-          <div className="ig-toolbar-repo-name">
-            {currentRepo ? currentRepo.name : 'IntelliGit'}
-          </div>
+          <div className="ig-topbar-logo">IntelliGit</div>
+          <Dropdown
+            menu={{
+              items: repoSwitchItems,
+              onClick: ({ key }) => {
+                if (key !== '__empty') switchRepo(String(key))
+              }
+            }}
+            trigger={['click']}
+          >
+            <Button className="ig-repo-selector" size="small" icon={<FolderOpenOutlined />}>
+              {currentRepo ? currentRepo.name : '选择仓库'}
+            </Button>
+          </Dropdown>
           {currentBranch && (
             <Dropdown
               menu={{
@@ -605,16 +630,14 @@ function Toolbar(): React.JSX.Element {
             <span>告诉我你想做什么... (Ctrl K)</span>
           </div>
       </div>
-      <Segmented
-        className="ig-view-segment"
-        value={activeView}
-        onChange={(value) => setActiveView(value as AppView)}
-        options={VIEW_OPTIONS.map((item) => ({
-          value: item.value,
-          label: <span className="ig-segment-label">{item.icon}{item.label}</span>
-        }))}
-      />
             <div className="ig-toolbar-actions">
+        <Button
+          size="small"
+          onClick={hasRemote ? refreshAll : refreshAllLocal}
+          disabled={!currentRepo || !!operationLoading}
+        >
+          {hasRemote ? 'Fetch' : '刷新'}
+        </Button>
         {hasRemote && (
           <Button
             type={hasCommitsToPush ? 'primary' : 'default'}
@@ -628,15 +651,6 @@ function Toolbar(): React.JSX.Element {
             {hasCommitsToPush ? `Push ${commitsAhead}` : hasCommitsToPull ? `Pull ${commitsBehind}` : 'Pull'}
           </Button>
         )}
-        <Tooltip title={hasRemote ? '刷新（含远程）' : '刷新'}>
-          <Button
-            className="ig-header-icon-btn"
-            type="text"
-            icon={<ReloadOutlined />}
-            onClick={hasRemote ? refreshAll : refreshAllLocal}
-            disabled={!currentRepo || !!operationLoading}
-          />
-        </Tooltip>
       </div>
     </header>
   )
@@ -700,7 +714,7 @@ function ChangesView(): React.JSX.Element {
     return (
       <div className="ig-empty-view">
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择一个仓库开始" />
-        <p>从左侧添加或选择 Git 仓库</p>
+        <p>从左侧缩略图栏添加或选择 Git 仓库</p>
       </div>
     )
   }
@@ -1124,6 +1138,22 @@ function NotificationBar(): React.JSX.Element | null {
   return null
 }
 
+function StatusBar(): React.JSX.Element {
+  const { currentRepo, currentBranch, commitsAhead, commitsBehind, operationLoading } = useAppStore()
+
+  return (
+    <footer className="ig-statusbar">
+      <span className="ig-status-item"><span className="ig-status-dot green" />引擎就绪</span>
+      <span className="ig-status-item"><span className="ig-status-dot blue" />API 已连接</span>
+      <span className="ig-status-path">{currentRepo ? currentRepo.path : '未选择仓库'}</span>
+      <span className="ig-status-tail">
+        {operationLoading ? `正在执行 ${operationLoading}` : `${commitsAhead}↑ ${commitsBehind}↓`}
+        {currentBranch ? ` · ${currentBranch}` : ''}
+      </span>
+    </footer>
+  )
+}
+
 // ── 自动轮询间隔（毫秒） ─────────────────────────────────────
 const AUTO_REFRESH_INTERVAL = 1000
 
@@ -1193,26 +1223,20 @@ function MainApp(): React.JSX.Element {
     <ConfigProvider theme={ANT_THEME_TOKENS[themeMode]}>
       <AntApp className="ig-ant-root">
         <div className={`ig-app theme-${themeMode}`}>
-          <RepoSidebar />
+          <Toolbar />
+          <NotificationBar />
+          {loading && currentRepo && (
+            <div className="ig-loading-bar"><div className="ig-loading-bar-inner" /></div>
+          )}
           <div className="ig-workbench">
             <ActivityRail themeMode={themeMode} onToggleTheme={toggleTheme} />
-            <div className="ig-main">
-              <Toolbar />
-              <NotificationBar />
-              {loading && currentRepo && (
-                <div className="ig-loading-bar"><div className="ig-loading-bar-inner" /></div>
-              )}
-              <main className="ig-content">
-                {activeView === 'changes' && <ChangesView />}
-                {activeView === 'history' && <HistoryView />}
-                {activeView === 'settings' && <SettingsView key={currentRepo?.path || 'settings'} />}
-              </main>
-              <footer className="ig-statusbar">
-                <span>{currentRepo ? currentRepo.path : 'IntelliGit'}</span>
-                <span>Electron + React + Go Sidecar</span>
-              </footer>
-            </div>
+            <main className="ig-content">
+              {activeView === 'changes' && <ChangesView />}
+              {activeView === 'history' && <HistoryView />}
+              {activeView === 'settings' && <SettingsView key={currentRepo?.path || 'settings'} />}
+            </main>
           </div>
+          <StatusBar />
         </div>
       </AntApp>
     </ConfigProvider>
