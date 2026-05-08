@@ -810,14 +810,29 @@ function ChangesView(): React.JSX.Element {
 const GRAPH_COLORS = ['#185fa5', '#1d9e75', '#7c5cc4', '#ba7517', '#e24b4a', '#6f7c12', '#2387a8', '#546179']
 
 function HistoryView(): React.JSX.Element {
-  const { allCommitHistory, branches, remoteBranches, currentRepo,
+    const { allCommitHistory, branches, remoteBranches, currentBranch, currentRepo,
     selectedCommit, selectedCommitFiles, selectCommit,
     fetchAllHistory, checkoutCommit, resetToCommit, operationLoading } = useAppStore()
   const [branchFilter, setBranchFilter] = useState('')
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard'>('mixed')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
-  useEffect(() => { if (currentRepo) fetchAllHistory() }, [currentRepo, fetchAllHistory])
+    useEffect(() => { if (currentRepo) fetchAllHistory() }, [currentRepo, fetchAllHistory])
+
+  // ── 自动选中当前 HEAD commit ──
+  // 当历史数据加载完成或分支切换时，自动定位到当前分支的 HEAD commit
+  useEffect(() => {
+    if (!currentRepo || allCommitHistory.length === 0) return
+
+    // 查找 HEAD commit：refs 包含当前分支名
+    const headCommit = allCommitHistory.find(c =>
+      c.refs && c.refs.includes(currentBranch)
+    )
+    if (headCommit && (!selectedCommit || headCommit.hash !== selectedCommit.hash)) {
+      selectCommit(headCommit)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRepo, currentBranch, allCommitHistory])
 
   if (!currentRepo) return <div className="ig-empty-view"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择仓库查看历史" /></div>
 

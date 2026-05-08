@@ -406,20 +406,31 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
   },
 
   removeRepo: async (path: string) => {
-    const { repos, currentRepo } = get()
-    const newRepos = repos.filter((r) => r.path !== path)
-    const newCurrent = currentRepo?.path === path ? null : currentRepo
-    set({
-      repos: newRepos,
-      currentRepo: newCurrent,
-            fileStatuses: newCurrent ? get().fileStatuses : [],
-      commitHistory: newCurrent ? get().commitHistory : [],
-      currentBranch: newCurrent ? get().currentBranch : '',
-      branches: newCurrent ? get().branches : [],
-      remoteBranches: newCurrent ? get().remoteBranches : []
-    })
-    await persistConfig(newRepos, newCurrent?.path || null)
-  },
+      const { repos, currentRepo } = get()
+      const newRepos = repos.filter((r) => r.path !== path)
+      const newCurrent = currentRepo?.path === path ? null : currentRepo
+      set({
+        repos: newRepos,
+        currentRepo: newCurrent,
+        // ── 清空所有当前仓库的 UI 状态 ──
+        fileStatuses: [],
+        commitHistory: [],
+        currentBranch: '',
+        branches: [],
+        remoteBranches: [],
+        commitsAhead: 0,
+        commitsBehind: 0,
+        selectedFilePath: null,
+        workdirDiff: null,
+        allCommitHistory: [],
+        selectedCommit: null,
+        selectedCommitFiles: [],
+        diffCompareResult: null,
+        error: null,
+        successMessage: null
+      })
+      await persistConfig(newRepos, newCurrent?.path || null)
+    },
 
     switchRepo: async (path: string) => {
     const { repos } = get()
@@ -445,7 +456,18 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
       } else {
         await persistConfig(repos, path)
       }
-      set({ currentRepo: updatedRepo, repos: newRepos })
+            // ── 清空旧仓库的 UI 状态，防止显示旧数据 ──
+      set({
+        currentRepo: updatedRepo,
+        repos: newRepos,
+        selectedFilePath: null,
+        workdirDiff: null,
+        selectedCommit: null,
+        selectedCommitFiles: [],
+        allCommitHistory: [],
+        diffCompareResult: null,
+        successMessage: null
+      })
 
             // 先同步刷新本地状态确保 UI 及时响应
             const state = get()
@@ -658,8 +680,16 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `Commit 失败: ${response.error}`, operationLoading: null })
         return
       }
-      set({ successMessage: `提交成功` })
-      await get().refreshAll()
+      set({ successMessage: `提交成功`, selectedCommit: null, selectedCommitFiles: [] })
+      // 先快速刷新本地状态（文件列表和历史），确保 UI 立即更新
+      await get().refreshAllLocal()
+      // 异步刷新远程状态和全历史
+      get().refreshRemote().catch(err =>
+        console.error('[AppStore] createCommit 异步远程刷新失败:', err)
+      )
+      get().fetchAllHistory().catch(err =>
+        console.error('[AppStore] createCommit 异步获取全历史失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Commit 失败: ${err}` })
@@ -678,8 +708,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `Push 失败: ${response.error}`, operationLoading: null })
         return
       }
-      set({ successMessage: 'Push 成功' })
-      await get().refreshAll()
+            set({ successMessage: 'Push 成功' })
+      // 先本地刷新，异步远程刷新
+      await get().refreshAllLocal()
+      get().refreshRemote().catch(err =>
+        console.error('[AppStore] push 异步远程刷新失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Push 失败: ${err}` })
@@ -698,8 +732,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `Pull 失败: ${response.error}`, operationLoading: null })
         return
       }
-      set({ successMessage: 'Pull 成功' })
-      await get().refreshAll()
+            set({ successMessage: 'Pull 成功' })
+      // 先本地刷新，异步远程刷新
+      await get().refreshAllLocal()
+      get().refreshRemote().catch(err =>
+        console.error('[AppStore] pull 异步远程刷新失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Pull 失败: ${err}` })
@@ -738,9 +776,18 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
           return
         }
         set({ successMessage: `已创建并切换到分支 ${branch}` })
-      }
+            }
 
-      await get().refreshAll()
+      // ── 清空选中的 commit/file 状态 ──
+      set({ selectedCommit: null, selectedCommitFiles: [], selectedFilePath: null, workdirDiff: null, diffCompareResult: null })
+      // 先本地刷新，异步获取全历史与远程状态
+      await get().refreshAllLocal()
+      get().fetchAllHistory().catch(err =>
+        console.error('[AppStore] checkoutBranch 异步获取全历史失败:', err)
+      )
+      get().refreshRemote().catch(err =>
+        console.error('[AppStore] checkoutBranch 异步远程刷新失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `切换分支失败: ${err}` })
@@ -863,8 +910,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `Checkout 失败: ${response.error}`, operationLoading: null })
         return
       }
-      set({ successMessage: `已切换到 commit ${hash.slice(0, 8)}` })
+      // ── 清空选中的 commit/file 状态 ──
+      set({ successMessage: `已切换到 commit ${hash.slice(0, 8)}`, selectedCommit: null, selectedCommitFiles: [], diffCompareResult: null })
       await get().refreshAllLocal()
+      get().fetchAllHistory().catch(err =>
+        console.error('[AppStore] checkoutCommit 异步获取全历史失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Checkout 失败: ${err}` })
@@ -880,9 +931,12 @@ export const useAppStore = create<AppStoreState>((set, get) => ({
         set({ error: `Reset 失败: ${response.error}`, operationLoading: null })
         return
       }
-      set({ successMessage: `已 Reset 到 ${hash.slice(0, 8)} (--${mode})` })
+            // ── 清空选中的 commit/file 状态 ──
+      set({ successMessage: `已 Reset 到 ${hash.slice(0, 8)} (--${mode})`, selectedCommit: null, selectedCommitFiles: [], diffCompareResult: null })
       await get().refreshAllLocal()
-      await get().fetchAllHistory()
+      get().fetchAllHistory().catch(err =>
+        console.error('[AppStore] resetToCommit 异步获取全历史失败:', err)
+      )
       setTimeout(() => set({ successMessage: null }), 3000)
     } catch (err) {
       set({ error: `Reset 失败: ${err}` })
