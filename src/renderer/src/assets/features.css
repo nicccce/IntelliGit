@@ -924,7 +924,8 @@ body {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .ig-loading-screen,
@@ -1190,10 +1191,11 @@ body {
 }
 
 .ig-settings-view {
-  max-width: 760px;
-  height: 100%;
+  max-width: 900px;
+  width: 100%;
+  min-height: 100%;
   padding: 22px 26px;
-  overflow-y: auto;
+  margin: 0 auto;
 }
 
 .ig-settings-section {
