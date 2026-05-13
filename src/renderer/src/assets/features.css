@@ -531,6 +531,7 @@ body {
 }
 
 .ig-workbench {
+  position: relative;
   min-width: 0;
   min-height: 0;
   flex: 1;
@@ -810,6 +811,18 @@ body {
   color: var(--text-primary);
 }
 
+/* ── 工具栏仓库名称 ───────────────────────────────────────── */
+.ig-toolbar-repo-name {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .ig-repo-selector.ant-btn {
   max-width: 180px;
   overflow: hidden;
@@ -917,7 +930,7 @@ body {
   margin: 8px 10px 0;
   padding: 7px 12px;
   border-radius: 8px;
-  flex-shrink: 0;
+    flex-shrink: 0;
 }
 
 .ig-content {
@@ -1277,7 +1290,132 @@ body {
 .ig-status-tail {
   flex-shrink: 0;
   margin-left: auto;
+    font-family: var(--font-mono);
+}
+
+/* ── RepoPanel 可折叠仓库面板 ─────────────────────────────── */
+.ig-repo-panel {
+  position: absolute;
+  top: 0;
+  left: 52px;
+  bottom: 0;
+  z-index: 50;
+  width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-md);
+  transition: width 0.22s ease;
+}
+
+.ig-repo-panel.open {
+  width: 280px;
+}
+
+.ig-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.ig-panel-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ig-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ig-panel-add-btn {
+  margin-bottom: 4px;
+}
+
+.ig-panel-repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ig-panel-repo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ig-panel-repo-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-panel-repo-item.active {
+  background: var(--surface-active);
+  border: 1px solid var(--border-focus);
+}
+
+.ig-repo-initials {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--accent-blue);
+  background: var(--bg-tertiary);
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.ig-repo-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.ig-repo-info strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-repo-info small {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono);
+}
+
+.ig-repo-check {
+  color: var(--accent-green);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.ig-panel-empty {
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--text-muted);
+    font-size: 13px;
 }
 
 @media (max-width: 980px) {
