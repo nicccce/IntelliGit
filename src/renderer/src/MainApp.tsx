@@ -32,6 +32,7 @@ import {
   CloudDownloadOutlined,
   CloudUploadOutlined,
   CodeOutlined,
+  DeleteOutlined,
   FolderAddOutlined,
   FolderOpenOutlined,
   HistoryOutlined,
@@ -199,10 +200,14 @@ function ActivityRail({
 //  仓库面板（可折叠侧边栏）
 // ═══════════════════════════════════════════════════════════════
 function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }): React.JSX.Element {
-    const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo } = useAppStore()
+    const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } = useAppStore()
   const [panelWidth, setPanelWidth] = useState(280)
   const MIN_PANEL_WIDTH = 200
   const MAX_PANEL_WIDTH = 520
+
+  // ── 删除仓库确认状态 ──────────────────────────────────────
+  const [repoToRemove, setRepoToRemove] = useState<{ path: string; name: string } | null>(null)
+  const [removingRepo, setRemovingRepo] = useState(false)
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent): void => {
     e.preventDefault()
@@ -445,28 +450,57 @@ function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
               添加仓库
             </Button>
           </Dropdown>
-          <div className="ig-panel-repo-list">
+                    <div className="ig-panel-repo-list">
             {repos.length === 0 ? (
               <div className="ig-panel-empty">暂无仓库，点击上方按钮添加</div>
             ) : repos.map((r) => (
-              <div
+              <Dropdown
                 key={r.path}
-                className={`ig-panel-repo-item ${currentRepo?.path === r.path ? 'active' : ''}`}
-                onClick={() => switchRepo(r.path)}
+                menu={{
+                  items: [
+                    {
+                      key: 'remove',
+                      icon: <DeleteOutlined />,
+                      label: '删除仓库',
+                      danger: true,
+                      onClick: () => setRepoToRemove({ path: r.path, name: r.name })
+                    }
+                  ]
+                }}
+                trigger={['contextMenu']}
               >
-                <span className="ig-repo-initials">{repoInitials(r.name)}</span>
-                <div className="ig-repo-info">
-                  <strong>{r.name}</strong>
-                  <small>{r.path}</small>
+                <div
+                  className={`ig-panel-repo-item ${currentRepo?.path === r.path ? 'active' : ''}`}
+                  onClick={() => switchRepo(r.path)}
+                >
+                  <span className="ig-repo-initials">{repoInitials(r.name)}</span>
+                  <div className="ig-repo-info">
+                    <strong>{r.name}</strong>
+                    <small>{r.path}</small>
+                  </div>
+                  <div className="ig-repo-actions">
+                    {currentRepo?.path === r.path && <CheckOutlined className="ig-repo-check" />}
+                    <Tooltip title="删除仓库（仅移除列表，不删除本地文件）">
+                      <Button
+                        type="text"
+                        size="small"
+                        className="ig-repo-delete-btn"
+                        icon={<CloseOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRepoToRemove({ path: r.path, name: r.name })
+                        }}
+                      />
+                    </Tooltip>
+                  </div>
                 </div>
-                {currentRepo?.path === r.path && <CheckOutlined className="ig-repo-check" />}
-              </div>
+              </Dropdown>
             ))}
           </div>
         </div>
       </aside>
 
-      <Modal
+            <Modal
         open={!!modal}
         title={modalTitle}
         onCancel={closeModal}
@@ -575,6 +609,46 @@ function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
           )}
           {modalError && <Alert type="error" showIcon message={modalError} />}
                 </div>
+      </Modal>
+
+      {/* ── 删除仓库确认对话框 ──────────────────────────────── */}
+      <Modal
+        open={!!repoToRemove}
+        title="删除仓库"
+        onCancel={() => setRepoToRemove(null)}
+        destroyOnHidden
+        footer={[
+          <Button key="cancel" onClick={() => setRepoToRemove(null)}>取消</Button>,
+          <Button
+            key="remove"
+            type="primary"
+            danger
+            loading={removingRepo}
+            onClick={async () => {
+              if (!repoToRemove) return
+              setRemovingRepo(true)
+              try {
+                await removeRepo(repoToRemove.path)
+                setRepoToRemove(null)
+              } finally {
+                setRemovingRepo(false)
+              }
+            }}
+          >
+            确认删除
+          </Button>
+        ]}
+      >
+        <div className="ig-modal-body">
+          <p>
+            确定要从仓库列表中移除 <strong>{repoToRemove?.name}</strong> 吗？
+          </p>
+          <Alert
+            type="info"
+            showIcon
+            message="仅从应用列表中删除仓库记录，不会删除本地仓库文件。"
+          />
+        </div>
       </Modal>
     </>
   )

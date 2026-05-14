@@ -1429,6 +1429,32 @@ body {
     font-size: 13px;
 }
 
+/* ── 仓库列表项操作按钮（删除按钮） ────────────────────── */
+.ig-repo-actions {
+display: flex;
+align-items: center;
+gap: 4px;
+flex-shrink: 0;
+}
+
+.ig-repo-delete-btn.ant-btn.ant-btn-text {
+opacity: 0;
+color: var(--text-muted);
+width: 22px;
+height: 22px;
+font-size: 10px;
+transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.ig-panel-repo-item:hover .ig-repo-delete-btn.ant-btn.ant-btn-text {
+opacity: 0.6;
+}
+
+.ig-panel-repo-item:hover .ig-repo-delete-btn.ant-btn.ant-btn-text:hover {
+opacity: 1;
+color: var(--accent-red);
+}
+
 @media (max-width: 980px) {
   .ig-sidebar {
     width: 220px;
