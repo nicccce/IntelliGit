@@ -199,7 +199,31 @@ function ActivityRail({
 //  仓库面板（可折叠侧边栏）
 // ═══════════════════════════════════════════════════════════════
 function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }): React.JSX.Element {
-  const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo } = useAppStore()
+    const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo } = useAppStore()
+  const [panelWidth, setPanelWidth] = useState(280)
+  const MIN_PANEL_WIDTH = 200
+  const MAX_PANEL_WIDTH = 520
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent): void => {
+    e.preventDefault()
+    document.body.style.cursor = 'ew-resize'
+    document.body.style.userSelect = 'none'
+
+    const onMouseMove = (ev: MouseEvent): void => {
+      const newWidth = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, ev.clientX - 52))
+      setPanelWidth(newWidth)
+    }
+
+    const onMouseUp = (): void => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [])
   const [modal, setModal] = useState<'create' | 'add' | 'clone' | null>(null)
   const [loadingAction, setLoadingAction] = useState(false)
 
@@ -400,19 +424,21 @@ function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
     (modal === 'add' && !createLocation.trim()) ||
     (modal === 'create' && (!createRepoName.trim() || !createLocation.trim())) ||
     (modal === 'clone' && (!cloneUrl.trim() || !cloneLocation.trim()))
-  const handleConfirm = modal === 'add' ? handleAddConfirm : modal === 'create' ? handleCreateConfirm : handleCloneConfirm
+    const handleConfirm = modal === 'add' ? handleAddConfirm : modal === 'create' ? handleCreateConfirm : handleCloneConfirm
 
     return (
       <>
         {/* 遮罩已移除，面板直接展开不影响其他界面 */}
-        <aside
+                <aside
         className={`ig-repo-panel ${isOpen ? 'open' : ''}`}
         aria-label="仓库面板"
+        style={{ width: isOpen ? panelWidth : 0 }}
       >
-        <div className="ig-panel-header">
+                <div className="ig-panel-header">
           <h3>仓库列表</h3>
           <Button type="text" size="small" icon={<CloseOutlined />} onClick={onClose} />
         </div>
+        <div className="ig-panel-resize-handle" onMouseDown={handleResizeMouseDown} />
         <div className="ig-panel-body">
           <Dropdown menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }} trigger={['click']} placement="bottomLeft">
             <Button className="ig-panel-add-btn" block icon={<PlusOutlined />}>
@@ -426,7 +452,7 @@ function RepoPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
               <div
                 key={r.path}
                 className={`ig-panel-repo-item ${currentRepo?.path === r.path ? 'active' : ''}`}
-                onClick={() => { switchRepo(r.path); onClose() }}
+                onClick={() => switchRepo(r.path)}
               >
                 <span className="ig-repo-initials">{repoInitials(r.name)}</span>
                 <div className="ig-repo-info">
