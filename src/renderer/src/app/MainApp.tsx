@@ -2,19 +2,19 @@ import type { JSX } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import { Spin } from 'antd'
 
-import { useAppStore } from '../store'
+import { useRepositoryStore, useUiStore } from '../store'
 import AppShell from '../layout/AppShell'
+import { refreshAllLocal } from '../services/refreshCoordinator'
 import { AppProviders } from './AppProviders'
 import { useAutoRefresh } from './useAutoRefresh'
 import { useThemeMode } from './useThemeMode'
 
 function MainApp(): JSX.Element {
-  const configLoaded = useAppStore((state) => state.configLoaded)
-  const loadConfig = useAppStore((state) => state.loadConfig)
-  const activeView = useAppStore((state) => state.activeView)
-  const loading = useAppStore((state) => state.loading)
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const refreshAllLocal = useAppStore((state) => state.refreshAllLocal)
+  const configLoaded = useRepositoryStore((state) => state.configLoaded)
+  const loadConfig = useRepositoryStore((state) => state.loadConfig)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const activeView = useUiStore((state) => state.activeView)
+  const loading = useUiStore((state) => state.loading)
 
   const { themeMode, toggleTheme } = useThemeMode()
   const [repoPanelOpen, setRepoPanelOpen] = useState(false)

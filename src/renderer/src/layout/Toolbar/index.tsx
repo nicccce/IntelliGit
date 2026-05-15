@@ -9,21 +9,18 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 
-import { useAppStore } from '../../store'
+import { refreshAll, refreshAllLocal } from '../../services/refreshCoordinator'
+import { checkoutBranch, pull, push } from '../../services/gitWorkflowService'
+import { useGitStatusStore, useOperationStore, useRepositoryStore } from '../../store'
 
 function Toolbar(): JSX.Element {
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const currentBranch = useAppStore((state) => state.currentBranch)
-  const branches = useAppStore((state) => state.branches)
-  const remoteBranches = useAppStore((state) => state.remoteBranches)
-  const pull = useAppStore((state) => state.pull)
-  const push = useAppStore((state) => state.push)
-  const refreshAll = useAppStore((state) => state.refreshAll)
-  const refreshAllLocal = useAppStore((state) => state.refreshAllLocal)
-  const operationLoading = useAppStore((state) => state.operationLoading)
-  const checkoutBranch = useAppStore((state) => state.checkoutBranch)
-  const commitsAhead = useAppStore((state) => state.commitsAhead)
-  const commitsBehind = useAppStore((state) => state.commitsBehind)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const currentBranch = useGitStatusStore((state) => state.currentBranch)
+  const branches = useGitStatusStore((state) => state.branches)
+  const remoteBranches = useGitStatusStore((state) => state.remoteBranches)
+  const operationLoading = useOperationStore((state) => state.operationLoading)
+  const commitsAhead = useGitStatusStore((state) => state.commitsAhead)
+  const commitsBehind = useGitStatusStore((state) => state.commitsBehind)
 
   const hasRemote = Boolean(currentRepo?.remoteType && currentRepo.remoteType !== 'none')
   const hasCommitsToPush = hasRemote && commitsAhead > 0 && commitsBehind === 0
@@ -97,7 +94,7 @@ function Toolbar(): JSX.Element {
             icon={hasCommitsToPush ? <CloudUploadOutlined /> : <CloudDownloadOutlined />}
             onClick={hasCommitsToPush ? push : pull}
             disabled={!currentRepo || !!operationLoading}
-            loading={operationLoading === 'push' || operationLoading === 'pull'}
+            loading={operationLoading === 'remote.push' || operationLoading === 'remote.pull'}
             title={hasCommitsToPush ? 'Push commits' : 'Pull commits'}
           >
             {hasCommitsToPush

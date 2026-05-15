@@ -1,10 +1,10 @@
 import type { JSX } from 'react'
 
-import { useAppStore } from '../../store'
+import { useDiffStore } from '../../store'
 
 function DiffView(): JSX.Element {
-  const workdirDiff = useAppStore((state) => state.workdirDiff)
-  const selectedFilePath = useAppStore((state) => state.selectedFilePath)
+  const workdirDiff = useDiffStore((state) => state.workdirDiff)
+  const selectedFilePath = useDiffStore((state) => state.selectedFilePath)
 
   if (!selectedFilePath) return <div className="ig-diff-empty">← 选择文件查看差异</div>
   if (!workdirDiff || workdirDiff.filePatches.length === 0)

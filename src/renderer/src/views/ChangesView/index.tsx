@@ -5,20 +5,17 @@ import { CloseOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/ic
 
 import DiffView from '../../components/DiffView'
 import FileStatusBadge from '../../components/FileStatusBadge'
-import { useAppStore } from '../../store'
+import { addAll, addFile, createCommit, removeFile } from '../../services/gitWorkflowService'
+import { useDiffStore, useGitStatusStore, useOperationStore, useRepositoryStore } from '../../store'
 
 const { TextArea } = Input
 
 function ChangesView(): JSX.Element {
-  const fileStatuses = useAppStore((state) => state.fileStatuses)
-  const addFile = useAppStore((state) => state.addFile)
-  const addAll = useAppStore((state) => state.addAll)
-  const removeFile = useAppStore((state) => state.removeFile)
-  const createCommit = useAppStore((state) => state.createCommit)
-  const operationLoading = useAppStore((state) => state.operationLoading)
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const selectedFilePath = useAppStore((state) => state.selectedFilePath)
-  const selectFile = useAppStore((state) => state.selectFile)
+  const fileStatuses = useGitStatusStore((state) => state.fileStatuses)
+  const operationLoading = useOperationStore((state) => state.operationLoading)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const selectedFilePath = useDiffStore((state) => state.selectedFilePath)
+  const selectFile = useDiffStore((state) => state.selectFile)
 
   const [commitMsg, setCommitMsg] = useState('')
   const [runSandbox, setRunSandbox] = useState(false)
@@ -30,7 +27,7 @@ function ChangesView(): JSX.Element {
     if (!commitMsg.trim()) return
     await createCommit(commitMsg.trim())
     setCommitMsg('')
-  }, [commitMsg, createCommit])
+  }, [commitMsg])
 
   if (!currentRepo) {
     return (
@@ -151,7 +148,7 @@ function ChangesView(): JSX.Element {
           type="primary"
           onClick={handleCommit}
           disabled={!commitMsg.trim() || staged.length === 0 || !!operationLoading}
-          loading={operationLoading === 'commit'}
+          loading={operationLoading === 'commit.create'}
         >
           {`提交 (${staged.length} 个文件已暂存)`}
         </Button>

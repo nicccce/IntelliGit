@@ -2,13 +2,13 @@ import type { JSX } from 'react'
 import { useState } from 'react'
 import { Button, Empty, Input, Segmented } from 'antd'
 
-import { useAppStore } from '../../store'
+import { useRepositoryStore } from '../../store'
 
 type RemoteType = 'none' | 'http' | 'ssh'
 
 function SettingsView(): JSX.Element {
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const updateRepoSettings = useAppStore((state) => state.updateRepoSettings)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const updateRepoSettings = useRepositoryStore((state) => state.updateRepoSettings)
 
   const [commitAuthorName, setCommitAuthorName] = useState<string>(
     () => currentRepo?.commitAuthorName || ''

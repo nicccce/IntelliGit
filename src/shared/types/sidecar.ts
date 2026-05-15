@@ -18,13 +18,13 @@ export interface SidecarRequest {
 }
 
 /** Sidecar 返回的响应体 */
-export interface SidecarResponse {
+export interface SidecarResponse<TData = unknown> {
   /** 对应请求的 ID */
   id: string
   /** 是否成功 */
   success: boolean
   /** 成功时的数据 */
-  data?: unknown
+  data?: TData
   /** 失败时的错误信息 */
   error?: string
 }

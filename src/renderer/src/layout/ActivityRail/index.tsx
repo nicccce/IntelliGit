@@ -4,7 +4,7 @@ import { FolderOpenOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons
 
 import type { AppThemeMode } from '../../app/types'
 import { VIEW_OPTIONS } from '../../app/viewOptions'
-import { useAppStore } from '../../store'
+import { useGitStatusStore, useUiStore } from '../../store'
 
 interface ActivityRailProps {
   themeMode: AppThemeMode
@@ -19,9 +19,9 @@ function ActivityRail({
   onToggleRepoPanel,
   onToggleTheme
 }: ActivityRailProps): JSX.Element {
-  const activeView = useAppStore((state) => state.activeView)
-  const setActiveView = useAppStore((state) => state.setActiveView)
-  const fileStatuses = useAppStore((state) => state.fileStatuses)
+  const activeView = useUiStore((state) => state.activeView)
+  const setActiveView = useUiStore((state) => state.setActiveView)
+  const fileStatuses = useGitStatusStore((state) => state.fileStatuses)
   const changeCount = fileStatuses.filter(
     (file) => file.staging !== ' ' || file.worktree !== ' '
   ).length

@@ -13,7 +13,9 @@ import {
 } from '@ant-design/icons'
 
 import RepoAvatar from '../../components/RepoAvatar'
-import { useAppStore } from '../../store'
+import { checkDirEmpty, checkDirExists, openFolderDialog } from '../../api/filesystemClient'
+import { isGitRepository } from '../../services/repositoryService'
+import { useRepositoryStore } from '../../store'
 
 interface RepoPanelProps {
   isOpen: boolean
@@ -21,13 +23,13 @@ interface RepoPanelProps {
 }
 
 function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
-  const repos = useAppStore((state) => state.repos)
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const switchRepo = useAppStore((state) => state.switchRepo)
-  const addRepo = useAppStore((state) => state.addRepo)
-  const createRepo = useAppStore((state) => state.createRepo)
-  const cloneRepo = useAppStore((state) => state.cloneRepo)
-  const removeRepo = useAppStore((state) => state.removeRepo)
+  const repos = useRepositoryStore((state) => state.repos)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const switchRepo = useRepositoryStore((state) => state.switchRepo)
+  const addRepo = useRepositoryStore((state) => state.addRepo)
+  const createRepo = useRepositoryStore((state) => state.createRepo)
+  const cloneRepo = useRepositoryStore((state) => state.cloneRepo)
+  const removeRepo = useRepositoryStore((state) => state.removeRepo)
 
   const [panelWidth, setPanelWidth] = useState(280)
   const [repoToRemove, setRepoToRemove] = useState<{ path: string; name: string } | null>(null)
@@ -87,27 +89,26 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
   }, [])
 
   const handleChooseCreateLocation = useCallback(async () => {
-    const path = await window.electronAPI.openFolderDialog()
+    const path = await openFolderDialog()
     if (!path) return
 
     setCreateLocation(path)
-    const exists = await window.electronAPI.checkDirExists(path)
+    const exists = await checkDirExists(path)
     setCreateLocationExists(exists)
     if (exists) {
-      const response = await window.electronAPI.invokeGit('repo.open', { path })
-      setCreateLocationIsRepo(response.success)
+      setCreateLocationIsRepo(await isGitRepository(path))
     } else {
       setCreateLocationIsRepo(null)
     }
   }, [])
 
   const handleChooseCloneLocation = useCallback(async () => {
-    const path = await window.electronAPI.openFolderDialog()
+    const path = await openFolderDialog()
     if (!path) return
 
     setCloneLocation(path)
-    const exists = await window.electronAPI.checkDirExists(path)
-    const isEmpty = await window.electronAPI.checkDirEmpty(path)
+    const exists = await checkDirExists(path)
+    const isEmpty = await checkDirEmpty(path)
     setCloneLocationExists(exists)
     setCloneLocationIsEmpty(isEmpty)
   }, [])
@@ -121,11 +122,10 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
     }
 
     const pathValue = value.trim()
-    const exists = await window.electronAPI.checkDirExists(pathValue)
+    const exists = await checkDirExists(pathValue)
     setCreateLocationExists(exists)
     if (exists) {
-      const response = await window.electronAPI.invokeGit('repo.open', { path: pathValue })
-      setCreateLocationIsRepo(response.success)
+      setCreateLocationIsRepo(await isGitRepository(pathValue))
     } else {
       setCreateLocationIsRepo(null)
     }
@@ -139,8 +139,8 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
       return
     }
 
-    const exists = await window.electronAPI.checkDirExists(value.trim())
-    const isEmpty = await window.electronAPI.checkDirEmpty(value.trim())
+    const exists = await checkDirExists(value.trim())
+    const isEmpty = await checkDirEmpty(value.trim())
     setCloneLocationExists(exists)
     setCloneLocationIsEmpty(isEmpty)
   }, [])
@@ -189,10 +189,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
     try {
       let isRepo = createLocationIsRepo
       if (isRepo !== true) {
-        const response = await window.electronAPI.invokeGit('repo.open', {
-          path: createLocation.trim()
-        })
-        isRepo = response.success
+        isRepo = await isGitRepository(createLocation.trim())
         setCreateLocationIsRepo(isRepo)
       }
 

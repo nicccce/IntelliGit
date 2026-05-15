@@ -3,7 +3,13 @@ import { useEffect, useState } from 'react'
 import { BranchesOutlined } from '@ant-design/icons'
 import { Button, Empty, Input, Select, Tag } from 'antd'
 
-import { useAppStore } from '../../store'
+import { checkoutCommit, resetToCommit } from '../../services/gitWorkflowService'
+import {
+  useGitStatusStore,
+  useHistoryStore,
+  useOperationStore,
+  useRepositoryStore
+} from '../../store'
 
 const GRAPH_COLORS = [
   '#185fa5',
@@ -17,18 +23,16 @@ const GRAPH_COLORS = [
 ]
 
 function HistoryView(): JSX.Element {
-  const allCommitHistory = useAppStore((state) => state.allCommitHistory)
-  const branches = useAppStore((state) => state.branches)
-  const remoteBranches = useAppStore((state) => state.remoteBranches)
-  const currentBranch = useAppStore((state) => state.currentBranch)
-  const currentRepo = useAppStore((state) => state.currentRepo)
-  const selectedCommit = useAppStore((state) => state.selectedCommit)
-  const selectedCommitFiles = useAppStore((state) => state.selectedCommitFiles)
-  const selectCommit = useAppStore((state) => state.selectCommit)
-  const fetchAllHistory = useAppStore((state) => state.fetchAllHistory)
-  const checkoutCommit = useAppStore((state) => state.checkoutCommit)
-  const resetToCommit = useAppStore((state) => state.resetToCommit)
-  const operationLoading = useAppStore((state) => state.operationLoading)
+  const allCommitHistory = useHistoryStore((state) => state.allCommitHistory)
+  const branches = useGitStatusStore((state) => state.branches)
+  const remoteBranches = useGitStatusStore((state) => state.remoteBranches)
+  const currentBranch = useGitStatusStore((state) => state.currentBranch)
+  const currentRepo = useRepositoryStore((state) => state.currentRepo)
+  const selectedCommit = useHistoryStore((state) => state.selectedCommit)
+  const selectedCommitFiles = useHistoryStore((state) => state.selectedCommitFiles)
+  const selectCommit = useHistoryStore((state) => state.selectCommit)
+  const fetchAllHistory = useHistoryStore((state) => state.fetchAllHistory)
+  const operationLoading = useOperationStore((state) => state.operationLoading)
 
   const [branchFilter, setBranchFilter] = useState('')
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard'>('mixed')

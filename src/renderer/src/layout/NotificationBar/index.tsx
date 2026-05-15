@@ -1,13 +1,13 @@
 import type { JSX } from 'react'
 import { Alert } from 'antd'
 
-import { useAppStore } from '../../store'
+import { useUiStore } from '../../store'
 
 function NotificationBar(): JSX.Element | null {
-  const error = useAppStore((state) => state.error)
-  const successMessage = useAppStore((state) => state.successMessage)
-  const clearError = useAppStore((state) => state.clearError)
-  const clearSuccess = useAppStore((state) => state.clearSuccess)
+  const error = useUiStore((state) => state.error)
+  const successMessage = useUiStore((state) => state.successMessage)
+  const clearError = useUiStore((state) => state.clearError)
+  const clearSuccess = useUiStore((state) => state.clearSuccess)
 
   if (error) {
     return (
