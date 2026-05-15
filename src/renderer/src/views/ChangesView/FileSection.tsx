@@ -3,6 +3,8 @@ import { Button, Empty, Tooltip } from 'antd'
 
 import type { FileStatusInfo } from '../../../../shared/types'
 import FileStatusBadge from '../../components/FileStatusBadge'
+import { classNames } from '../../utils/classNames'
+import styles from './FileSection.module.css'
 
 interface FileSectionProps {
   title: string
@@ -30,25 +32,28 @@ function FileSection({
   headerAction
 }: FileSectionProps): JSX.Element {
   return (
-    <div className="ig-file-section">
-      <div className="ig-file-section-header">
+    <div className={styles['ig-file-section']}>
+      <div className={styles['ig-file-section-header']}>
         <h3>
           {title} ({files.length})
         </h3>
         {headerAction}
       </div>
-      <div className="ig-file-list">
+      <div className={styles['ig-file-list']}>
         {files.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />
         ) : (
           files.map((file) => (
             <div
               key={file.path}
-              className={`ig-file-item ${selectedFilePath === file.path ? 'active' : ''}`}
+              className={classNames(
+                styles['ig-file-item'],
+                selectedFilePath === file.path && styles.active
+              )}
               onClick={() => onSelectFile(file.path)}
             >
               <FileStatusBadge code={statusCode(file)} />
-              <span className="ig-file-path">{file.path}</span>
+              <span className={styles['ig-file-path']}>{file.path}</span>
               <Tooltip title={actionTitle}>
                 <Button
                   type="text"

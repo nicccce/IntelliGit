@@ -1,0 +1,74 @@
+.ig-branch-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.ig-branch-panel-hdr {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+.ig-branch-panel-hdr h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ig-branch-search:global(.ant-input) {
+  width: calc(100% - 16px);
+  margin: 8px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+.ig-branch-search:global(.ant-input:focus) {
+  border-color: var(--border-focus);
+}
+
+.ig-branch-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ig-branch-item {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 4px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ig-branch-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-branch-item.current {
+  color: var(--text-primary);
+  background: var(--surface-active);
+}
+
+.ig-branch-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ig-branch-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

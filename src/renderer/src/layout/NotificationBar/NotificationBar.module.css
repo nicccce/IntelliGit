@@ -1,0 +1,7 @@
+.ig-notification:global(.ant-alert) {
+  margin: 8px 12px 0;
+  border-color: var(--border-primary);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}

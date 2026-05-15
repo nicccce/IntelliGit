@@ -7,6 +7,7 @@ import { useChangesViewModel } from '../../viewModels'
 import CommitPanel from './CommitPanel'
 import DiffPane from './DiffPane'
 import FileSection from './FileSection'
+import styles from './ChangesView.module.css'
 
 function ChangesView(): JSX.Element {
   const { currentRepo, selectedFilePath, selectFile, staged, unstaged, isBusy, isCommitRunning } =
@@ -14,7 +15,7 @@ function ChangesView(): JSX.Element {
 
   if (!currentRepo) {
     return (
-      <div className="ig-empty-view">
+      <div className={styles['ig-empty-view']}>
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择一个仓库开始" />
         <p>从左侧缩略图栏添加或选择 Git 仓库</p>
       </div>
@@ -22,8 +23,8 @@ function ChangesView(): JSX.Element {
   }
 
   return (
-    <div className="ig-changes-view" id="changes-view">
-      <div className="ig-file-lists">
+    <div className={styles['ig-changes-view']} id="changes-view">
+      <div className={styles['ig-file-lists']}>
         <FileSection
           title="已暂存"
           emptyDescription="无暂存文件"

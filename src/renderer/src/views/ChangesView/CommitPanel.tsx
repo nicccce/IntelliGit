@@ -4,6 +4,7 @@ import { ThunderboltOutlined } from '@ant-design/icons'
 import { Button, Input, Switch } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
+import styles from './CommitPanel.module.css'
 
 const { TextArea } = Input
 
@@ -24,10 +25,10 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   }, [commitMsg])
 
   return (
-    <div className="ig-commit-panel">
-      <div className="ig-commit-panel-top">提交</div>
+    <div className={styles['ig-commit-panel']}>
+      <div className={styles['ig-commit-panel-top']}>提交</div>
       <Button
-        className="ig-ai-btn"
+        className={styles['ig-ai-btn']}
         icon={<ThunderboltOutlined />}
         disabled
         title="AI 生成提交信息（即将推出）"
@@ -36,19 +37,19 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       </Button>
       <TextArea
         id="commit-message"
-        className="ig-commit-input"
+        className={styles['ig-commit-input']}
         placeholder="输入提交信息…"
         value={commitMsg}
         onChange={(event) => setCommitMsg(event.target.value)}
         rows={3}
       />
-      <div className="ig-sandbox-row">
+      <div className={styles['ig-sandbox-row']}>
         <Switch size="small" checked={runSandbox} onChange={setRunSandbox} />
         <span>提交前运行沙箱验证</span>
       </div>
       <Button
         id="btn-commit"
-        className="ig-commit-btn"
+        className={styles['ig-commit-btn']}
         type="primary"
         onClick={handleCommit}
         disabled={!commitMsg.trim() || stagedCount === 0 || isBusy}

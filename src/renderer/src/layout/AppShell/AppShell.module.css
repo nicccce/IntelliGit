@@ -1,0 +1,64 @@
+.ig-app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.ig-workbench {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ig-loading-bar {
+  height: 2px;
+  overflow: hidden;
+  background: var(--border-primary);
+  flex-shrink: 0;
+}
+
+.ig-loading-bar-inner {
+  width: 35%;
+  height: 100%;
+  background: var(--accent-blue);
+  animation: loadingSlide 1.2s ease-in-out infinite;
+}
+
+.ig-content {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+  background: var(--bg-primary);
+}
+
+.ig-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-content::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+@keyframes loadingSlide {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  50% {
+    transform: translateX(180%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}

@@ -1,0 +1,195 @@
+.ig-repo-panel {
+  position: relative;
+  display: flex;
+  width: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  transition: width var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.ig-repo-panel.open {
+  min-width: 200px;
+}
+
+.ig-panel-header {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.ig-panel-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ig-panel-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  z-index: 2;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.ig-panel-resize-handle:hover,
+.ig-panel-resize-handle:active {
+  background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+}
+
+.ig-panel-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.ig-panel-add-btn {
+  flex-shrink: 0;
+}
+
+.ig-panel-repo-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+}
+
+.ig-panel-repo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ig-panel-repo-item:hover {
+  background: var(--surface-hover);
+}
+
+.ig-panel-repo-item.active {
+  border: 1px solid var(--border-focus);
+  background: var(--surface-active);
+}
+
+.ig-repo-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-repo-info strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-repo-info small {
+  display: block;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-repo-actions {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.ig-repo-check {
+  color: var(--accent-green);
+  font-size: 13px;
+}
+
+.ig-repo-delete-btn:global(.ant-btn.ant-btn-text) {
+  opacity: 0;
+  color: var(--text-muted);
+  transition:
+    color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.ig-panel-repo-item:hover .ig-repo-delete-btn:global(.ant-btn.ant-btn-text) {
+  opacity: 1;
+}
+
+.ig-panel-repo-item:hover .ig-repo-delete-btn:global(.ant-btn.ant-btn-text:hover) {
+  color: var(--accent-red);
+}
+
+.ig-panel-empty {
+  padding: var(--space-lg) var(--space-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.ig-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ig-modal-body p {
+  margin: 0;
+}
+
+.ig-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ig-form-group label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ig-form-group :global(.ant-input),
+.ig-form-group :global(.ant-input-password),
+.ig-form-group :global(.ant-input-affix-wrapper) {
+  background: var(--bg-primary);
+  border-color: var(--border-primary);
+}
+
+.ig-path-alert:global(.ant-alert) {
+  margin-top: var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 980px) {
+  .ig-repo-panel {
+    position: absolute;
+    top: 48px;
+    bottom: 24px;
+    left: 52px;
+    z-index: 4;
+    box-shadow: var(--shadow-lg);
+  }
+}

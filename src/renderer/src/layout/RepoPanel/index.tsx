@@ -15,7 +15,9 @@ import {
 import RepoAvatar from '../../components/RepoAvatar'
 import { checkDirEmpty, checkDirExists, openFolderDialog } from '../../api/filesystemClient'
 import { isGitRepository } from '../../services/repositoryService'
+import { classNames } from '../../utils/classNames'
 import { useRepoPanelModel } from '../../viewModels'
+import styles from './RepoPanel.module.css'
 
 interface RepoPanelProps {
   isOpen: boolean
@@ -259,28 +261,28 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
   return (
     <>
       <aside
-        className={`ig-repo-panel ${isOpen ? 'open' : ''}`}
+        className={classNames(styles['ig-repo-panel'], isOpen && styles.open)}
         aria-label="仓库面板"
         style={{ width: isOpen ? panelWidth : 0 }}
       >
-        <div className="ig-panel-header">
+        <div className={styles['ig-panel-header']}>
           <h3>仓库列表</h3>
           <Button type="text" size="small" icon={<CloseOutlined />} onClick={onClose} />
         </div>
-        <div className="ig-panel-resize-handle" onMouseDown={handleResizeMouseDown} />
-        <div className="ig-panel-body">
+        <div className={styles['ig-panel-resize-handle']} onMouseDown={handleResizeMouseDown} />
+        <div className={styles['ig-panel-body']}>
           <Dropdown
             menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }}
             trigger={['click']}
             placement="bottomLeft"
           >
-            <Button className="ig-panel-add-btn" block icon={<PlusOutlined />}>
+            <Button className={styles['ig-panel-add-btn']} block icon={<PlusOutlined />}>
               添加仓库
             </Button>
           </Dropdown>
-          <div className="ig-panel-repo-list">
+          <div className={styles['ig-panel-repo-list']}>
             {repos.length === 0 ? (
-              <div className="ig-panel-empty">暂无仓库，点击上方按钮添加</div>
+              <div className={styles['ig-panel-empty']}>暂无仓库，点击上方按钮添加</div>
             ) : (
               repos.map((repo) => (
                 <Dropdown
@@ -299,23 +301,26 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
                   trigger={['contextMenu']}
                 >
                   <div
-                    className={`ig-panel-repo-item ${currentRepo?.path === repo.path ? 'active' : ''}`}
+                    className={classNames(
+                      styles['ig-panel-repo-item'],
+                      currentRepo?.path === repo.path && styles.active
+                    )}
                     onClick={() => switchRepo(repo.path)}
                   >
                     <RepoAvatar name={repo.name} />
-                    <div className="ig-repo-info">
+                    <div className={styles['ig-repo-info']}>
                       <strong>{repo.name}</strong>
                       <small>{repo.path}</small>
                     </div>
-                    <div className="ig-repo-actions">
+                    <div className={styles['ig-repo-actions']}>
                       {currentRepo?.path === repo.path && (
-                        <CheckOutlined className="ig-repo-check" />
+                        <CheckOutlined className={styles['ig-repo-check']} />
                       )}
                       <Tooltip title="删除仓库（仅移除列表，不删除本地文件）">
                         <Button
                           type="text"
                           size="small"
-                          className="ig-repo-delete-btn"
+                          className={styles['ig-repo-delete-btn']}
                           icon={<CloseOutlined />}
                           onClick={(event) => {
                             event.stopPropagation()
@@ -352,10 +357,10 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
           </Button>
         ]}
       >
-        <div className="ig-modal-body">
+        <div className={styles['ig-modal-body']}>
           {modal === 'create' && (
             <>
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>仓库名称</label>
                 <Input
                   value={createRepoName}
@@ -363,7 +368,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
                   placeholder="请输入仓库名称"
                 />
               </div>
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>存储位置</label>
                 <Input.Search
                   value={createLocation}
@@ -374,7 +379,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
                 />
                 {createLocation.trim() && (
                   <Alert
-                    className="ig-path-alert"
+                    className={styles['ig-path-alert']}
                     type={
                       createLocationExists === true
                         ? 'success'
@@ -396,7 +401,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
             </>
           )}
           {modal === 'add' && (
-            <div className="ig-form-group">
+            <div className={styles['ig-form-group']}>
               <label>仓库路径</label>
               <Input.Search
                 value={createLocation}
@@ -407,7 +412,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
               />
               {createLocation.trim() && (
                 <Alert
-                  className="ig-path-alert"
+                  className={styles['ig-path-alert']}
                   type={
                     createLocationExists === true
                       ? 'success'
@@ -427,7 +432,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
               )}
               {createLocationExists === true && createLocationIsRepo !== null && (
                 <Alert
-                  className="ig-path-alert"
+                  className={styles['ig-path-alert']}
                   type={createLocationIsRepo ? 'success' : 'error'}
                   showIcon
                   message={createLocationIsRepo ? '有效 Git 仓库' : '不是 Git 仓库'}
@@ -437,7 +442,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
           )}
           {modal === 'clone' && (
             <>
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>远程仓库地址</label>
                 <Input
                   value={cloneUrl}
@@ -445,7 +450,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
                   placeholder="https://github.com/user/repo.git"
                 />
               </div>
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>克隆位置</label>
                 <Input.Search
                   value={cloneLocation}
@@ -456,7 +461,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
                 />
                 {cloneLocation.trim() && (
                   <Alert
-                    className="ig-path-alert"
+                    className={styles['ig-path-alert']}
                     type={
                       cloneLocationExists === true && cloneLocationIsEmpty === true
                         ? 'success'
@@ -512,7 +517,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
           </Button>
         ]}
       >
-        <div className="ig-modal-body">
+        <div className={styles['ig-modal-body']}>
           <p>
             确定要从仓库列表中移除 <strong>{repoToRemove?.name}</strong> 吗？
           </p>

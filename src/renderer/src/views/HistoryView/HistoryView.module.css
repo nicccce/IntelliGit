@@ -1,0 +1,29 @@
+.ig-empty-view {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+
+.ig-empty-view :global(.ant-empty-description) {
+  color: var(--text-muted);
+}
+
+.ig-history-view {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 220px minmax(400px, 1fr) 320px;
+  gap: 0;
+  background: var(--border-primary);
+}
+
+.ig-detail-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}

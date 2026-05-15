@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button, Empty, Input, Segmented } from 'antd'
 
 import { useSettingsViewModel } from '../../viewModels'
+import styles from './SettingsView.module.css'
 
 type RemoteType = 'none' | 'http' | 'ssh'
 
@@ -25,7 +26,7 @@ function SettingsView(): JSX.Element {
 
   if (!currentRepo) {
     return (
-      <div className="ig-empty-view">
+      <div className={styles['ig-empty-view']}>
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择仓库进行设置" />
       </div>
     )
@@ -46,24 +47,26 @@ function SettingsView(): JSX.Element {
   }
 
   return (
-    <div className="ig-settings-view" id="settings-view">
-      <div className="ig-settings-section">
+    <div className={styles['ig-settings-view']} id="settings-view">
+      <div className={styles['ig-settings-section']}>
         <h3>仓库信息</h3>
-        <div className="ig-settings-info">
-          <div className="ig-settings-row">
-            <span className="ig-settings-label">名称</span>
-            <span className="ig-settings-value">{currentRepo.name}</span>
+        <div className={styles['ig-settings-info']}>
+          <div className={styles['ig-settings-row']}>
+            <span className={styles['ig-settings-label']}>名称</span>
+            <span className={styles['ig-settings-value']}>{currentRepo.name}</span>
           </div>
-          <div className="ig-settings-row">
-            <span className="ig-settings-label">路径</span>
-            <span className="ig-settings-value ig-mono">{currentRepo.path}</span>
+          <div className={styles['ig-settings-row']}>
+            <span className={styles['ig-settings-label']}>路径</span>
+            <span className={`${styles['ig-settings-value']} ${styles['ig-mono']}`}>
+              {currentRepo.path}
+            </span>
           </div>
         </div>
       </div>
-      <div className="ig-settings-section">
+      <div className={styles['ig-settings-section']}>
         <h3>提交身份</h3>
-        <p className="ig-hint">用于新建 Commit；GitHub 贡献统计按提交邮箱匹配账号</p>
-        <div className="ig-form-group">
+        <p className={styles['ig-hint']}>用于新建 Commit；GitHub 贡献统计按提交邮箱匹配账号</p>
+        <div className={styles['ig-form-group']}>
           <label>作者名称</label>
           <Input
             value={commitAuthorName}
@@ -71,7 +74,7 @@ function SettingsView(): JSX.Element {
             placeholder="留空时使用 Git 配置或认证用户名"
           />
         </div>
-        <div className="ig-form-group">
+        <div className={styles['ig-form-group']}>
           <label>作者邮箱</label>
           <Input
             value={commitAuthorEmail}
@@ -80,11 +83,13 @@ function SettingsView(): JSX.Element {
           />
         </div>
       </div>
-      <div className="ig-settings-section">
+      <div className={styles['ig-settings-section']}>
         <h3>远程仓库</h3>
-        <p className="ig-hint">选择远程仓库形式以配置 Push/Pull 等操作使用的远程地址与认证</p>
+        <p className={styles['ig-hint']}>
+          选择远程仓库形式以配置 Push/Pull 等操作使用的远程地址与认证
+        </p>
         <Segmented
-          className="ig-remote-type-group"
+          className={styles['ig-remote-type-group']}
           block
           value={remoteType}
           onChange={(value) => setRemoteType(value as RemoteType)}
@@ -95,9 +100,9 @@ function SettingsView(): JSX.Element {
           ]}
         />
         {remoteType !== 'none' && (
-          <div className="ig-remote-detail">
+          <div className={styles['ig-remote-detail']}>
             {remoteType === 'http' && (
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>HTTP(S) 远程地址</label>
                 <Input
                   value={httpRemoteUrl}
@@ -107,7 +112,7 @@ function SettingsView(): JSX.Element {
               </div>
             )}
             {remoteType === 'ssh' && (
-              <div className="ig-form-group">
+              <div className={styles['ig-form-group']}>
                 <label>SSH 远程地址</label>
                 <Input
                   value={sshRemoteUrl}
@@ -118,8 +123,8 @@ function SettingsView(): JSX.Element {
             )}
             {remoteType === 'http' && (
               <>
-                <p className="ig-hint">HTTP(S) 认证</p>
-                <div className="ig-form-group">
+                <p className={styles['ig-hint']}>HTTP(S) 认证</p>
+                <div className={styles['ig-form-group']}>
                   <label>用户名</label>
                   <Input
                     value={username}
@@ -127,7 +132,7 @@ function SettingsView(): JSX.Element {
                     placeholder="用户名"
                   />
                 </div>
-                <div className="ig-form-group">
+                <div className={styles['ig-form-group']}>
                   <label>密码 / Token</label>
                   <Input.Password
                     value={password}
@@ -139,8 +144,8 @@ function SettingsView(): JSX.Element {
             )}
             {remoteType === 'ssh' && (
               <>
-                <p className="ig-hint">SSH 认证</p>
-                <div className="ig-form-group">
+                <p className={styles['ig-hint']}>SSH 认证</p>
+                <div className={styles['ig-form-group']}>
                   <label>SSH 密钥路径</label>
                   <Input
                     value={sshKeyPath}
@@ -148,7 +153,7 @@ function SettingsView(): JSX.Element {
                     placeholder="~/.ssh/id_rsa"
                   />
                 </div>
-                <div className="ig-form-group">
+                <div className={styles['ig-form-group']}>
                   <label>SSH 密钥密码</label>
                   <Input.Password
                     value={sshPassword}

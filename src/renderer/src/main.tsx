@@ -1,6 +1,5 @@
 import 'antd/dist/reset.css'
-import './assets/main.css'
-import './assets/features.css'
+import './assets/styles/index.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

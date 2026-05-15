@@ -6,6 +6,7 @@ import { useHistoryViewModel } from '../../viewModels'
 import BranchPanel from './BranchPanel'
 import CommitDetail from './CommitDetail'
 import CommitGraph from './CommitGraph'
+import styles from './HistoryView.module.css'
 
 function HistoryView(): JSX.Element {
   const {
@@ -38,14 +39,14 @@ function HistoryView(): JSX.Element {
 
   if (!currentRepo) {
     return (
-      <div className="ig-empty-view">
+      <div className={styles['ig-empty-view']}>
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="选择仓库查看历史" />
       </div>
     )
   }
 
   return (
-    <div className="ig-history-view" id="history-view">
+    <div className={styles['ig-history-view']} id="history-view">
       <BranchPanel branches={allBranches} />
       <CommitGraph
         commits={allCommitHistory}
@@ -53,7 +54,7 @@ function HistoryView(): JSX.Element {
         selectedCommitHash={selectedCommit?.hash}
         onSelectCommit={selectCommit}
       />
-      <div className="ig-detail-panel">
+      <div className={styles['ig-detail-panel']}>
         <CommitDetail
           selectedCommit={selectedCommit}
           selectedCommitFiles={selectedCommitFiles}

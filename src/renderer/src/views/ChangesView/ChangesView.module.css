@@ -1,0 +1,35 @@
+.ig-empty-view {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+
+.ig-empty-view p {
+  font-size: 13px;
+}
+
+.ig-empty-view :global(.ant-empty-description) {
+  color: var(--text-muted);
+}
+
+.ig-changes-view {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 260px minmax(360px, 1fr) 280px;
+  gap: 0;
+  background: var(--border-primary);
+}
+
+.ig-file-lists {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+}

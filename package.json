@@ -7,8 +7,9 @@
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
-    "lint": "eslint --cache . && npm run check:renderer-boundaries",
+    "lint": "eslint --cache . && npm run check:renderer-boundaries && npm run check:renderer-styles",
     "check:renderer-boundaries": "node scripts/check-renderer-boundaries.mjs",
+    "check:renderer-styles": "node scripts/check-renderer-styles.mjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",

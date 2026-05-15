@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { Alert } from 'antd'
 
 import { useNotificationModel } from '../../viewModels'
+import styles from './NotificationBar.module.css'
 
 function NotificationBar(): JSX.Element | null {
   const { error, successMessage, clearError, clearSuccess } = useNotificationModel()
@@ -9,7 +10,7 @@ function NotificationBar(): JSX.Element | null {
   if (error) {
     return (
       <Alert
-        className="ig-notification"
+        className={styles['ig-notification']}
         type="error"
         showIcon
         closable
@@ -22,7 +23,7 @@ function NotificationBar(): JSX.Element | null {
   if (successMessage) {
     return (
       <Alert
-        className="ig-notification"
+        className={styles['ig-notification']}
         type="success"
         showIcon
         closable

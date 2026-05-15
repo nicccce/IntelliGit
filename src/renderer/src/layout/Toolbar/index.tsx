@@ -12,6 +12,7 @@ import {
 import { refreshAll, refreshAllLocal } from '../../services/refreshCoordinator'
 import { checkoutBranch, pull, push } from '../../services/gitWorkflowService'
 import { useToolbarModel } from '../../viewModels'
+import styles from './Toolbar.module.css'
 
 function Toolbar(): JSX.Element {
   const {
@@ -34,9 +35,9 @@ function Toolbar(): JSX.Element {
           return {
             key: branch.name,
             label: (
-              <div className="ig-branch-menu-item">
+              <div className={styles['ig-branch-menu-item']}>
                 <span>{branch.isHead ? <CheckOutlined /> : <BranchesOutlined />}</span>
-                <span className="ig-branch-name">{branch.name}</span>
+                <span className={styles['ig-branch-name']}>{branch.name}</span>
                 {branch.isRemoteOnly && <Tag color="blue">远程</Tag>}
                 {!branch.isRemoteOnly && branch.name !== currentBranch && <Tag>本地</Tag>}
               </div>
@@ -45,10 +46,10 @@ function Toolbar(): JSX.Element {
         })
 
   return (
-    <header className="ig-toolbar" id="main-toolbar">
-      <div className="ig-toolbar-left">
-        <div className="ig-topbar-logo">IntelliGit</div>
-        <span className="ig-toolbar-repo-name">
+    <header className={styles['ig-toolbar']} id="main-toolbar">
+      <div className={styles['ig-toolbar-left']}>
+        <div className={styles['ig-topbar-logo']}>IntelliGit</div>
+        <span className={styles['ig-toolbar-repo-name']}>
           {currentRepo ? currentRepo.name : '未选择仓库'}
         </span>
         {currentBranch && (
@@ -61,17 +62,17 @@ function Toolbar(): JSX.Element {
             }}
             trigger={['click']}
           >
-            <Button className="ig-branch-picker" size="small" icon={<BranchesOutlined />}>
+            <Button className={styles['ig-branch-picker']} size="small" icon={<BranchesOutlined />}>
               {currentBranch}
             </Button>
           </Dropdown>
         )}
-        <div className="ig-command-placeholder">
+        <div className={styles['ig-command-placeholder']}>
           <ThunderboltOutlined />
           <span>告诉我你想做什么... (Ctrl K)</span>
         </div>
       </div>
-      <div className="ig-toolbar-actions">
+      <div className={styles['ig-toolbar-actions']}>
         <Button
           size="small"
           onClick={hasRemote ? refreshAll : refreshAllLocal}

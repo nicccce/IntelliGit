@@ -1,0 +1,83 @@
+.ig-graph-area {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.ig-graph-header {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+.ig-graph-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ig-graph-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ig-graph-list :global(.ant-empty-description) {
+  color: var(--text-muted);
+}
+
+.ig-graph-row {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 72%, transparent);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ig-graph-row:hover {
+  background: var(--surface-hover);
+}
+
+.ig-graph-row.selected {
+  border-left: 3px solid var(--accent-blue);
+  background: var(--surface-active);
+}
+
+.ig-graph-lane {
+  flex-shrink: 0;
+}
+
+.ig-graph-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-graph-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-graph-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.ig-graph-hash {
+  color: var(--accent-purple);
+  font-family: var(--font-mono);
+}

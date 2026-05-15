@@ -15,6 +15,7 @@ import { refreshAllLocal } from '../services/refreshCoordinator'
 import { AppProviders } from './AppProviders'
 import { useAutoRefresh } from './useAutoRefresh'
 import { useThemeMode } from './useThemeMode'
+import styles from './MainApp.module.css'
 
 function MainApp(): JSX.Element {
   const configLoaded = useRepositoryStore(selectConfigLoaded)
@@ -38,7 +39,7 @@ function MainApp(): JSX.Element {
   if (!configLoaded) {
     return (
       <AppProviders themeMode={themeMode}>
-        <div className="ig-loading-screen">
+        <div className={styles['ig-loading-screen']}>
           <Spin size="large" />
           <p>加载中…</p>
         </div>

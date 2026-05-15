@@ -1,0 +1,45 @@
+.ig-statusbar {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  gap: var(--space-md);
+  padding: 0 var(--space-md);
+  border-top: 1px solid var(--border-primary);
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.ig-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ig-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.ig-status-dot.green {
+  background: var(--accent-green);
+}
+
+.ig-status-dot.blue {
+  background: var(--accent-blue);
+}
+
+.ig-status-path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-status-tail {
+  flex-shrink: 0;
+}

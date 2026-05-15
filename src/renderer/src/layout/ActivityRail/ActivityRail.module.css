@@ -1,0 +1,50 @@
+.ig-activity-rail {
+  display: flex;
+  width: 52px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 6px;
+  border-right: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.ig-rail-item {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.ig-rail-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.ig-rail-item.active {
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  border-color: var(--border-primary);
+}
+
+.ig-rail-divider {
+  width: 28px;
+  height: 1px;
+  margin: var(--space-xs) 0;
+  background: var(--border-primary);
+}
+
+.ig-rail-spacer {
+  flex: 1;
+}

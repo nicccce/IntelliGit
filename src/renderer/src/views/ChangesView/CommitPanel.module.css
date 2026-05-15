@@ -1,0 +1,53 @@
+.ig-commit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0;
+  border-left: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+}
+
+.ig-commit-panel > :not(.ig-commit-panel-top) {
+  margin-right: 12px;
+  margin-left: 12px;
+}
+
+.ig-commit-panel-top {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ig-ai-btn:global(.ant-btn) {
+  width: calc(100% - 24px);
+  justify-content: center;
+  margin-top: 12px;
+  color: var(--accent-blue);
+  background: var(--surface-active);
+  border-color: var(--border-focus);
+}
+
+.ig-commit-input:global(.ant-input) {
+  margin-bottom: 0;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  resize: vertical;
+}
+
+.ig-sandbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ig-commit-btn:global(.ant-btn) {
+  width: calc(100% - 24px);
+  margin-top: auto;
+  margin-bottom: 12px;
+}

@@ -7,7 +7,9 @@ import type { JSX } from 'react'
 import { useCallback, useState } from 'react'
 
 import { useKeyboardShortcut } from '../../hooks'
+import { classNames } from '../../utils/classNames'
 import { useSidecarTestPanelModel } from '../../viewModels'
+import styles from './SidecarTestPanel.module.css'
 
 function SidecarTestPanel(): JSX.Element {
   const [command, setCommand] = useState('')
@@ -40,11 +42,11 @@ function SidecarTestPanel(): JSX.Element {
   useKeyboardShortcut('Enter', handleSubmit, { ctrl: true })
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="header-brand">
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <div className={styles.brand}>
           <svg
-            className="header-logo"
+            className={styles.logo}
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -73,45 +75,50 @@ function SidecarTestPanel(): JSX.Element {
           </svg>
           <h1>IntelliGit</h1>
         </div>
-        <span className="header-badge">Sidecar 通信测试</span>
+        <span className={styles.badge}>Sidecar 通信测试</span>
       </header>
 
-      <main className="app-main">
-        <div className="dashboard-grid">
-          <section className="status-panel">
-            <div className="panel-header">
+      <main className={styles.main}>
+        <div className={styles.dashboardGrid}>
+          <section className={styles.statusPanel}>
+            <div className={styles.panelHeader}>
               <div>
-                <p className="panel-eyebrow">运行状态</p>
+                <p className={styles.panelEyebrow}>运行状态</p>
                 <h2>Sidecar 通信面板</h2>
               </div>
-              <span className={`connection-pill ${loading ? 'is-loading' : 'is-idle'}`}>
+              <span
+                className={classNames(
+                  styles.connectionPill,
+                  loading ? styles.connectionPillLoading : styles.connectionPillIdle
+                )}
+              >
                 {loading ? '处理中' : '已就绪'}
               </span>
             </div>
 
-            <div className="status-cards">
-              <article className="status-card accent-blue">
-                <span className="status-card-label">当前命令</span>
+            <div className={styles.statusCards}>
+              <article className={classNames(styles.statusCard, styles.accentBlue)}>
+                <span className={styles.statusCardLabel}>当前命令</span>
                 <strong>{command.trim() || '未输入'}</strong>
               </article>
-              <article className="status-card accent-green">
-                <span className="status-card-label">历史条目</span>
+              <article className={classNames(styles.statusCard, styles.accentGreen)}>
+                <span className={styles.statusCardLabel}>历史条目</span>
                 <strong>{history.length}</strong>
               </article>
-              <article className="status-card accent-purple">
-                <span className="status-card-label">快捷发送</span>
+              <article className={classNames(styles.statusCard, styles.accentPurple)}>
+                <span className={styles.statusCardLabel}>快捷发送</span>
                 <strong>Ctrl + Enter</strong>
               </article>
             </div>
 
-            <div className="status-tip">
-              <span className="status-tip-dot" />
+            <div className={styles.statusTip}>
+              <span className={styles.statusTipDot} />
               适合先选择快捷命令，再微调 JSON Payload。
             </div>
           </section>
 
-          <section className="input-panel">
-            <div className="input-group">
+          <section className={styles.inputPanel}>
+            <div className={styles.inputGroup}>
               <label htmlFor="git-command">Git 命令</label>
               <input
                 id="git-command"
@@ -129,7 +136,7 @@ function SidecarTestPanel(): JSX.Element {
               />
             </div>
 
-            <div className="input-group">
+            <div className={styles.inputGroup}>
               <label htmlFor="git-payload">Payload（JSON）</label>
               <textarea
                 id="git-payload"
@@ -141,32 +148,32 @@ function SidecarTestPanel(): JSX.Element {
               />
             </div>
 
-            <div className="quick-actions">
+            <div className={styles.quickActions}>
               <button
-                className="btn btn-secondary"
+                className={classNames(styles.button, styles.secondaryButton)}
                 onClick={() => handleQuickCommand('status', { repoPath: '.' })}
                 disabled={loading}
               >
                 一键执行 status
               </button>
               <button
-                className="btn btn-secondary"
+                className={classNames(styles.button, styles.secondaryButton)}
                 onClick={() => handleQuickCommand('log', { repoPath: '.', maxEntries: 20 })}
                 disabled={loading}
               >
                 一键执行 log
               </button>
             </div>
-            <div className="input-actions">
+            <div className={styles.inputActions}>
               <button
                 id="btn-execute"
-                className="btn btn-primary"
+                className={classNames(styles.button, styles.primaryButton)}
                 onClick={handleSubmit}
                 disabled={loading || !command.trim()}
               >
                 {loading ? (
                   <>
-                    <span className="spinner" />
+                    <span className={styles.spinner} />
                     执行中...
                   </>
                 ) : (
@@ -175,67 +182,79 @@ function SidecarTestPanel(): JSX.Element {
               </button>
               <button
                 id="btn-clear"
-                className="btn btn-ghost"
+                className={classNames(styles.button, styles.ghostButton)}
                 onClick={clearHistory}
                 disabled={history.length === 0}
               >
                 清空历史
               </button>
-              <span className="shortcut-hint">Ctrl + Enter 快捷发送</span>
+              <span className={styles.shortcutHint}>Ctrl + Enter 快捷发送</span>
             </div>
 
             {error && (
-              <div className="error-banner">
-                <span className="error-icon">⚠</span>
+              <div className={styles.errorBanner}>
+                <span className={styles.errorIcon}>⚠</span>
                 {error}
               </div>
             )}
           </section>
         </div>
 
-        <section className="result-panel">
-          <div className="panel-header panel-header-tight">
+        <section className={styles.resultPanel}>
+          <div className={classNames(styles.panelHeader, styles.panelHeaderTight)}>
             <div>
-              <p className="panel-eyebrow">日志列表</p>
+              <p className={styles.panelEyebrow}>日志列表</p>
               <h2>
                 执行历史
-                {history.length > 0 && <span className="history-count">{history.length}</span>}
+                {history.length > 0 && (
+                  <span className={styles.historyCount}>{history.length}</span>
+                )}
               </h2>
             </div>
             {history.length > 0 && (
-              <span className="result-summary">最近 {history.length} 条记录</span>
+              <span className={styles.resultSummary}>最近 {history.length} 条记录</span>
             )}
           </div>
 
           {history.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">⌘</div>
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>⌘</div>
               <p>尚无命令记录</p>
-              <p className="empty-hint">输入 Git 命令并点击「发送命令」开始测试 Sidecar 通信链路</p>
+              <p className={styles.emptyHint}>
+                输入 Git 命令并点击「发送命令」开始测试 Sidecar 通信链路
+              </p>
             </div>
           ) : (
-            <div className="history-list">
+            <div className={styles.historyList}>
               {history.map((record) => (
                 <article
                   key={record.id}
-                  className={`history-item ${record.success ? 'success' : 'failure'}`}
+                  className={classNames(
+                    styles.historyItem,
+                    record.success ? styles.historyItemSuccess : styles.historyItemFailure
+                  )}
                 >
-                  <div className="history-meta">
-                    <div className="history-heading">
-                      <code className="history-command">
-                        <span className="prompt">$</span> git {record.command}
+                  <div className={styles.historyMeta}>
+                    <div className={styles.historyHeading}>
+                      <code className={styles.historyCommand}>
+                        <span className={styles.prompt}>$</span> git {record.command}
                       </code>
-                      <time className="history-time">
+                      <time className={styles.historyTime}>
                         {new Date(record.timestamp).toLocaleTimeString()}
                       </time>
                     </div>
                     <span
-                      className={`status-badge ${record.success ? 'badge-success' : 'badge-error'}`}
+                      className={classNames(
+                        styles.statusBadge,
+                        record.success ? styles.badgeSuccess : styles.badgeError
+                      )}
                     >
                       {record.success ? '✓ 成功' : '✗ 失败'}
                     </span>
                   </div>
-                  <pre className="history-output">{JSON.stringify(record.response, null, 2)}</pre>
+                  <pre className={styles.historyOutput}>
+                    {JSON.stringify(record.response, null, 2)}
+                  </pre>
                 </article>
               ))}
             </div>
@@ -243,7 +262,7 @@ function SidecarTestPanel(): JSX.Element {
         </section>
       </main>
 
-      <footer className="app-footer">
+      <footer className={styles.footer}>
         <span>🔗 Sidecar Pattern · stdin/stdout JSON</span>
         <span>Electron + React + TypeScript + Go</span>
       </footer>

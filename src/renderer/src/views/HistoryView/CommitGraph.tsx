@@ -2,7 +2,9 @@ import type { JSX } from 'react'
 import { Empty, Tag } from 'antd'
 
 import type { CommitRecord } from '../../../../shared/types'
+import { classNames } from '../../utils/classNames'
 import { getCommitLaneColor, isMergeCommit } from '../../utils/commitGraph'
+import styles from './CommitGraph.module.css'
 
 interface CommitGraphProps {
   commits: CommitRecord[]
@@ -18,11 +20,11 @@ function CommitGraph({
   onSelectCommit
 }: CommitGraphProps): JSX.Element {
   return (
-    <div className="ig-graph-area">
-      <div className="ig-graph-header">
+    <div className={styles['ig-graph-area']}>
+      <div className={styles['ig-graph-header']}>
         <h3>Commit Graph ({commits.length})</h3>
       </div>
-      <div className="ig-graph-list">
+      <div className={styles['ig-graph-list']}>
         {commits.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无提交记录" />
         ) : (
@@ -33,10 +35,13 @@ function CommitGraph({
             return (
               <div
                 key={commit.hash}
-                className={`ig-graph-row ${selectedCommitHash === commit.hash ? 'selected' : ''}`}
+                className={classNames(
+                  styles['ig-graph-row'],
+                  selectedCommitHash === commit.hash && styles.selected
+                )}
                 onClick={() => onSelectCommit(commit)}
               >
-                <div className="ig-graph-lane">
+                <div className={styles['ig-graph-lane']}>
                   <svg width="20" height="32" viewBox="0 0 20 32">
                     <line
                       x1="10"
@@ -54,8 +59,8 @@ function CommitGraph({
                     )}
                   </svg>
                 </div>
-                <div className="ig-graph-info">
-                  <div className="ig-graph-msg">
+                <div className={styles['ig-graph-info']}>
+                  <div className={styles['ig-graph-msg']}>
                     {commit.message?.split('\n')[0]}
                     {commit.refs &&
                       commit.refs.map((refName) => (
@@ -64,9 +69,9 @@ function CommitGraph({
                         </Tag>
                       ))}
                   </div>
-                  <div className="ig-graph-meta">
+                  <div className={styles['ig-graph-meta']}>
                     <span>{commit.author}</span>
-                    <span className="ig-graph-hash">{commit.shortHash}</span>
+                    <span className={styles['ig-graph-hash']}>{commit.shortHash}</span>
                     <span>
                       {new Date(commit.date).toLocaleString('zh-CN', {
                         month: 'short',

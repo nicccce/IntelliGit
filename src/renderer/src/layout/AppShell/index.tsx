@@ -9,6 +9,7 @@ import Toolbar from '../Toolbar'
 import ChangesView from '../../views/ChangesView'
 import HistoryView from '../../views/HistoryView'
 import SettingsView from '../../views/SettingsView'
+import styles from './AppShell.module.css'
 
 interface AppShellProps {
   activeView: AppView
@@ -30,15 +31,15 @@ function AppShell({
   onToggleTheme
 }: AppShellProps): JSX.Element {
   return (
-    <div className={`ig-app theme-${themeMode}`}>
+    <div className={styles['ig-app']} data-theme-mode={themeMode}>
       <Toolbar />
       <NotificationBar />
       {loading && currentRepoPath && (
-        <div className="ig-loading-bar">
-          <div className="ig-loading-bar-inner" />
+        <div className={styles['ig-loading-bar']}>
+          <div className={styles['ig-loading-bar-inner']} />
         </div>
       )}
-      <div className="ig-workbench">
+      <div className={styles['ig-workbench']}>
         <ActivityRail
           repoPanelOpen={repoPanelOpen}
           themeMode={themeMode}
@@ -46,7 +47,7 @@ function AppShell({
           onToggleTheme={onToggleTheme}
         />
         <RepoPanel isOpen={repoPanelOpen} onClose={onToggleRepoPanel} />
-        <main className="ig-content">
+        <main className={styles['ig-content']}>
           {activeView === 'changes' && <ChangesView />}
           {activeView === 'history' && <HistoryView />}
           {activeView === 'settings' && <SettingsView key={currentRepoPath || 'settings'} />}

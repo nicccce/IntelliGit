@@ -5,6 +5,7 @@ import { Button, Select } from 'antd'
 
 import type { CommitRecord, DiffEntry, ResetMode } from '../../../../shared/types'
 import { checkoutCommit, resetToCommit } from '../../services/gitWorkflowService'
+import styles from './CommitDetail.module.css'
 
 interface CommitDetailProps {
   selectedCommit: CommitRecord | null
@@ -33,29 +34,34 @@ function CommitDetail({
   const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   if (!selectedCommit) {
-    return <div className="ig-detail-empty">选择 commit 查看详情</div>
+    return <div className={styles['ig-detail-empty']}>选择 commit 查看详情</div>
   }
 
   return (
     <>
-      <div className="ig-detail-hdr">
+      <div className={styles['ig-detail-hdr']}>
         <h3>Commit 详情</h3>
       </div>
-      <div className="ig-detail-body">
-        <div className="ig-detail-hash">
+      <div className={styles['ig-detail-body']}>
+        <div className={styles['ig-detail-hash']}>
           <code>{selectedCommit.hash}</code>
         </div>
-        <div className="ig-detail-msg">{selectedCommit.message}</div>
-        <div className="ig-detail-meta">
+        <div className={styles['ig-detail-msg']}>{selectedCommit.message}</div>
+        <div className={styles['ig-detail-meta']}>
           <span>{selectedCommit.author}</span>
           <span>{new Date(selectedCommit.date).toLocaleString('zh-CN')}</span>
         </div>
         {selectedCommitFiles.length > 0 && (
-          <div className="ig-detail-files">
-            <div className="ig-detail-files-hdr">变更文件 ({selectedCommitFiles.length})</div>
+          <div className={styles['ig-detail-files']}>
+            <div className={styles['ig-detail-files-hdr']}>
+              变更文件 ({selectedCommitFiles.length})
+            </div>
             {selectedCommitFiles.map((file, fileIndex) => (
-              <div key={fileIndex} className="ig-detail-file">
-                <span className="ig-file-status" style={{ color: fileActionColor(file.action) }}>
+              <div key={fileIndex} className={styles['ig-detail-file']}>
+                <span
+                  className={styles['ig-file-status']}
+                  style={{ color: fileActionColor(file.action) }}
+                >
                   {fileActionLabel(file.action)}
                 </span>
                 <span>{file.to || file.from}</span>
@@ -63,7 +69,7 @@ function CommitDetail({
             ))}
           </div>
         )}
-        <div className="ig-detail-actions">
+        <div className={styles['ig-detail-actions']}>
           <Button
             onClick={() => checkoutCommit(selectedCommit.hash)}
             disabled={isBusy}
@@ -76,8 +82,8 @@ function CommitDetail({
           </Button>
         </div>
         {showResetConfirm && (
-          <div className="ig-reset-confirm">
-            <div className="ig-reset-label">Reset 模式:</div>
+          <div className={styles['ig-reset-confirm']}>
+            <div className={styles['ig-reset-label']}>Reset 模式:</div>
             <Select
               value={resetMode}
               onChange={setResetMode}
@@ -87,7 +93,7 @@ function CommitDetail({
                 { value: 'hard', label: '--hard' }
               ]}
             />
-            <div className="ig-reset-btns">
+            <div className={styles['ig-reset-btns']}>
               <Button
                 danger
                 onClick={async () => {

@@ -1,0 +1,10 @@
+.ig-loading-screen {
+  display: flex;
+  height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+}
