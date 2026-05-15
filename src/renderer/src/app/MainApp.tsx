@@ -3,18 +3,24 @@ import { useCallback, useEffect, useState } from 'react'
 import { Spin } from 'antd'
 
 import { useRepositoryStore, useUiStore } from '../store'
+import {
+  selectActiveView,
+  selectConfigLoaded,
+  selectCurrentRepo,
+  selectGlobalLoading
+} from '../store/selectors'
 import AppShell from '../layout/AppShell'
+import { loadConfig } from '../services/repositoryWorkflowService'
 import { refreshAllLocal } from '../services/refreshCoordinator'
 import { AppProviders } from './AppProviders'
 import { useAutoRefresh } from './useAutoRefresh'
 import { useThemeMode } from './useThemeMode'
 
 function MainApp(): JSX.Element {
-  const configLoaded = useRepositoryStore((state) => state.configLoaded)
-  const loadConfig = useRepositoryStore((state) => state.loadConfig)
-  const currentRepo = useRepositoryStore((state) => state.currentRepo)
-  const activeView = useUiStore((state) => state.activeView)
-  const loading = useUiStore((state) => state.loading)
+  const configLoaded = useRepositoryStore(selectConfigLoaded)
+  const currentRepo = useRepositoryStore(selectCurrentRepo)
+  const activeView = useUiStore(selectActiveView)
+  const loading = useUiStore(selectGlobalLoading)
 
   const { themeMode, toggleTheme } = useThemeMode()
   const [repoPanelOpen, setRepoPanelOpen] = useState(false)
@@ -25,7 +31,7 @@ function MainApp(): JSX.Element {
 
   useEffect(() => {
     loadConfig()
-  }, [loadConfig])
+  }, [])
 
   useAutoRefresh(currentRepo?.path, refreshAllLocal)
 

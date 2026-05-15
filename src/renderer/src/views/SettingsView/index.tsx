@@ -2,13 +2,12 @@ import type { JSX } from 'react'
 import { useState } from 'react'
 import { Button, Empty, Input, Segmented } from 'antd'
 
-import { useRepositoryStore } from '../../store'
+import { useSettingsViewModel } from '../../viewModels'
 
 type RemoteType = 'none' | 'http' | 'ssh'
 
 function SettingsView(): JSX.Element {
-  const currentRepo = useRepositoryStore((state) => state.currentRepo)
-  const updateRepoSettings = useRepositoryStore((state) => state.updateRepoSettings)
+  const { currentRepo, updateRepoSettings } = useSettingsViewModel()
 
   const [commitAuthorName, setCommitAuthorName] = useState<string>(
     () => currentRepo?.commitAuthorName || ''

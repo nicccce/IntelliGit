@@ -19,7 +19,7 @@ export type OperationKey =
   | 'remote.push'
   | 'remote.pull'
 
-interface OperationStoreState {
+export interface OperationStoreState {
   runningOperations: OperationKey[]
   operationLoading: OperationKey | null
   startOperation: (operation: OperationKey) => void

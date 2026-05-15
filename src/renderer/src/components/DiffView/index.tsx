@@ -1,10 +1,9 @@
 import type { JSX } from 'react'
 
-import { useDiffStore } from '../../store'
+import { useDiffViewModel } from '../../viewModels'
 
 function DiffView(): JSX.Element {
-  const workdirDiff = useDiffStore((state) => state.workdirDiff)
-  const selectedFilePath = useDiffStore((state) => state.selectedFilePath)
+  const { workdirDiff, selectedFilePath } = useDiffViewModel()
 
   if (!selectedFilePath) return <div className="ig-diff-empty">← 选择文件查看差异</div>
   if (!workdirDiff || workdirDiff.filePatches.length === 0)

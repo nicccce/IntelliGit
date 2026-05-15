@@ -15,7 +15,7 @@ import {
 import RepoAvatar from '../../components/RepoAvatar'
 import { checkDirEmpty, checkDirExists, openFolderDialog } from '../../api/filesystemClient'
 import { isGitRepository } from '../../services/repositoryService'
-import { useRepositoryStore } from '../../store'
+import { useRepoPanelModel } from '../../viewModels'
 
 interface RepoPanelProps {
   isOpen: boolean
@@ -23,13 +23,8 @@ interface RepoPanelProps {
 }
 
 function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
-  const repos = useRepositoryStore((state) => state.repos)
-  const currentRepo = useRepositoryStore((state) => state.currentRepo)
-  const switchRepo = useRepositoryStore((state) => state.switchRepo)
-  const addRepo = useRepositoryStore((state) => state.addRepo)
-  const createRepo = useRepositoryStore((state) => state.createRepo)
-  const cloneRepo = useRepositoryStore((state) => state.cloneRepo)
-  const removeRepo = useRepositoryStore((state) => state.removeRepo)
+  const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } =
+    useRepoPanelModel()
 
   const [panelWidth, setPanelWidth] = useState(280)
   const [repoToRemove, setRepoToRemove] = useState<{ path: string; name: string } | null>(null)

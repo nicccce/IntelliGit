@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import type { CommitRecord, DiffEntry, PatchDetail } from '../../../shared/types'
 import { invokeGit } from '../api/gitClient'
 
-interface HistoryStoreState {
+export interface HistoryStoreState {
   commitHistory: CommitRecord[]
   allCommitHistory: CommitRecord[]
   selectedCommit: CommitRecord | null

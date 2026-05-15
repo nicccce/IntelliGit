@@ -1,11 +1,12 @@
 import type { ResetMode } from '../../../shared/types'
 import { invokeGit } from '../api/gitClient'
 import { useDiffStore } from '../store/diffStore'
-import { findRemoteBranch, hasLocalBranch, useGitStatusStore } from '../store/gitStatusStore'
+import { useGitStatusStore } from '../store/gitStatusStore'
 import { useHistoryStore } from '../store/historyStore'
 import { withOperation } from '../store/operationStore'
 import { useRepositoryStore } from '../store/repositoryStore'
 import { useUiStore } from '../store/uiStore'
+import { findRemoteBranch, hasLocalBranch } from '../utils/branchOptions'
 import { buildRemotePayload } from './remoteService'
 import { refreshAllLocal, refreshRemote } from './refreshCoordinator'
 
@@ -49,6 +50,36 @@ export async function removeFile(path: string): Promise<void> {
       useUiStore.getState().setError(`Remove 失败: ${errorMessage(err)}`)
     }
   })
+}
+
+export async function applyPatch(patch: string): Promise<void> {
+  try {
+    await withOperation('staging.applyPatch', async () => {
+      await invokeGit('staging.applyPatch', { patch })
+      await useGitStatusStore.getState().refreshStatus()
+      const { selectedFilePath, selectFile } = useDiffStore.getState()
+      if (selectedFilePath) {
+        await selectFile(selectedFilePath)
+      }
+    })
+  } catch (err) {
+    useUiStore.getState().setError(`Hunk 暂存失败: ${errorMessage(err)}`)
+  }
+}
+
+export async function unstageHunk(patch: string): Promise<void> {
+  try {
+    await withOperation('staging.unstageHunk', async () => {
+      await invokeGit('staging.unstageHunk', { patch })
+      await useGitStatusStore.getState().refreshStatus()
+      const { selectedFilePath, selectFile } = useDiffStore.getState()
+      if (selectedFilePath) {
+        await selectFile(selectedFilePath)
+      }
+    })
+  } catch (err) {
+    useUiStore.getState().setError(`取消 Hunk 暂存失败: ${errorMessage(err)}`)
+  }
 }
 
 export async function createCommit(message: string): Promise<void> {
@@ -117,11 +148,13 @@ export async function pull(): Promise<void> {
 export async function checkoutBranch(branch: string): Promise<void> {
   await withOperation('branch.checkout', async () => {
     try {
-      if (hasLocalBranch(branch)) {
+      const { branches, remoteBranches } = useGitStatusStore.getState()
+
+      if (hasLocalBranch(branches, branch)) {
         await invokeGit('branch.checkout', { branch })
         useUiStore.getState().showSuccess(`已切换到分支 ${branch}`)
       } else {
-        const remoteBranch = findRemoteBranch(branch)
+        const remoteBranch = findRemoteBranch(remoteBranches, branch)
         if (!remoteBranch) {
           useUiStore.getState().setError(`本地不存在分支 ${branch}，且远程也无对应跟踪分支`)
           return

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 export type AppView = 'changes' | 'history' | 'settings'
 
-interface UiStoreState {
+export interface UiStoreState {
   activeView: AppView
   loading: boolean
   error: string | null

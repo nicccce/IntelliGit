@@ -4,7 +4,7 @@ import type { BranchInfo, FileStatusInfo, RepoConfig } from '../../../shared/typ
 import { invokeGit } from '../api/gitClient'
 import { buildRemotePayload } from '../services/remoteService'
 
-interface GitStatusStoreState {
+export interface GitStatusStoreState {
   fileStatuses: FileStatusInfo[]
   currentBranch: string
   branches: BranchInfo[]
@@ -105,12 +105,3 @@ export const useGitStatusStore = create<GitStatusStoreState>((set) => ({
     }
   }
 }))
-
-export function hasLocalBranch(branch: string): boolean {
-  return useGitStatusStore.getState().branches.some((item) => item.name === branch)
-}
-
-export function findRemoteBranch(branch: string): BranchInfo | undefined {
-  const remoteRefName = `origin/${branch}`
-  return useGitStatusStore.getState().remoteBranches.find((item) => item.name === remoteRefName)
-}

@@ -11,42 +11,34 @@ import {
 
 import { refreshAll, refreshAllLocal } from '../../services/refreshCoordinator'
 import { checkoutBranch, pull, push } from '../../services/gitWorkflowService'
-import { useGitStatusStore, useOperationStore, useRepositoryStore } from '../../store'
+import { useToolbarModel } from '../../viewModels'
 
 function Toolbar(): JSX.Element {
-  const currentRepo = useRepositoryStore((state) => state.currentRepo)
-  const currentBranch = useGitStatusStore((state) => state.currentBranch)
-  const branches = useGitStatusStore((state) => state.branches)
-  const remoteBranches = useGitStatusStore((state) => state.remoteBranches)
-  const operationLoading = useOperationStore((state) => state.operationLoading)
-  const commitsAhead = useGitStatusStore((state) => state.commitsAhead)
-  const commitsBehind = useGitStatusStore((state) => state.commitsBehind)
-
-  const hasRemote = Boolean(currentRepo?.remoteType && currentRepo.remoteType !== 'none')
-  const hasCommitsToPush = hasRemote && commitsAhead > 0 && commitsBehind === 0
-  const hasCommitsToPull = hasRemote && commitsBehind > 0
-
-  const localBranchNames = new Set(branches.map((branch) => branch.name))
-  const remoteOnlyBranches = remoteBranches
-    .filter((branch) => !localBranchNames.has(branch.name.replace(/^origin\//, '')))
-    .map((branch) => ({ ...branch, name: branch.name.replace(/^origin\//, '') }))
-  const mergedBranches = [...branches.filter((branch) => !branch.isRemote), ...remoteOnlyBranches]
+  const {
+    currentRepo,
+    currentBranch,
+    branchOptions,
+    operationLoading,
+    hasRemote,
+    hasCommitsToPush,
+    hasCommitsToPull,
+    commitsAhead,
+    commitsBehind,
+    isBusy
+  } = useToolbarModel()
 
   const branchMenuItems: MenuProps['items'] =
-    mergedBranches.length === 0
+    branchOptions.length === 0
       ? [{ key: '__empty', label: '无分支', disabled: true }]
-      : mergedBranches.map((branch) => {
-          const isRemoteOnly = remoteOnlyBranches.some(
-            (remoteBranch) => remoteBranch.name === branch.name
-          )
+      : branchOptions.map((branch) => {
           return {
             key: branch.name,
             label: (
               <div className="ig-branch-menu-item">
                 <span>{branch.isHead ? <CheckOutlined /> : <BranchesOutlined />}</span>
                 <span className="ig-branch-name">{branch.name}</span>
-                {isRemoteOnly && <Tag color="blue">远程</Tag>}
-                {!isRemoteOnly && branch.name !== currentBranch && <Tag>本地</Tag>}
+                {branch.isRemoteOnly && <Tag color="blue">远程</Tag>}
+                {!branch.isRemoteOnly && branch.name !== currentBranch && <Tag>本地</Tag>}
               </div>
             )
           }
@@ -83,7 +75,7 @@ function Toolbar(): JSX.Element {
         <Button
           size="small"
           onClick={hasRemote ? refreshAll : refreshAllLocal}
-          disabled={!currentRepo || !!operationLoading}
+          disabled={!currentRepo || isBusy}
         >
           {hasRemote ? 'Fetch' : '刷新'}
         </Button>
@@ -93,7 +85,7 @@ function Toolbar(): JSX.Element {
             size="small"
             icon={hasCommitsToPush ? <CloudUploadOutlined /> : <CloudDownloadOutlined />}
             onClick={hasCommitsToPush ? push : pull}
-            disabled={!currentRepo || !!operationLoading}
+            disabled={!currentRepo || isBusy}
             loading={operationLoading === 'remote.push' || operationLoading === 'remote.pull'}
             title={hasCommitsToPush ? 'Push commits' : 'Pull commits'}
           >

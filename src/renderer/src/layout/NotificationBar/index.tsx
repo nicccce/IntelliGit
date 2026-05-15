@@ -1,13 +1,10 @@
 import type { JSX } from 'react'
 import { Alert } from 'antd'
 
-import { useUiStore } from '../../store'
+import { useNotificationModel } from '../../viewModels'
 
 function NotificationBar(): JSX.Element | null {
-  const error = useUiStore((state) => state.error)
-  const successMessage = useUiStore((state) => state.successMessage)
-  const clearError = useUiStore((state) => state.clearError)
-  const clearSuccess = useUiStore((state) => state.clearSuccess)
+  const { error, successMessage, clearError, clearSuccess } = useNotificationModel()
 
   if (error) {
     return (

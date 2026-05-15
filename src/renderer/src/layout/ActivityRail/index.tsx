@@ -4,7 +4,7 @@ import { FolderOpenOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons
 
 import type { AppThemeMode } from '../../app/types'
 import { VIEW_OPTIONS } from '../../app/viewOptions'
-import { useGitStatusStore, useUiStore } from '../../store'
+import { useActivityRailModel } from '../../viewModels'
 
 interface ActivityRailProps {
   themeMode: AppThemeMode
@@ -19,12 +19,7 @@ function ActivityRail({
   onToggleRepoPanel,
   onToggleTheme
 }: ActivityRailProps): JSX.Element {
-  const activeView = useUiStore((state) => state.activeView)
-  const setActiveView = useUiStore((state) => state.setActiveView)
-  const fileStatuses = useGitStatusStore((state) => state.fileStatuses)
-  const changeCount = fileStatuses.filter(
-    (file) => file.staging !== ' ' || file.worktree !== ' '
-  ).length
+  const { activeView, setActiveView, changeCount } = useActivityRailModel()
 
   return (
     <nav className="ig-activity-rail" aria-label="主导航">

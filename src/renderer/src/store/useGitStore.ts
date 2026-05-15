@@ -15,7 +15,7 @@ export interface CommandRecord {
   success: boolean
 }
 
-interface GitStoreState {
+export interface GitStoreState {
   /** 是否正在请求中 */
   loading: boolean
   /** 命令执行历史 */
