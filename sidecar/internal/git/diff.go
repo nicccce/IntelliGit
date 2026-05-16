@@ -13,7 +13,7 @@ import (
 
 // DiffWorkdir 获取工作区未暂存变更的结构化 diff（等价于 git diff）
 // 对于指定文件 filePath 返回 diff；filePath 为空时返回所有文件的 diff
-func (r *Repository) DiffWorkdir(filePath string) (*PatchDetail, error) {
+func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("获取 worktree 失败: %w", err)
@@ -93,7 +93,7 @@ func (r *Repository) DiffWorkdir(filePath string) (*PatchDetail, error) {
 }
 
 // DiffStaged 获取已暂存变更的结构化 diff（等价于 git diff --staged）
-func (r *Repository) DiffStaged(filePath string) (*PatchDetail, error) {
+func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("获取 worktree 失败: %w", err)
@@ -160,7 +160,7 @@ func (r *Repository) DiffStaged(filePath string) (*PatchDetail, error) {
 }
 
 // headTree 获取 HEAD commit 的 tree 对象
-func (r *Repository) headTree() (*object.Tree, error) {
+func (r *goGitBackend) headTree() (*object.Tree, error) {
 	headRef, err := r.repo.Head()
 	if err != nil {
 		return nil, err
@@ -318,7 +318,7 @@ func computeLCS(a, b []string) []string {
 }
 
 // DiffCommits 获取两个 commit 之间的文件变更列表
-func (r *Repository) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, error) {
+func (r *goGitBackend) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, error) {
 	hashA := plumbing.NewHash(hashAStr)
 	hashB := plumbing.NewHash(hashBStr)
 
@@ -350,7 +350,7 @@ func (r *Repository) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, error)
 
 // DiffWithParent 获取指定 commit 与其第一个父 commit 之间的差异
 // 对于初始提交（无父 commit），返回该次提交引入的所有文件
-func (r *Repository) DiffWithParent(hashStr string) ([]DiffEntry, error) {
+func (r *goGitBackend) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
 	if err != nil {
@@ -396,7 +396,7 @@ func (r *Repository) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 }
 
 // GetCommitPatch 获取指定 commit 与其父 commit 之间的具体差异（结构化对象）
-func (r *Repository) GetCommitPatch(hashStr string) (*PatchDetail, error) {
+func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
 	if err != nil {
@@ -474,7 +474,7 @@ func (r *Repository) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 }
 
 // FileContentAtCommit 读取指定 commit 中某个文件的内容
-func (r *Repository) FileContentAtCommit(hashStr, filePath string) (string, error) {
+func (r *goGitBackend) FileContentAtCommit(hashStr, filePath string) (string, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
 	if err != nil {
@@ -499,7 +499,7 @@ func (r *Repository) FileContentAtCommit(hashStr, filePath string) (string, erro
 }
 
 // ListFilesAtCommit 列出指定 commit 中的所有文件路径
-func (r *Repository) ListFilesAtCommit(hashStr string) ([]string, error) {
+func (r *goGitBackend) ListFilesAtCommit(hashStr string) ([]string, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
 	if err != nil {

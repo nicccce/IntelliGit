@@ -11,7 +11,7 @@ import (
 )
 
 // Branches 列出所有本地分支
-func (r *Repository) Branches() ([]BranchInfo, error) {
+func (r *goGitBackend) Branches() ([]BranchInfo, error) {
 	headRef, _ := r.repo.Head()
 
 	iter, err := r.repo.Branches()
@@ -37,7 +37,7 @@ func (r *Repository) Branches() ([]BranchInfo, error) {
 }
 
 // RemoteBranches 列出所有远程追踪分支
-func (r *Repository) RemoteBranches() ([]BranchInfo, error) {
+func (r *goGitBackend) RemoteBranches() ([]BranchInfo, error) {
 	refs, err := r.repo.References()
 	if err != nil {
 		return nil, fmt.Errorf("获取引用列表失败: %w", err)
@@ -61,7 +61,7 @@ func (r *Repository) RemoteBranches() ([]BranchInfo, error) {
 }
 
 // CurrentBranch 获取当前所在分支名
-func (r *Repository) CurrentBranch() (string, error) {
+func (r *goGitBackend) CurrentBranch() (string, error) {
 	ref, err := r.repo.Head()
 	if err != nil {
 		return "", fmt.Errorf("获取 HEAD 失败: %w", err)
@@ -73,7 +73,7 @@ func (r *Repository) CurrentBranch() (string, error) {
 }
 
 // CreateBranch 在当前 HEAD 上创建一条新分支
-func (r *Repository) CreateBranch(name string) error {
+func (r *goGitBackend) CreateBranch(name string) error {
 	headRef, err := r.repo.Head()
 	if err != nil {
 		return fmt.Errorf("获取 HEAD 失败: %w", err)
@@ -99,7 +99,7 @@ func (r *Repository) CreateBranch(name string) error {
 }
 
 // DeleteBranch 删除一条本地分支
-func (r *Repository) DeleteBranch(name string) error {
+func (r *goGitBackend) DeleteBranch(name string) error {
 	refName := plumbing.NewBranchReferenceName(name)
 
 	// 不允许删除当前所在分支
@@ -119,7 +119,7 @@ func (r *Repository) DeleteBranch(name string) error {
 }
 
 // Checkout 切换到指定分支
-func (r *Repository) Checkout(branch string) error {
+func (r *goGitBackend) Checkout(branch string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -135,7 +135,7 @@ func (r *Repository) Checkout(branch string) error {
 
 // CheckoutNewBranch 创建并切换到新分支（git checkout -b <branch> [<startPoint>]）
 // 如果 startPoint 不为空，则从指定的 commit hash 创建分支；否则从当前 HEAD 创建。
-func (r *Repository) CheckoutNewBranch(branch string, startPoint string) error {
+func (r *goGitBackend) CheckoutNewBranch(branch string, startPoint string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -157,7 +157,7 @@ func (r *Repository) CheckoutNewBranch(branch string, startPoint string) error {
 }
 
 // AheadBehind 计算当前分支相较于远程对应分支（如 origin/branchName）的落后与超前提交数
-func (r *Repository) AheadBehind(branchName string) (ahead int, behind int, err error) {
+func (r *goGitBackend) AheadBehind(branchName string) (ahead int, behind int, err error) {
 	localRef, err := r.repo.Reference(plumbing.ReferenceName("refs/heads/"+branchName), true)
 	if err != nil {
 		return 0, 0, err

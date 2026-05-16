@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"os/exec"
 	"sort"
 
 	gogit "github.com/go-git/go-git/v5"
@@ -12,7 +11,7 @@ import (
 
 // ResetToCommit 将当前分支重置到指定 commit
 // mode 支持: "soft"、"mixed"（默认）、"hard"
-func (r *Repository) ResetToCommit(hashStr string, mode string) error {
+func (r *goGitBackend) ResetToCommit(hashStr string, mode string) error {
 	hash := plumbing.NewHash(hashStr)
 
 	wt, err := r.repo.Worktree()
@@ -40,7 +39,7 @@ func (r *Repository) ResetToCommit(hashStr string, mode string) error {
 }
 
 // CheckoutCommit 将工作区切换到指定 commit（detached HEAD）
-func (r *Repository) CheckoutCommit(hashStr string) error {
+func (r *goGitBackend) CheckoutCommit(hashStr string) error {
 	hash := plumbing.NewHash(hashStr)
 
 	wt, err := r.repo.Worktree()
@@ -58,7 +57,7 @@ func (r *Repository) CheckoutCommit(hashStr string) error {
 
 // LogAll 获取所有分支的 commit 历史（等价于 git log --all）
 // 返回按时间排序的 commit 列表，每个 commit 附带关联的分支引用
-func (r *Repository) LogAll(max int) ([]CommitInfo, error) {
+func (r *goGitBackend) LogAll(max int) ([]CommitInfo, error) {
 	if max <= 0 {
 		max = 200
 	}
@@ -153,28 +152,4 @@ func (r *Repository) LogAll(max int) ([]CommitInfo, error) {
 	}
 
 	return commits, nil
-}
-
-// LogAllRaw 使用 git CLI 获取所有分支的 commit 历史（带拓扑排序信息）
-// 返回格式化的 commit 列表，适合前端构建 commit graph
-func (r *Repository) LogAllRaw(max int) (string, error) {
-	if max <= 0 {
-		max = 200
-	}
-
-	cmd := exec.Command("git", "log", "--all",
-		"--topo-order",
-		fmt.Sprintf("--max-count=%d", max),
-		"--format=%H|%h|%P|%an|%ae|%aI|%s|%D",
-	)
-	cmd.Dir = r.path
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("git log --all 失败: %s: %w", string(exitErr.Stderr), err)
-		}
-		return "", fmt.Errorf("git log --all 失败: %w", err)
-	}
-	return string(output), nil
 }

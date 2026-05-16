@@ -12,7 +12,7 @@ import (
 )
 
 // Commit 提交暂存区的变更
-func (r *Repository) Commit(message, authorName, authorEmail string) (string, error) {
+func (r *goGitBackend) Commit(message, authorName, authorEmail string) (string, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return "", fmt.Errorf("获取 worktree 失败: %w", err)
@@ -48,7 +48,7 @@ func (r *Repository) Commit(message, authorName, authorEmail string) (string, er
 	return hash.String(), nil
 }
 
-func (r *Repository) defaultCommitAuthor() (string, string) {
+func (r *goGitBackend) defaultCommitAuthor() (string, string) {
 	cfg, err := r.repo.ConfigScoped(config.SystemScope)
 	if err != nil {
 		return "", ""
@@ -65,7 +65,7 @@ func (r *Repository) defaultCommitAuthor() (string, string) {
 }
 
 // Log 获取提交历史记录，max 指定最多返回条数（0 表示不限制）
-func (r *Repository) Log(max int) ([]CommitInfo, error) {
+func (r *goGitBackend) Log(max int) ([]CommitInfo, error) {
 	iter, err := r.repo.Log(&gogit.LogOptions{
 		Order: gogit.LogOrderCommitterTime,
 	})
@@ -90,7 +90,7 @@ func (r *Repository) Log(max int) ([]CommitInfo, error) {
 }
 
 // LogFrom 从指定 commit hash 开始获取提交历史
-func (r *Repository) LogFrom(hashStr string, max int) ([]CommitInfo, error) {
+func (r *goGitBackend) LogFrom(hashStr string, max int) ([]CommitInfo, error) {
 	hash := plumbing.NewHash(hashStr)
 	iter, err := r.repo.Log(&gogit.LogOptions{
 		From:  hash,
@@ -117,7 +117,7 @@ func (r *Repository) LogFrom(hashStr string, max int) ([]CommitInfo, error) {
 }
 
 // GetCommit 通过 hash 获取单个 commit 的详细信息
-func (r *Repository) GetCommit(hashStr string) (*CommitInfo, error) {
+func (r *goGitBackend) GetCommit(hashStr string) (*CommitInfo, error) {
 	hash := plumbing.NewHash(hashStr)
 	c, err := r.repo.CommitObject(hash)
 	if err != nil {

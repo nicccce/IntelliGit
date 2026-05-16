@@ -1,0 +1,55 @@
+package handler
+
+const (
+	CommandRepoOpen    = "repo.open"
+	CommandRepoInit    = "repo.init"
+	CommandRepoClone   = "repo.clone"
+	CommandRepoHead    = "repo.head"
+	CommandRepoIsClean = "repo.isClean"
+
+	CommandStagingStatus      = "staging.status"
+	CommandStagingAdd         = "staging.add"
+	CommandStagingAddAll      = "staging.addAll"
+	CommandStagingRemove      = "staging.remove"
+	CommandStagingRestore     = "staging.restore"
+	CommandStagingApplyPatch  = "staging.applyPatch"
+	CommandStagingUnstageHunk = "staging.unstageHunk"
+
+	CommandCommitCreate         = "commit.create"
+	CommandCommitLog            = "commit.log"
+	CommandCommitGet            = "commit.get"
+	CommandCommitReset          = "commit.reset"
+	CommandCommitCheckoutCommit = "commit.checkoutCommit"
+	CommandCommitLogAll         = "commit.logAll"
+
+	CommandBranchList        = "branch.list"
+	CommandBranchListRemote  = "branch.listRemote"
+	CommandBranchCurrent     = "branch.current"
+	CommandBranchAheadBehind = "branch.aheadBehind"
+	CommandBranchCreate      = "branch.create"
+	CommandBranchDelete      = "branch.delete"
+	CommandBranchCheckout    = "branch.checkout"
+	CommandBranchCheckoutNew = "branch.checkoutNew"
+
+	CommandRemoteList   = "remote.list"
+	CommandRemoteAdd    = "remote.add"
+	CommandRemoteSetURL = "remote.setUrl"
+	CommandRemoteRemove = "remote.remove"
+	CommandRemoteFetch  = "remote.fetch"
+	CommandRemotePull   = "remote.pull"
+	CommandRemotePush   = "remote.push"
+
+	CommandMergeStatus   = "merge.status"
+	CommandMergeAbort    = "merge.abort"
+	CommandMergeContinue = "merge.continue"
+
+	CommandDiffCommits     = "diff.commits"
+	CommandDiffWithParent  = "diff.withParent"
+	CommandDiffCommitPatch = "diff.commitPatch"
+	CommandDiffFileContent = "diff.fileContent"
+	CommandDiffListFiles   = "diff.listFiles"
+	CommandDiffWorkdir     = "diff.workdir"
+	CommandDiffStaged      = "diff.staged"
+	CommandDiffWorkdirRaw  = "diff.workdirRaw"
+	CommandDiffStagedRaw   = "diff.stagedRaw"
+)

@@ -11,7 +11,7 @@ import (
 )
 
 // Status 获取仓库中所有文件的状态（类似 git status）
-func (r *Repository) Status() ([]FileStatus, error) {
+func (r *goGitBackend) Status() ([]FileStatus, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("获取 worktree 失败: %w", err)
@@ -37,7 +37,7 @@ func (r *Repository) Status() ([]FileStatus, error) {
 }
 
 // Add 将指定文件添加到暂存区（git add <path>）
-func (r *Repository) Add(path string) error {
+func (r *goGitBackend) Add(path string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -49,7 +49,7 @@ func (r *Repository) Add(path string) error {
 }
 
 // AddAll 将所有变更文件添加到暂存区（git add -A）
-func (r *Repository) AddAll() error {
+func (r *goGitBackend) AddAll() error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -61,7 +61,7 @@ func (r *Repository) AddAll() error {
 }
 
 // AddGlob 通过 glob 模式添加文件到暂存区（git add <pattern>）
-func (r *Repository) AddGlob(pattern string) error {
+func (r *goGitBackend) AddGlob(pattern string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -73,7 +73,7 @@ func (r *Repository) AddGlob(pattern string) error {
 }
 
 // Remove 将文件从暂存区移除，并保留工作区内容（git restore --staged <path>）
-func (r *Repository) Remove(path string) error {
+func (r *goGitBackend) Remove(path string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -94,7 +94,7 @@ func (r *Repository) Remove(path string) error {
 }
 
 // Restore 丢弃工作区指定文件的修改，恢复到 HEAD 版本（git restore <path>）
-func (r *Repository) Restore(path string) error {
+func (r *goGitBackend) Restore(path string) error {
 	wt, err := r.repo.Worktree()
 	if err != nil {
 		return fmt.Errorf("获取 worktree 失败: %w", err)
@@ -109,7 +109,7 @@ func (r *Repository) Restore(path string) error {
 	return nil
 }
 
-func (r *Repository) removeFromIndex(path string) error {
+func (r *goGitBackend) removeFromIndex(path string) error {
 	idx, err := r.repo.Storer.Index()
 	if err != nil {
 		return err
