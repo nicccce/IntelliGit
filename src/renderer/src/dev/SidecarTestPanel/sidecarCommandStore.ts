@@ -1,12 +1,8 @@
-/**
- * @file Git 命令状态管理（Zustand）
- * @description 管理 Git 命令的调用状态、历史记录和最近一次响应。
- */
-
 import { create } from 'zustand'
 
-/** 单条命令记录 */
-export interface CommandRecord {
+import { invokeRawSidecarCommand } from './sidecarTestClient'
+
+export interface SidecarCommandRecord {
   id: number
   command: string
   payload?: Record<string, unknown>
@@ -15,23 +11,17 @@ export interface CommandRecord {
   success: boolean
 }
 
-export interface GitStoreState {
-  /** 是否正在请求中 */
+export interface SidecarCommandStoreState {
   loading: boolean
-  /** 命令执行历史 */
-  history: CommandRecord[]
-  /** 错误信息 */
+  history: SidecarCommandRecord[]
   error: string | null
-
-  /** 执行 Git 命令 */
   executeCommand: (command: string, payload?: Record<string, unknown>) => Promise<void>
-  /** 清空历史 */
   clearHistory: () => void
 }
 
 let idCounter = 0
 
-export const useGitStore = create<GitStoreState>((set) => ({
+export const useSidecarCommandStore = create<SidecarCommandStoreState>((set) => ({
   loading: false,
   history: [],
   error: null,
@@ -40,22 +30,36 @@ export const useGitStore = create<GitStoreState>((set) => ({
     set({ loading: true, error: null })
 
     try {
-      const response = await window.electronAPI.invokeGit(command, payload)
-      const record: CommandRecord = {
+      const response = await invokeRawSidecarCommand(command, payload)
+      const record: SidecarCommandRecord = {
         id: ++idCounter,
         command,
         payload,
         response,
         timestamp: Date.now(),
-        success: !response.error
+        success: response.success
       }
+
       set((state) => ({
         loading: false,
         history: [record, ...state.history]
       }))
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      set({ loading: false, error: message })
+      const record: SidecarCommandRecord = {
+        id: ++idCounter,
+        command,
+        payload,
+        response: { error: message },
+        timestamp: Date.now(),
+        success: false
+      }
+
+      set((state) => ({
+        loading: false,
+        error: message,
+        history: [record, ...state.history]
+      }))
     }
   },
 

@@ -8,8 +8,8 @@ import { useCallback, useState } from 'react'
 
 import { useKeyboardShortcut } from '../../hooks'
 import { classNames } from '../../utils/classNames'
-import { useSidecarTestPanelModel } from '../../viewModels'
 import styles from './SidecarTestPanel.module.css'
+import { useSidecarTestPanelModel } from './useSidecarTestPanelModel'
 
 function SidecarTestPanel(): JSX.Element {
   const [command, setCommand] = useState('')

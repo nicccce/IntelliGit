@@ -1,4 +1,4 @@
-import MainApp from './MainApp'
+import MainApp from './app/MainApp'
 import SidecarTestPanel from './dev/SidecarTestPanel'
 
 function App(): React.JSX.Element {

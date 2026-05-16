@@ -107,6 +107,9 @@ export const IPC_CHANNELS = {
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
 
+/** Electron 渲染入口运行模式 */
+export type ElectronMode = 'main' | 'test'
+
 /** 由 preload 脚本暴露到 window 上的 API 接口 */
 export interface ElectronAPI {
   /** 调用 Git 命令并等待结果 */
@@ -126,5 +129,5 @@ export interface ElectronAPI {
   /** 检查目录是否为空 */
   checkDirEmpty: (path: string) => Promise<boolean>
   /** 当前运行模式（test 或 main） */
-  mode?: string
+  mode: ElectronMode
 }

@@ -21,16 +21,17 @@ viewModels/
 | `historyStore.ts`    | commit history、commit graph、选中 commit 和 commit diff |
 | `uiStore.ts`         | 当前视图、全局 loading、错误和成功消息                   |
 | `operationStore.ts`  | 用户操作的并发 loading 状态                              |
-| `useGitStore.ts`     | 测试面板使用的原始命令历史，不参与正式界面业务状态       |
 
 ## 约定
 
 - 组件只订阅自己需要的 store 字段。
-- `views/`、`layout/`、`components/`、`dev/` 不直接 import store；统一通过 `viewModels/`。
+- `views/`、`layout/`、`components/` 不直接 import store；统一通过 `viewModels/`。
+- `dev/` 调试入口不 import 正式 `store/`，只使用自己目录内的局部测试 store 和 view model。
 - store hook 禁止完整订阅，也不要在组件里写 inline selector；selector 统一放在 `store/selectors/`。
 - 直接 IPC 调用放在 `api/`，不要在 store 里直接使用 `window.electronAPI`。
 - 跨 store 的业务流程放在 `services/`，例如 commit 后刷新状态和历史。
 - `store/` 内部不互相调用其他 store；需要跨状态域协作时放到 service。
+- 开发测试工具的状态不得放入正式 `store/`。例如 Sidecar 原始命令测试面板的 store、selector、raw client 都内聚在 `dev/SidecarTestPanel/`。
 
 ## 边界检查
 

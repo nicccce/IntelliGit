@@ -1,5 +1,3 @@
-export { useGitStore } from './useGitStore'
-export type { CommandRecord } from './useGitStore'
 export { useRepositoryStore } from './repositoryStore'
 export { useGitStatusStore } from './gitStatusStore'
 export { useDiffStore } from './diffStore'

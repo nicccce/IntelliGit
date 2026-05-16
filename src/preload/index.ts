@@ -6,7 +6,17 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
-import type { ElectronAPI, SidecarResponse, SidecarNotification, AppConfig } from '../shared/types'
+import type {
+  AppConfig,
+  ElectronAPI,
+  ElectronMode,
+  SidecarNotification,
+  SidecarResponse
+} from '../shared/types'
+
+function resolveElectronMode(mode: string | undefined): ElectronMode {
+  return mode === 'test' ? 'test' : 'main'
+}
 
 /** 暴露给渲染进程的安全 API */
 const electronAPI: ElectronAPI = {
@@ -15,7 +25,10 @@ const electronAPI: ElectronAPI = {
   },
 
   onSidecarNotification: (callback: (notification: SidecarNotification) => void): (() => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, notification: SidecarNotification): void => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      notification: SidecarNotification
+    ): void => {
       callback(notification)
     }
     ipcRenderer.on(IPC_CHANNELS.SIDECAR_NOTIFICATION, handler)
@@ -46,7 +59,7 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.CHECK_DIR_EMPTY, path)
   },
 
-  mode: process.env.ELECTRON_MODE
+  mode: resolveElectronMode(process.env.ELECTRON_MODE)
 }
 
 // Use contextBridge to safely expose APIs
