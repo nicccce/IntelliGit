@@ -14,6 +14,7 @@ import { loadConfig } from '../services/repositoryWorkflowService'
 import { refreshAllLocal } from '../services/refreshCoordinator'
 import { AppProviders } from './AppProviders'
 import { useAutoRefresh } from './useAutoRefresh'
+import { useSidecarHealthCheck } from './useSidecarHealthCheck'
 import { useThemeMode } from './useThemeMode'
 import styles from './MainApp.module.css'
 
@@ -34,6 +35,7 @@ function MainApp(): JSX.Element {
     loadConfig()
   }, [])
 
+  useSidecarHealthCheck()
   useAutoRefresh(currentRepo?.path, refreshAllLocal)
 
   if (!configLoaded) {

@@ -8,6 +8,7 @@ import type {
   RemoteInfo,
   ResetMode
 } from './git'
+import type { SidecarPingResult } from './sidecar'
 
 export interface RemoteOperationPayload {
   remote?: string
@@ -19,6 +20,10 @@ export interface RemoteOperationPayload {
 }
 
 export type GitCommandMap = {
+  'sidecar.ping': {
+    payload: undefined
+    result: SidecarPingResult
+  }
   'repo.open': {
     payload: { path: string }
     result: { path: string }

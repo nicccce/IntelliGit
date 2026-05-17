@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 /**
  * @file Sidecar 通信协议的共享类型定义
  * @description 定义主进程 <-> Sidecar <-> 渲染进程之间的通信数据结构。
@@ -47,6 +46,11 @@ export interface ProgressData {
   requestId: string
   /** 进度文本（如 go-git 输出的 "Counting objects: 50%"） */
   message: string
+}
+
+export interface SidecarPingResult {
+  ok: boolean
+  protocolVersion: number
 }
 
 // ─── 仓库配置（持久化存储） ───────────────────────────────────────────────────
@@ -115,9 +119,7 @@ export interface ElectronAPI {
   /** 调用 Git 命令并等待结果 */
   invokeGit: (command: string, payload?: Record<string, unknown>) => Promise<SidecarResponse>
   /** 监听 Sidecar 通知事件 */
-  onSidecarNotification: (
-    callback: (notification: SidecarNotification) => void
-  ) => () => void
+  onSidecarNotification: (callback: (notification: SidecarNotification) => void) => () => void
   /** 读取持久化配置 */
   loadConfig: () => Promise<AppConfig>
   /** 保存持久化配置 */

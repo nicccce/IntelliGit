@@ -5,14 +5,22 @@ import { useStatusBarModel } from '../../viewModels'
 import styles from './StatusBar.module.css'
 
 function StatusBar(): JSX.Element {
-  const { currentRepo, currentBranch, commitsAhead, commitsBehind, operationLabel } =
-    useStatusBarModel()
+  const {
+    currentRepo,
+    currentBranch,
+    commitsAhead,
+    commitsBehind,
+    operationLabel,
+    engineStatusTone,
+    engineStatusLabel,
+    engineStatusTitle
+  } = useStatusBarModel()
 
   return (
     <footer className={styles['ig-statusbar']}>
-      <span className={styles['ig-status-item']}>
-        <span className={classNames(styles['ig-status-dot'], styles.green)} />
-        引擎就绪
+      <span className={styles['ig-status-item']} title={engineStatusTitle}>
+        <span className={classNames(styles['ig-status-dot'], styles[engineStatusTone])} />
+        {engineStatusLabel}
       </span>
       <span className={styles['ig-status-item']}>
         <span className={classNames(styles['ig-status-dot'], styles.blue)} />

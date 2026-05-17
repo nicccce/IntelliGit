@@ -17,5 +17,6 @@
 | `gitWorkflowService.ts`        | 暂存、提交、分支、远程、reset/checkout 等 Git 操作流程 |
 | `refreshCoordinator.ts`        | 当前仓库下的本地/远程刷新和仓库作用域状态清理          |
 | `remoteService.ts`             | 远程仓库类型推断、远程 URL 同步和认证 payload 构造     |
+| `sidecarHealthService.ts`      | 调用 `sidecar.ping` 并写入 Sidecar 运行状态            |
 
 `workflow` 服务可以通过 `getState()` 编排多个 store；普通 store 不反向调用其他 store。

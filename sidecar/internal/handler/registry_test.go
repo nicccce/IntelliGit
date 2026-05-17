@@ -7,6 +7,7 @@ func TestRegisterAllRegistersEveryKnownCommand(t *testing.T) {
 	RegisterAll(router)
 
 	commands := []string{
+		CommandSidecarPing,
 		CommandRepoOpen,
 		CommandRepoInit,
 		CommandRepoClone,

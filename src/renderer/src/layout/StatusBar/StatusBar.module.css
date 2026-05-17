@@ -23,8 +23,16 @@
   border-radius: 50%;
 }
 
-.ig-status-dot.green {
+.ig-status-dot.ready {
   background: var(--accent-green);
+}
+
+.ig-status-dot.checking {
+  background: var(--accent-orange);
+}
+
+.ig-status-dot.unavailable {
+  background: var(--accent-red);
 }
 
 .ig-status-dot.blue {

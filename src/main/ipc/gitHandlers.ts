@@ -8,6 +8,8 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { IPC_CHANNELS, type SidecarResponse, type SidecarNotification } from '../../shared/types'
 import type { SidecarManager } from '../core/SidecarManager'
 
+const SIDECAR_PING_TIMEOUT_MS = 2000
+
 /**
  * 注册所有 Git 相关的 IPC 处理器
  * @param sidecarManager - SidecarManager 实例
@@ -16,8 +18,15 @@ export function registerGitHandlers(sidecarManager: SidecarManager): void {
   // ── git:command — 渲染进程发起的命令请求 ──────────────────────────────
   ipcMain.handle(
     IPC_CHANNELS.GIT_COMMAND,
-    async (_event, command: string, payload?: Record<string, unknown>): Promise<SidecarResponse> => {
-      console.log(`[IPC] git:command 收到请求 command="${command}"`, payload == undefined ? '{}' : payload)
+    async (
+      _event,
+      command: string,
+      payload?: Record<string, unknown>
+    ): Promise<SidecarResponse> => {
+      console.log(
+        `[IPC] git:command 收到请求 command="${command}"`,
+        payload == undefined ? '{}' : payload
+      )
 
       try {
         if (!sidecarManager.isRunning) {
@@ -27,7 +36,8 @@ export function registerGitHandlers(sidecarManager: SidecarManager): void {
             error: 'Sidecar 进程未运行。请确保 Go 二进制文件已放置在 resources/ 目录下。'
           }
         }
-        const response = await sidecarManager.send(command, payload)
+        const timeoutMs = command === 'sidecar.ping' ? SIDECAR_PING_TIMEOUT_MS : undefined
+        const response = await sidecarManager.send(command, payload, timeoutMs)
         return response
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)

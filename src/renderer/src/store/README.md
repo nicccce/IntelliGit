@@ -13,14 +13,15 @@ viewModels/
 
 ## 边界
 
-| 文件                 | 职责                                                     |
-| -------------------- | -------------------------------------------------------- |
-| `repositoryStore.ts` | 仓库列表、当前仓库、配置加载状态和局部写入入口           |
-| `gitStatusStore.ts`  | 工作区文件状态、分支列表、当前分支、ahead/behind         |
-| `diffStore.ts`       | 当前选中文件、工作区 diff 相关局部状态                   |
-| `historyStore.ts`    | commit history、commit graph、选中 commit 和 commit diff |
-| `uiStore.ts`         | 当前视图、全局 loading、错误和成功消息                   |
-| `operationStore.ts`  | 用户操作的并发 loading 状态                              |
+| 文件                    | 职责                                                     |
+| ----------------------- | -------------------------------------------------------- |
+| `repositoryStore.ts`    | 仓库列表、当前仓库、配置加载状态和局部写入入口           |
+| `gitStatusStore.ts`     | 工作区文件状态、分支列表、当前分支、ahead/behind         |
+| `diffStore.ts`          | 当前选中文件、工作区 diff 相关局部状态                   |
+| `historyStore.ts`       | commit history、commit graph、选中 commit 和 commit diff |
+| `uiStore.ts`            | 当前视图、全局 loading、错误和成功消息                   |
+| `operationStore.ts`     | 用户操作的并发 loading 状态                              |
+| `sidecarHealthStore.ts` | Go Sidecar ping 状态、最近错误、延迟和协议版本           |
 
 ## 约定
 

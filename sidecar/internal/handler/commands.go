@@ -1,6 +1,8 @@
 package handler
 
 const (
+	CommandSidecarPing = "sidecar.ping"
+
 	CommandRepoOpen    = "repo.open"
 	CommandRepoInit    = "repo.init"
 	CommandRepoClone   = "repo.clone"

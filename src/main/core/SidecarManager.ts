@@ -124,7 +124,11 @@ export class SidecarManager extends EventEmitter {
   // ─── 通信 ────────────────────────────────────────────────────────────
 
   /** 向 Sidecar 发送请求并等待响应 */
-  send(command: string, payload?: Record<string, unknown>): Promise<SidecarResponse> {
+  send(
+    command: string,
+    payload?: Record<string, unknown>,
+    timeoutMs = DEFAULT_TIMEOUT_MS
+  ): Promise<SidecarResponse> {
     return new Promise<SidecarResponse>((resolve, reject) => {
       if (!this.process?.stdin?.writable) {
         return reject(new Error('Sidecar 进程未就绪'))
@@ -137,7 +141,7 @@ export class SidecarManager extends EventEmitter {
       const timer = setTimeout(() => {
         this.pendingRequests.delete(id)
         reject(new Error(`请求超时 (id=${id}, command=${command})`))
-      }, DEFAULT_TIMEOUT_MS)
+      }, timeoutMs)
 
       this.pendingRequests.set(id, { resolve, reject, timer })
 
@@ -171,31 +175,35 @@ export class SidecarManager extends EventEmitter {
    * ```
    */
   createProxy(): Record<string, (payload?: Record<string, unknown>) => Promise<unknown>> {
-    return new Proxy({} as Record<string, (payload?: Record<string, unknown>) => Promise<unknown>>, {
-      get: (_target, method: string) => {
-        if (method === 'invoke') {
-          return (command: string, payload?: Record<string, unknown>) => {
-            return this.send(command, payload).then((res) => {
+    return new Proxy(
+      {} as Record<string, (payload?: Record<string, unknown>) => Promise<unknown>>,
+      {
+        get: (_target, method: string) => {
+          if (method === 'invoke') {
+            return (command: string, payload?: Record<string, unknown>) => {
+              return this.send(command, payload).then((res) => {
+                if (!res.success) throw new Error(res.error ?? '未知错误')
+                return res.data
+              })
+            }
+          }
+          return (payload?: Record<string, unknown>) => {
+            return this.send(method, payload).then((res) => {
               if (!res.success) throw new Error(res.error ?? '未知错误')
               return res.data
             })
           }
         }
-        return (payload?: Record<string, unknown>) => {
-          return this.send(method, payload).then((res) => {
-            if (!res.success) throw new Error(res.error ?? '未知错误')
-            return res.data
-          })
-        }
       }
-    })
+    )
   }
 
   // ─── 内部方法 ────────────────────────────────────────────────────────
 
   /** 解析 Sidecar 二进制文件路径 */
   private resolveBinaryPath(): string {
-    const binaryName = process.platform === 'win32' ? 'intelligit-sidecar.exe' : 'intelligit-sidecar'
+    const binaryName =
+      process.platform === 'win32' ? 'intelligit-sidecar.exe' : 'intelligit-sidecar'
 
     if (is.dev) {
       // 开发环境：项目根目录下的 resources/
@@ -271,18 +279,14 @@ export class SidecarManager extends EventEmitter {
   /** 尝试自动重启（指数退避） */
   private tryAutoRestart(): void {
     if (this.restartCount >= RESTART_CONFIG.maxRetries) {
-      console.error(
-        `[SidecarManager] 已达最大重启次数 (${RESTART_CONFIG.maxRetries})，停止重启`
-      )
+      console.error(`[SidecarManager] 已达最大重启次数 (${RESTART_CONFIG.maxRetries})，停止重启`)
       this.emit('crash', { restartCount: this.restartCount })
       return
     }
 
     const delay = RESTART_CONFIG.baseDelayMs * Math.pow(2, this.restartCount)
     this.restartCount++
-    console.warn(
-      `[SidecarManager] ${delay}ms 后尝试第 ${this.restartCount} 次重启...`
-    )
+    console.warn(`[SidecarManager] ${delay}ms 后尝试第 ${this.restartCount} 次重启...`)
 
     setTimeout(() => {
       if (!this.intentionalStop && !this.process) {

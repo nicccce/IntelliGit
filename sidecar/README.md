@@ -83,6 +83,8 @@ validation.go                # 通用参数校验
 5. 同步更新前端 `src/shared/types/gitCommands.ts`。
 6. 运行 `go test ./...`，跨协议变更还要运行项目根目录的 `npm.cmd run build`。
 
+`sidecar.ping` 是不依赖当前仓库的运行时健康检查命令，用于让桌面端确认 Go Sidecar 进程和 stdin/stdout 协议仍可响应。
+
 ## Git 实现策略
 
 `internal/git.Repository` 对 handler 暴露稳定 API，内部只负责编排：
