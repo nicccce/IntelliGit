@@ -9,6 +9,7 @@ import {
   updateRepositorySettings as saveRepositorySettings,
   type RepositoryActionResult
 } from './repositoryService'
+import { applyLlmConfigFromAppConfig } from './llmConfigService'
 import { withOperation } from '../store/operationStore'
 import { useRepositoryStore, type RepositoryStateData } from '../store/repositoryStore'
 import { useUiStore } from '../store/uiStore'
@@ -30,8 +31,9 @@ function errorMessage(err: unknown): string {
 export async function loadConfig(): Promise<void> {
   try {
     await withOperation('repo.load', async () => {
-      const { repos, currentRepo } = await loadRepositoryConfig()
+      const { repos, currentRepo, llmConfig } = await loadRepositoryConfig()
       setRepositoryState({ repos, currentRepo, configLoaded: true })
+      applyLlmConfigFromAppConfig(llmConfig)
 
       if (currentRepo) {
         await refreshAll()

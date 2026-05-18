@@ -1,4 +1,4 @@
-import type { AppConfig, RepoConfig } from '../../../shared/types'
+import type { AppConfig, LlmConfig, RepoConfig } from '../../../shared/types'
 import { loadConfig, saveConfig } from '../api/configClient'
 import { canInvokeGit, invokeGit } from '../api/gitClient'
 import { detectAndSyncRemote } from './remoteService'
@@ -11,6 +11,7 @@ export interface RepositoryActionResult {
 export interface RepositoryConfigSnapshot {
   repos: RepoConfig[]
   currentRepo: RepoConfig | null
+  llmConfig?: LlmConfig
 }
 
 export function repoNameFromPath(path: string): string {
@@ -22,7 +23,9 @@ export async function persistConfig(
   repos: RepoConfig[],
   currentRepoPath: string | null
 ): Promise<void> {
-  const config: AppConfig = { repos, currentRepoPath }
+  // 读取当前完整配置以保留 llmConfig 字段
+  const current = await loadConfig()
+  const config: AppConfig = { ...current, repos, currentRepoPath }
   await saveConfig(config)
 }
 
@@ -48,7 +51,7 @@ export async function loadRepositoryConfig(): Promise<RepositoryConfigSnapshot> 
     }
   }
 
-  return { repos, currentRepo }
+  return { repos, currentRepo, llmConfig: config.llmConfig }
 }
 
 export async function isGitRepository(path: string): Promise<boolean> {

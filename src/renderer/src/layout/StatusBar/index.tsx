@@ -13,7 +13,10 @@ function StatusBar(): JSX.Element {
     operationLabel,
     engineStatusTone,
     engineStatusLabel,
-    engineStatusTitle
+    engineStatusTitle,
+    aiStatusTone,
+    aiStatusLabel,
+    aiStatusTitle
   } = useStatusBarModel()
 
   return (
@@ -22,9 +25,9 @@ function StatusBar(): JSX.Element {
         <span className={classNames(styles['ig-status-dot'], styles[engineStatusTone])} />
         {engineStatusLabel}
       </span>
-      <span className={styles['ig-status-item']}>
-        <span className={classNames(styles['ig-status-dot'], styles.blue)} />
-        API 已连接
+      <span className={styles['ig-status-item']} title={aiStatusTitle}>
+        <span className={classNames(styles['ig-status-dot'], styles[aiStatusTone])} />
+        {aiStatusLabel}
       </span>
       <span className={styles['ig-status-path']}>
         {currentRepo ? currentRepo.path : '未选择仓库'}

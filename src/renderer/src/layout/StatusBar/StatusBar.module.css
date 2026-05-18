@@ -39,6 +39,14 @@
   background: var(--accent-blue);
 }
 
+.ig-status-dot.error {
+  background: var(--accent-red);
+}
+
+.ig-status-dot.unconfigured {
+  background: var(--text-muted, #8c8c8c);
+}
+
 .ig-status-path {
   min-width: 0;
   flex: 1;

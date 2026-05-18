@@ -53,6 +53,27 @@ export interface SidecarPingResult {
   protocolVersion: number
 }
 
+// ─── LLM 配置（持久化存储） ───────────────────────────────────────────────────
+
+/** LLM 服务商类型 */
+export type LlmProvider = 'openai' | 'anthropic'
+
+/** LLM Provider 配置 */
+export interface LlmConfig {
+  /** 服务商类型：openai 兼容（含 DeepSeek / 通义等）或 Anthropic */
+  provider: LlmProvider
+  /** API Key */
+  apiKey: string
+  /** 自定义 Base URL（OpenAI 兼容模式下可覆盖默认地址） */
+  baseUrl?: string
+  /** 模型名称，如 gpt-4o / claude-3-5-sonnet / deepseek-chat */
+  modelName: string
+  /** 采样温度 0-2，默认 0.2 */
+  temperature?: number
+  /** 最大输出 Token 数 */
+  maxTokens?: number
+}
+
 // ─── 仓库配置（持久化存储） ───────────────────────────────────────────────────
 
 /** 单个仓库的配置信息 */
@@ -87,6 +108,8 @@ export interface AppConfig {
   repos: RepoConfig[]
   /** 当前活跃仓库路径 */
   currentRepoPath: string | null
+  /** LLM Provider 配置（可选，未配置时 AI 功能不可用） */
+  llmConfig?: LlmConfig
 }
 
 // ─── IPC 通道常量 ─────────────────────────────────────────────────────────────
