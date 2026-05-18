@@ -5,20 +5,36 @@ import { useDiffViewModel } from '../../viewModels'
 import styles from './DiffView.module.css'
 
 function DiffView(): JSX.Element {
-  const { workdirDiff, selectedFilePath } = useDiffViewModel()
+  const { workdirDiff, stagedDiff, selectedFilePath, diffSource } = useDiffViewModel()
+
+  // 根据 diff 来源决定显示哪个 diff 数据
+  const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
 
   if (!selectedFilePath) return <div className={styles['ig-diff-empty']}>← 选择文件查看差异</div>
 
-  // 正在加载 diff 数据，显示加载状态避免闪烁"无差异内容"
-  if (!workdirDiff) return <div className={styles['ig-diff-empty']}>加载中...</div>
+  const sourceLabel = diffSource === 'staged' ? '已暂存' : '未暂存'
+
+  // 正在加载 diff 数据
+  if (!diff)
+    return (
+      <div className={styles['ig-diff-empty']}>
+        <span className={styles['ig-diff-source-badge']}>{sourceLabel}</span>
+        加载差异中...
+      </div>
+    )
 
   // 已加载但确实无差异
-  if (workdirDiff.filePatches.length === 0)
-    return <div className={styles['ig-diff-empty']}>无差异内容</div>
+  if (diff.filePatches.length === 0)
+    return (
+      <div className={styles['ig-diff-empty']}>
+        <span className={styles['ig-diff-source-badge']}>{sourceLabel}</span>
+        无差异内容
+      </div>
+    )
 
   return (
     <div className={styles['ig-diff-scroll']}>
-      {workdirDiff.filePatches.map((filePatch, filePatchIndex) => (
+      {diff.filePatches.map((filePatch, filePatchIndex) => (
         <div key={filePatchIndex}>
           {filePatch.isBinary ? (
             <div className={styles['ig-diff-binary']}>二进制文件</div>

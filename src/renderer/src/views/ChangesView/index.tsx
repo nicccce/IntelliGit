@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import { Button, Empty } from 'antd'
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 
+import type { DiffSource } from '../../store/diffStore'
 import { addAll, addFile, removeFile } from '../../services/gitWorkflowService'
 import { useChangesViewModel } from '../../viewModels'
 import { useResizable } from '../../hooks'
@@ -12,8 +13,20 @@ import FileSection from './FileSection'
 import styles from './ChangesView.module.css'
 
 function ChangesView(): JSX.Element {
-  const { currentRepo, selectedFilePath, selectFile, staged, unstaged, isBusy, isCommitRunning } =
-    useChangesViewModel()
+  const {
+    currentRepo,
+    selectedFilePath,
+    diffSource,
+    selectFile,
+    staged,
+    unstaged,
+    isBusy,
+    isCommitRunning
+  } = useChangesViewModel()
+
+  const handleSelectFile = (source: DiffSource) => (path: string) => {
+    selectFile(path, source)
+  }
 
   // 左右分割（水平方向），默认左侧占比 40%，最小 25%，最大 55%
   const horizontalContainerRef = useRef<HTMLDivElement>(null)
@@ -67,6 +80,7 @@ function ChangesView(): JSX.Element {
         >
           <div className={styles['ig-stage-section']} style={{ height: `${stagedRatio * 100}%` }}>
             <FileSection
+              isSelectedSource={diffSource === 'unstaged'}
               title="未暂存"
               emptyDescription="工作区干净"
               files={unstaged}
@@ -74,7 +88,7 @@ function ChangesView(): JSX.Element {
               actionTitle="暂存"
               actionIcon={<PlusOutlined />}
               statusCode={(file) => file.worktree || file.staging}
-              onSelectFile={selectFile}
+              onSelectFile={handleSelectFile('unstaged')}
               onFileAction={addFile}
               headerAction={
                 <Button
@@ -99,6 +113,7 @@ function ChangesView(): JSX.Element {
             style={{ height: `${(1 - stagedRatio) * 100}%` }}
           >
             <FileSection
+              isSelectedSource={diffSource === 'staged'}
               title="已暂存"
               emptyDescription="无暂存文件"
               files={staged}
@@ -106,7 +121,7 @@ function ChangesView(): JSX.Element {
               actionTitle="取消暂存"
               actionIcon={<CloseOutlined />}
               statusCode={(file) => file.staging}
-              onSelectFile={selectFile}
+              onSelectFile={handleSelectFile('staged')}
               onFileAction={removeFile}
             />
           </div>
@@ -129,7 +144,7 @@ function ChangesView(): JSX.Element {
 
       {/* ---------- 右侧：Diff 面板 ---------- */}
       <div className={styles['ig-right-panel']}>
-        <DiffPane selectedFilePath={selectedFilePath} />
+        <DiffPane selectedFilePath={selectedFilePath} diffSource={diffSource} />
       </div>
     </div>
   )

@@ -57,9 +57,9 @@ export async function applyPatch(patch: string): Promise<void> {
     await withOperation('staging.applyPatch', async () => {
       await invokeGit('staging.applyPatch', { patch })
       await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, selectFile } = useDiffStore.getState()
-      if (selectedFilePath) {
-        await selectFile(selectedFilePath)
+      const { selectedFilePath, diffSource, selectFile } = useDiffStore.getState()
+      if (selectedFilePath && diffSource) {
+        await selectFile(selectedFilePath, diffSource)
       }
     })
   } catch (err) {
@@ -72,9 +72,9 @@ export async function unstageHunk(patch: string): Promise<void> {
     await withOperation('staging.unstageHunk', async () => {
       await invokeGit('staging.unstageHunk', { patch })
       await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, selectFile } = useDiffStore.getState()
-      if (selectedFilePath) {
-        await selectFile(selectedFilePath)
+      const { selectedFilePath, diffSource, selectFile } = useDiffStore.getState()
+      if (selectedFilePath && diffSource) {
+        await selectFile(selectedFilePath, diffSource)
       }
     })
   } catch (err) {

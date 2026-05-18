@@ -17,6 +17,8 @@ interface FileSectionProps {
   onSelectFile: (path: string) => void
   onFileAction: (path: string) => void
   headerAction?: JSX.Element
+  /** 当前列表中的文件是否属于选中的 diff 来源 */
+  isSelectedSource?: boolean
 }
 
 function FileSection({
@@ -29,7 +31,8 @@ function FileSection({
   statusCode,
   onSelectFile,
   onFileAction,
-  headerAction
+  headerAction,
+  isSelectedSource
 }: FileSectionProps): JSX.Element {
   return (
     <div className={styles['ig-file-section']}>
@@ -43,30 +46,35 @@ function FileSection({
         {files.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyDescription} />
         ) : (
-          files.map((file) => (
-            <div
-              key={file.path}
-              className={classNames(
-                styles['ig-file-item'],
-                selectedFilePath === file.path && styles.active
-              )}
-              onClick={() => onSelectFile(file.path)}
-            >
-              <FileStatusBadge code={statusCode(file)} />
-              <span className={styles['ig-file-path']}>{file.path}</span>
-              <Tooltip title={actionTitle}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={actionIcon}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onFileAction(file.path)
-                  }}
-                />
-              </Tooltip>
-            </div>
-          ))
+          files.map((file) => {
+            const isActive = selectedFilePath === file.path && isSelectedSource
+            const isCrossList = selectedFilePath === file.path && !isSelectedSource
+            return (
+              <div
+                key={file.path}
+                className={classNames(
+                  styles['ig-file-item'],
+                  isActive && styles.active,
+                  isCrossList && styles['cross-reference']
+                )}
+                onClick={() => onSelectFile(file.path)}
+              >
+                <FileStatusBadge code={statusCode(file)} />
+                <span className={styles['ig-file-path']}>{file.path}</span>
+                <Tooltip title={actionTitle}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={actionIcon}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onFileAction(file.path)
+                    }}
+                  />
+                </Tooltip>
+              </div>
+            )
+          })
         )}
       </div>
     </div>

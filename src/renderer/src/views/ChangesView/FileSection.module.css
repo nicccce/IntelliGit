@@ -75,20 +75,27 @@
   font-size: 12px;
   cursor: pointer;
   transition: background var(--transition-fast);
-}
+  }
 
-.ig-file-item:last-child {
+  .ig-file-item:last-child {
   border-bottom: none;
-}
+  }
 
-.ig-file-item:hover {
+  .ig-file-item:hover {
   background: var(--surface-hover);
-}
+  }
 
-.ig-file-item.active {
+  .ig-file-item.active {
   border-color: var(--border-focus);
   background: var(--surface-active);
-}
+  }
+
+  .ig-file-item.cross-reference {
+  border-color: var(--border-focus);
+  border-style: dashed;
+  background: var(--surface-hover);
+  opacity: 0.7;
+  }
 
 .ig-file-path {
   min-width: 0;

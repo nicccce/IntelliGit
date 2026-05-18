@@ -3,17 +3,23 @@ import { create } from 'zustand'
 import type { PatchDetail } from '../../../shared/types'
 import { invokeGit } from '../api/gitClient'
 
+export type DiffSource = 'unstaged' | 'staged'
+
 export interface DiffStoreState {
   selectedFilePath: string | null
+  diffSource: DiffSource | null
   workdirDiff: PatchDetail | null
+  stagedDiff: PatchDetail | null
   clearDiffState: () => void
-  selectFile: (path: string) => Promise<void>
+  selectFile: (path: string, source: DiffSource) => Promise<void>
   fetchRawDiff: (path: string) => Promise<string>
 }
 
 const EMPTY_DIFF_STATE = {
   selectedFilePath: null,
-  workdirDiff: null
+  diffSource: null,
+  workdirDiff: null,
+  stagedDiff: null
 }
 
 export const useDiffStore = create<DiffStoreState>((set, get) => ({
@@ -21,16 +27,26 @@ export const useDiffStore = create<DiffStoreState>((set, get) => ({
 
   clearDiffState: () => set(EMPTY_DIFF_STATE),
 
-  selectFile: async (path) => {
+  selectFile: async (path, source) => {
     const currentSelected = get().selectedFilePath
-    if (path === currentSelected) {
+    if (path === currentSelected && get().diffSource === source) {
       set(EMPTY_DIFF_STATE)
       return
     }
-    set({ selectedFilePath: path, workdirDiff: null })
+    // 根据来源清空对应的 diff 数据
+    if (source === 'unstaged') {
+      set({ selectedFilePath: path, diffSource: source, workdirDiff: null })
+    } else {
+      set({ selectedFilePath: path, diffSource: source, stagedDiff: null })
+    }
     try {
-      const workdirDiff = await invokeGit('diff.workdir', { path })
-      set({ workdirDiff })
+      if (source === 'unstaged') {
+        const workdirDiff = await invokeGit('diff.workdir', { path })
+        set({ workdirDiff })
+      } else {
+        const stagedDiff = await invokeGit('diff.staged', { path })
+        set({ stagedDiff })
+      }
     } catch (err) {
       console.error('[DiffStore] selectFile diff 失败:', err)
     }
