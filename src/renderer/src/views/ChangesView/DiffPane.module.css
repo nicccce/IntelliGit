@@ -1,6 +1,7 @@
 .ig-diff-view {
   display: flex;
   min-height: 0;
+  flex: 1;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-primary);
@@ -8,6 +9,7 @@
 
 .ig-diff-header {
   min-height: 36px;
+  flex-shrink: 0;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-primary);
   background: var(--bg-tertiary);

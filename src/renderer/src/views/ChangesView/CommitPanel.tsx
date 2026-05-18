@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import { useCallback, useState } from 'react'
 import { ThunderboltOutlined } from '@ant-design/icons'
-import { Button, Input, Switch } from 'antd'
+import { Button, Input, Tooltip } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
 import styles from './CommitPanel.module.css'
@@ -16,7 +16,6 @@ interface CommitPanelProps {
 
 function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps): JSX.Element {
   const [commitMsg, setCommitMsg] = useState('')
-  const [runSandbox, setRunSandbox] = useState(false)
 
   const handleCommit = useCallback(async () => {
     if (!commitMsg.trim()) return
@@ -26,26 +25,23 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
 
   return (
     <div className={styles['ig-commit-panel']}>
-      <div className={styles['ig-commit-panel-top']}>提交</div>
-      <Button
-        className={styles['ig-ai-btn']}
-        icon={<ThunderboltOutlined />}
-        disabled
-        title="AI 生成提交信息（即将推出）"
-      >
-        AI 生成提交信息
-      </Button>
-      <TextArea
-        id="commit-message"
-        className={styles['ig-commit-input']}
-        placeholder="输入提交信息…"
-        value={commitMsg}
-        onChange={(event) => setCommitMsg(event.target.value)}
-        rows={3}
-      />
-      <div className={styles['ig-sandbox-row']}>
-        <Switch size="small" checked={runSandbox} onChange={setRunSandbox} />
-        <span>提交前运行沙箱验证</span>
+      <div className={styles['ig-input-wrapper']}>
+        <TextArea
+          id="commit-message"
+          className={styles['ig-commit-input']}
+          placeholder="输入提交信息…"
+          value={commitMsg}
+          onChange={(event) => setCommitMsg(event.target.value)}
+          rows={3}
+        />
+        <Tooltip title="AI 生成提交信息（即将推出）">
+          <Button
+            className={styles['ig-ai-btn']}
+            icon={<ThunderboltOutlined />}
+            disabled
+            type="text"
+          />
+        </Tooltip>
       </div>
       <Button
         id="btn-commit"

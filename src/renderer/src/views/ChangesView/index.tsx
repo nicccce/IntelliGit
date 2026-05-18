@@ -1,9 +1,11 @@
 import type { JSX } from 'react'
+import { useRef } from 'react'
 import { Button, Empty } from 'antd'
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 
 import { addAll, addFile, removeFile } from '../../services/gitWorkflowService'
 import { useChangesViewModel } from '../../viewModels'
+import { useResizable } from '../../hooks'
 import CommitPanel from './CommitPanel'
 import DiffPane from './DiffPane'
 import FileSection from './FileSection'
@@ -12,6 +14,34 @@ import styles from './ChangesView.module.css'
 function ChangesView(): JSX.Element {
   const { currentRepo, selectedFilePath, selectFile, staged, unstaged, isBusy, isCommitRunning } =
     useChangesViewModel()
+
+  // 左右分割（水平方向），默认左侧占比 40%，最小 25%，最大 55%
+  const horizontalContainerRef = useRef<HTMLDivElement>(null)
+  const {
+    ratio: horizontalRatio,
+    handleMouseDown: onHorizontalResize,
+    isDragging: isHResizing
+  } = useResizable({
+    direction: 'horizontal',
+    defaultRatio: 0.25,
+    minRatio: 0.2,
+    maxRatio: 0.5,
+    containerRef: horizontalContainerRef
+  })
+
+  // 已暂存 / 未暂存之间的垂直分割，默认各占 50%
+  const verticalContainerRef = useRef<HTMLDivElement>(null)
+  const {
+    ratio: stagedRatio,
+    handleMouseDown: onVerticalResize,
+    isDragging: isVResizing
+  } = useResizable({
+    direction: 'vertical',
+    defaultRatio: 0.5,
+    minRatio: 0.2,
+    maxRatio: 0.8,
+    containerRef: verticalContainerRef
+  })
 
   if (!currentRepo) {
     return (
@@ -23,43 +53,84 @@ function ChangesView(): JSX.Element {
   }
 
   return (
-    <div className={styles['ig-changes-view']} id="changes-view">
-      <div className={styles['ig-file-lists']}>
-        <FileSection
-          title="已暂存"
-          emptyDescription="无暂存文件"
-          files={staged}
-          selectedFilePath={selectedFilePath}
-          actionTitle="取消暂存"
-          actionIcon={<CloseOutlined />}
-          statusCode={(file) => file.staging}
-          onSelectFile={selectFile}
-          onFileAction={removeFile}
-        />
-        <FileSection
-          title="未暂存"
-          emptyDescription="工作区干净"
-          files={unstaged}
-          selectedFilePath={selectedFilePath}
-          actionTitle="暂存"
-          actionIcon={<PlusOutlined />}
-          statusCode={(file) => file.worktree || file.staging}
-          onSelectFile={selectFile}
-          onFileAction={addFile}
-          headerAction={
-            <Button
-              size="small"
-              type="link"
-              onClick={addAll}
-              disabled={unstaged.length === 0 || isBusy}
-            >
-              全部暂存
-            </Button>
-          }
-        />
+    <div
+      className={`${styles['ig-changes-view']} ${isHResizing ? styles['ig-resizing-h'] : ''}`}
+      ref={horizontalContainerRef}
+      id="changes-view"
+    >
+      {/* ---------- 左侧区域 ---------- */}
+      <div className={styles['ig-left-panel']} style={{ width: `${horizontalRatio * 100}%` }}>
+        {/* 上部分：未暂存 + 已暂存（可调节高度比例） */}
+        <div
+          className={`${styles['ig-stage-area']} ${isVResizing ? styles['ig-resizing-v'] : ''}`}
+          ref={verticalContainerRef}
+        >
+          <div className={styles['ig-stage-section']} style={{ height: `${stagedRatio * 100}%` }}>
+            <FileSection
+              title="未暂存"
+              emptyDescription="工作区干净"
+              files={unstaged}
+              selectedFilePath={selectedFilePath}
+              actionTitle="暂存"
+              actionIcon={<PlusOutlined />}
+              statusCode={(file) => file.worktree || file.staging}
+              onSelectFile={selectFile}
+              onFileAction={addFile}
+              headerAction={
+                <Button
+                  size="small"
+                  type="link"
+                  onClick={addAll}
+                  disabled={unstaged.length === 0 || isBusy}
+                >
+                  全部暂存
+                </Button>
+              }
+            />
+          </div>
+
+          {/* 垂直拖拽手柄（未暂存 / 已暂存之间） */}
+          <div className={styles['ig-divider-v']} onMouseDown={onVerticalResize}>
+            <div className={styles['ig-divider-v-handle']} />
+          </div>
+
+          <div
+            className={styles['ig-stage-section']}
+            style={{ height: `${(1 - stagedRatio) * 100}%` }}
+          >
+            <FileSection
+              title="已暂存"
+              emptyDescription="无暂存文件"
+              files={staged}
+              selectedFilePath={selectedFilePath}
+              actionTitle="取消暂存"
+              actionIcon={<CloseOutlined />}
+              statusCode={(file) => file.staging}
+              onSelectFile={selectFile}
+              onFileAction={removeFile}
+            />
+          </div>
+        </div>
+
+        {/* 左下：提交面板（固定高度） */}
+        <div className={styles['ig-commit-anchor']}>
+          <CommitPanel
+            stagedCount={staged.length}
+            isBusy={isBusy}
+            isCommitRunning={isCommitRunning}
+          />
+        </div>
       </div>
-      <DiffPane selectedFilePath={selectedFilePath} />
-      <CommitPanel stagedCount={staged.length} isBusy={isBusy} isCommitRunning={isCommitRunning} />
+
+      {/* 水平拖拽手柄 */}
+      <div className={styles['ig-divider-h']} onMouseDown={onHorizontalResize}>
+        <div className={styles['ig-divider-h-handle']} />
+      </div>
+
+      {/* ---------- 右侧：Diff 面板 ---------- */}
+      <div className={styles['ig-right-panel']}>
+        <DiffPane selectedFilePath={selectedFilePath} />
+      </div>
     </div>
   )
 }
