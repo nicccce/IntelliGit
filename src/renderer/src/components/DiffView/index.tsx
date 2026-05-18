@@ -8,7 +8,12 @@ function DiffView(): JSX.Element {
   const { workdirDiff, selectedFilePath } = useDiffViewModel()
 
   if (!selectedFilePath) return <div className={styles['ig-diff-empty']}>← 选择文件查看差异</div>
-  if (!workdirDiff || workdirDiff.filePatches.length === 0)
+
+  // 正在加载 diff 数据，显示加载状态避免闪烁"无差异内容"
+  if (!workdirDiff) return <div className={styles['ig-diff-empty']}>加载中...</div>
+
+  // 已加载但确实无差异
+  if (workdirDiff.filePatches.length === 0)
     return <div className={styles['ig-diff-empty']}>无差异内容</div>
 
   return (
