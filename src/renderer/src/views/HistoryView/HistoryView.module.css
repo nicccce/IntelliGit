@@ -16,7 +16,7 @@
 .ig-history-view {
   display: grid;
   height: 100%;
-  grid-template-columns: 220px minmax(400px, 1fr) 320px;
+  grid-template-columns: 180px minmax(0, 1fr) 240px;
   gap: 0;
   background: var(--border-primary);
 }

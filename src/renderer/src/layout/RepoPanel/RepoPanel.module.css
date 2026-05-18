@@ -7,7 +7,6 @@
   overflow: hidden;
   border-right: 1px solid var(--border-primary);
   background: var(--bg-secondary);
-  transition: width var(--transition-normal);
   flex-shrink: 0;
 }
 
@@ -193,3 +192,4 @@
     box-shadow: var(--shadow-lg);
   }
 }
+

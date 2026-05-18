@@ -20,7 +20,7 @@
 .ig-changes-view {
   display: grid;
   height: 100%;
-  grid-template-columns: 260px minmax(360px, 1fr) 280px;
+  grid-template-columns: 200px minmax(0, 1fr) 220px;
   gap: 0;
   background: var(--border-primary);
 }
