@@ -5,8 +5,7 @@ import {
   BranchesOutlined,
   CheckOutlined,
   CloudDownloadOutlined,
-  CloudUploadOutlined,
-  ThunderboltOutlined
+  CloudUploadOutlined
 } from '@ant-design/icons'
 
 import { refreshAll, refreshAllLocal } from '../../services/refreshCoordinator'
@@ -67,10 +66,6 @@ function Toolbar(): JSX.Element {
             </Button>
           </Dropdown>
         )}
-        <div className={styles['ig-command-placeholder']}>
-          <ThunderboltOutlined />
-          <span>告诉我你想做什么... (Ctrl K)</span>
-        </div>
       </div>
       <div className={styles['ig-toolbar-actions']}>
         <Button
