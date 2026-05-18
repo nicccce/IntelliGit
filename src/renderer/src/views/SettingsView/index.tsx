@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button, Empty, Input, Segmented } from 'antd'
 
 import { useSettingsViewModel } from '../../viewModels'
@@ -23,6 +23,58 @@ function SettingsView(): JSX.Element {
   const [password, setPassword] = useState<string>(() => currentRepo?.authPassword || '')
   const [sshKeyPath, setSshKeyPath] = useState<string>(() => currentRepo?.sshKeyPath || '')
   const [sshPassword, setSshPassword] = useState<string>(() => currentRepo?.sshPassword || '')
+
+  const initialValues = useMemo(
+    () => ({
+      commitAuthorName: currentRepo?.commitAuthorName || '',
+      commitAuthorEmail: currentRepo?.commitAuthorEmail || '',
+      remoteType: (currentRepo?.remoteType || 'none') as RemoteType,
+      httpRemoteUrl: currentRepo?.httpRemoteUrl || '',
+      sshRemoteUrl: currentRepo?.sshRemoteUrl || '',
+      authUsername: currentRepo?.authUsername || '',
+      authPassword: currentRepo?.authPassword || '',
+      sshKeyPath: currentRepo?.sshKeyPath || '',
+      sshPassword: currentRepo?.sshPassword || ''
+    }),
+    [currentRepo]
+  )
+
+  const fieldDirty = useMemo(
+    () => ({
+      commitAuthorName: commitAuthorName !== initialValues.commitAuthorName,
+      commitAuthorEmail: commitAuthorEmail !== initialValues.commitAuthorEmail,
+      remoteType: remoteType !== initialValues.remoteType,
+      httpRemoteUrl: httpRemoteUrl !== initialValues.httpRemoteUrl,
+      sshRemoteUrl: sshRemoteUrl !== initialValues.sshRemoteUrl,
+      authUsername: username !== initialValues.authUsername,
+      authPassword: password !== initialValues.authPassword,
+      sshKeyPath: sshKeyPath !== initialValues.sshKeyPath,
+      sshPassword: sshPassword !== initialValues.sshPassword
+    }),
+    [
+      commitAuthorName,
+      commitAuthorEmail,
+      remoteType,
+      httpRemoteUrl,
+      sshRemoteUrl,
+      username,
+      password,
+      sshKeyPath,
+      sshPassword,
+      initialValues
+    ]
+  )
+
+  const commitIdentityDirty = fieldDirty.commitAuthorName || fieldDirty.commitAuthorEmail
+  const remoteDirty =
+    fieldDirty.remoteType ||
+    fieldDirty.httpRemoteUrl ||
+    fieldDirty.sshRemoteUrl ||
+    fieldDirty.authUsername ||
+    fieldDirty.authPassword ||
+    fieldDirty.sshKeyPath ||
+    fieldDirty.sshPassword
+  const hasChanges = useMemo(() => Object.values(fieldDirty).some(Boolean), [fieldDirty])
 
   if (!currentRepo) {
     return (
@@ -63,10 +115,14 @@ function SettingsView(): JSX.Element {
           </div>
         </div>
       </div>
-      <div className={styles['ig-settings-section']}>
-        <h3>提交身份</h3>
+      <div
+        className={`${styles['ig-settings-section']}${commitIdentityDirty ? ` ${styles['ig-section-modified']}` : ''}`}
+      >
+        <h3 className={commitIdentityDirty ? styles['ig-modified'] : ''}>提交身份</h3>
         <p className={styles['ig-hint']}>用于新建 Commit；GitHub 贡献统计按提交邮箱匹配账号</p>
-        <div className={styles['ig-form-group']}>
+        <div
+          className={`${styles['ig-form-group']}${fieldDirty.commitAuthorName ? ` ${styles['ig-modified']}` : ''}`}
+        >
           <label>作者名称</label>
           <Input
             value={commitAuthorName}
@@ -74,7 +130,9 @@ function SettingsView(): JSX.Element {
             placeholder="留空时使用 Git 配置或认证用户名"
           />
         </div>
-        <div className={styles['ig-form-group']}>
+        <div
+          className={`${styles['ig-form-group']}${fieldDirty.commitAuthorEmail ? ` ${styles['ig-modified']}` : ''}`}
+        >
           <label>作者邮箱</label>
           <Input
             value={commitAuthorEmail}
@@ -83,8 +141,10 @@ function SettingsView(): JSX.Element {
           />
         </div>
       </div>
-      <div className={styles['ig-settings-section']}>
-        <h3>远程仓库</h3>
+      <div
+        className={`${styles['ig-settings-section']}${remoteDirty ? ` ${styles['ig-section-modified']}` : ''}`}
+      >
+        <h3 className={remoteDirty ? styles['ig-modified'] : ''}>远程仓库</h3>
         <p className={styles['ig-hint']}>
           选择远程仓库形式以配置 Push/Pull 等操作使用的远程地址与认证
         </p>
@@ -100,9 +160,13 @@ function SettingsView(): JSX.Element {
           ]}
         />
         {remoteType !== 'none' && (
-          <div className={styles['ig-remote-detail']}>
+          <div
+            className={`${styles['ig-remote-detail']}${fieldDirty.remoteType ? ` ${styles['ig-modified']}` : ''}`}
+          >
             {remoteType === 'http' && (
-              <div className={styles['ig-form-group']}>
+              <div
+                className={`${styles['ig-form-group']}${fieldDirty.httpRemoteUrl ? ` ${styles['ig-modified']}` : ''}`}
+              >
                 <label>HTTP(S) 远程地址</label>
                 <Input
                   value={httpRemoteUrl}
@@ -112,7 +176,9 @@ function SettingsView(): JSX.Element {
               </div>
             )}
             {remoteType === 'ssh' && (
-              <div className={styles['ig-form-group']}>
+              <div
+                className={`${styles['ig-form-group']}${fieldDirty.sshRemoteUrl ? ` ${styles['ig-modified']}` : ''}`}
+              >
                 <label>SSH 远程地址</label>
                 <Input
                   value={sshRemoteUrl}
@@ -124,7 +190,9 @@ function SettingsView(): JSX.Element {
             {remoteType === 'http' && (
               <>
                 <p className={styles['ig-hint']}>HTTP(S) 认证</p>
-                <div className={styles['ig-form-group']}>
+                <div
+                  className={`${styles['ig-form-group']}${fieldDirty.authUsername ? ` ${styles['ig-modified']}` : ''}`}
+                >
                   <label>用户名</label>
                   <Input
                     value={username}
@@ -132,7 +200,9 @@ function SettingsView(): JSX.Element {
                     placeholder="用户名"
                   />
                 </div>
-                <div className={styles['ig-form-group']}>
+                <div
+                  className={`${styles['ig-form-group']}${fieldDirty.authPassword ? ` ${styles['ig-modified']}` : ''}`}
+                >
                   <label>密码 / Token</label>
                   <Input.Password
                     value={password}
@@ -145,7 +215,9 @@ function SettingsView(): JSX.Element {
             {remoteType === 'ssh' && (
               <>
                 <p className={styles['ig-hint']}>SSH 认证</p>
-                <div className={styles['ig-form-group']}>
+                <div
+                  className={`${styles['ig-form-group']}${fieldDirty.sshKeyPath ? ` ${styles['ig-modified']}` : ''}`}
+                >
                   <label>SSH 密钥路径</label>
                   <Input
                     value={sshKeyPath}
@@ -153,7 +225,9 @@ function SettingsView(): JSX.Element {
                     placeholder="~/.ssh/id_rsa"
                   />
                 </div>
-                <div className={styles['ig-form-group']}>
+                <div
+                  className={`${styles['ig-form-group']}${fieldDirty.sshPassword ? ` ${styles['ig-modified']}` : ''}`}
+                >
                   <label>SSH 密钥密码</label>
                   <Input.Password
                     value={sshPassword}
@@ -166,7 +240,7 @@ function SettingsView(): JSX.Element {
           </div>
         )}
       </div>
-      <Button type="primary" onClick={handleSave}>
+      <Button type="primary" onClick={handleSave} disabled={!hasChanges}>
         保存设置
       </Button>
     </div>

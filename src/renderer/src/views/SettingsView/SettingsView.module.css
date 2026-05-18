@@ -40,6 +40,10 @@
   font-weight: 600;
 }
 
+.ig-section-modified h3 {
+  color: var(--accent-primary, #1677ff) !important;
+}
+
 .ig-settings-info,
 .ig-remote-detail {
   padding: var(--space-sm);
@@ -101,4 +105,15 @@
 .ig-remote-type-group:global(.ant-segmented) {
   width: 100%;
   margin-bottom: 12px;
+}
+
+/* ── 已修改字段标识 ─────────────────────────────────────── */
+.ig-modified label {
+  color: var(--accent-primary, #1677ff);
+}
+
+.ig-modified :global(.ant-input),
+.ig-modified :global(.ant-input-password),
+.ig-modified :global(.ant-input-affix-wrapper) {
+  border-color: var(--accent-primary, #1677ff);
 }
