@@ -16,12 +16,17 @@ const EMPTY_DIFF_STATE = {
   workdirDiff: null
 }
 
-export const useDiffStore = create<DiffStoreState>((set) => ({
+export const useDiffStore = create<DiffStoreState>((set, get) => ({
   ...EMPTY_DIFF_STATE,
 
   clearDiffState: () => set(EMPTY_DIFF_STATE),
 
   selectFile: async (path) => {
+    const currentSelected = get().selectedFilePath
+    if (path === currentSelected) {
+      set(EMPTY_DIFF_STATE)
+      return
+    }
     set({ selectedFilePath: path, workdirDiff: null })
     try {
       const workdirDiff = await invokeGit('diff.workdir', { path })
