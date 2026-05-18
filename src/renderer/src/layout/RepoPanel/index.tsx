@@ -1,4 +1,4 @@
-import type { JSX, MouseEvent as ReactMouseEvent } from 'react'
+import type { JSX } from 'react'
 import { useCallback, useState } from 'react'
 import { Alert, Button, Dropdown, Input, Modal, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons'
 
 import RepoAvatar from '../../components/RepoAvatar'
+import SidePanelShell from '../../components/SidePanelShell'
 import { checkDirEmpty, checkDirExists, openFolderDialog } from '../../api/filesystemClient'
 import { isGitRepository } from '../../services/repositoryService'
 import { classNames } from '../../utils/classNames'
@@ -28,7 +29,6 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
   const { repos, currentRepo, switchRepo, addRepo, createRepo, cloneRepo, removeRepo } =
     useRepoPanelModel()
 
-  const [panelWidth, setPanelWidth] = useState(280)
   const [repoToRemove, setRepoToRemove] = useState<{ path: string; name: string } | null>(null)
   const [removingRepo, setRemovingRepo] = useState(false)
   const [modal, setModal] = useState<'create' | 'add' | 'clone' | null>(null)
@@ -44,30 +44,6 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
   const [createLocationIsRepo, setCreateLocationIsRepo] = useState<boolean | null>(null)
   const [cloneLocationExists, setCloneLocationExists] = useState<boolean | null>(null)
   const [cloneLocationIsEmpty, setCloneLocationIsEmpty] = useState<boolean | null>(null)
-
-  const handleResizeMouseDown = useCallback((event: ReactMouseEvent): void => {
-    const minPanelWidth = 200
-    const maxPanelWidth = 520
-
-    event.preventDefault()
-    document.body.style.cursor = 'ew-resize'
-    document.body.style.userSelect = 'none'
-
-    const onMouseMove = (moveEvent: MouseEvent): void => {
-      const newWidth = Math.max(minPanelWidth, Math.min(maxPanelWidth, moveEvent.clientX - 52))
-      setPanelWidth(newWidth)
-    }
-
-    const onMouseUp = (): void => {
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-    }
-
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-  }, [])
 
   const repoMenuItems: MenuProps['items'] = [
     { key: 'create', icon: <FolderAddOutlined />, label: '创建仓库' },
@@ -260,82 +236,71 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
 
   return (
     <>
-      <aside
-        className={classNames(styles['ig-repo-panel'], isOpen && styles.open)}
-        aria-label="仓库面板"
-        style={{ width: isOpen ? panelWidth : 0 }}
-      >
-        <div className={styles['ig-panel-header']}>
-          <h3>仓库列表</h3>
-          <Button type="text" size="small" icon={<CloseOutlined />} onClick={onClose} />
-        </div>
-        <div className={styles['ig-panel-resize-handle']} onMouseDown={handleResizeMouseDown} />
-        <div className={styles['ig-panel-body']}>
-          <Dropdown
-            menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }}
-            trigger={['click']}
-            placement="bottomLeft"
-          >
-            <Button className={styles['ig-panel-add-btn']} block icon={<PlusOutlined />}>
-              添加仓库
-            </Button>
-          </Dropdown>
-          <div className={styles['ig-panel-repo-list']}>
-            {repos.length === 0 ? (
-              <div className={styles['ig-panel-empty']}>暂无仓库，点击上方按钮添加</div>
-            ) : (
-              repos.map((repo) => (
-                <Dropdown
-                  key={repo.path}
-                  menu={{
-                    items: [
-                      {
-                        key: 'remove',
-                        icon: <DeleteOutlined />,
-                        label: '删除仓库',
-                        danger: true,
-                        onClick: () => setRepoToRemove({ path: repo.path, name: repo.name })
-                      }
-                    ]
-                  }}
-                  trigger={['contextMenu']}
+      <SidePanelShell title="仓库列表" isOpen={isOpen} onClose={onClose}>
+        <Dropdown
+          menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }}
+          trigger={['click']}
+          placement="bottomLeft"
+        >
+          <Button className={styles['ig-panel-add-btn']} block icon={<PlusOutlined />}>
+            添加仓库
+          </Button>
+        </Dropdown>
+        <div className={styles['ig-panel-repo-list']}>
+          {repos.length === 0 ? (
+            <div className={styles['ig-panel-empty']}>暂无仓库，点击上方按钮添加</div>
+          ) : (
+            repos.map((repo) => (
+              <Dropdown
+                key={repo.path}
+                menu={{
+                  items: [
+                    {
+                      key: 'remove',
+                      icon: <DeleteOutlined />,
+                      label: '删除仓库',
+                      danger: true,
+                      onClick: () => setRepoToRemove({ path: repo.path, name: repo.name })
+                    }
+                  ]
+                }}
+                trigger={['contextMenu']}
+              >
+                <div
+                  className={classNames(
+                    styles['ig-panel-repo-item'],
+                    currentRepo?.path === repo.path && styles.active
+                  )}
+                  onClick={() => switchRepo(repo.path)}
                 >
-                  <div
-                    className={classNames(
-                      styles['ig-panel-repo-item'],
-                      currentRepo?.path === repo.path && styles.active
-                    )}
-                    onClick={() => switchRepo(repo.path)}
-                  >
-                    <RepoAvatar name={repo.name} />
-                    <div className={styles['ig-repo-info']}>
-                      <strong>{repo.name}</strong>
-                      <small>{repo.path}</small>
-                    </div>
-                    <div className={styles['ig-repo-actions']}>
-                      {currentRepo?.path === repo.path && (
-                        <CheckOutlined className={styles['ig-repo-check']} />
-                      )}
-                      <Tooltip title="删除仓库（仅移除列表，不删除本地文件）">
-                        <Button
-                          type="text"
-                          size="small"
-                          className={styles['ig-repo-delete-btn']}
-                          icon={<CloseOutlined />}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setRepoToRemove({ path: repo.path, name: repo.name })
-                          }}
-                        />
-                      </Tooltip>
-                    </div>
+                  <RepoAvatar name={repo.name} />
+                  <div className={styles['ig-repo-info']}>
+                    <strong>{repo.name}</strong>
+                    <small>{repo.path}</small>
                   </div>
-                </Dropdown>
-              ))
-            )}
-          </div>
+                  <div className={styles['ig-repo-actions']}>
+                    {currentRepo?.path === repo.path && (
+                      <CheckOutlined className={styles['ig-repo-check']} />
+                    )}
+                    <Tooltip title="删除仓库（仅移除列表，不删除本地文件）">
+                      <Button
+                        type="text"
+                        size="small"
+                        className={styles['ig-repo-delete-btn']}
+                        icon={<CloseOutlined />}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setRepoToRemove({ path: repo.path, name: repo.name })
+                        }}
+                      />
+                    </Tooltip>
+                  </div>
+                </div>
+              </Dropdown>
+            ))
+          )}
         </div>
-      </aside>
+      </SidePanelShell>
 
       <Modal
         open={!!modal}

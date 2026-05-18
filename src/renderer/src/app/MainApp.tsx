@@ -1,13 +1,15 @@
 import type { JSX } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { Spin } from 'antd'
 
 import { useRepositoryStore, useUiStore } from '../store'
 import {
+  selectActiveSidePanel,
   selectActiveView,
   selectConfigLoaded,
   selectCurrentRepo,
-  selectGlobalLoading
+  selectGlobalLoading,
+  selectToggleSidePanel
 } from '../store/selectors'
 import AppShell from '../layout/AppShell'
 import { loadConfig } from '../services/repositoryWorkflowService'
@@ -22,15 +24,11 @@ function MainApp(): JSX.Element {
   const configLoaded = useRepositoryStore(selectConfigLoaded)
   const currentRepo = useRepositoryStore(selectCurrentRepo)
   const activeView = useUiStore(selectActiveView)
+  const activeSidePanel = useUiStore(selectActiveSidePanel)
   const loading = useUiStore(selectGlobalLoading)
+  const toggleSidePanel = useUiStore(selectToggleSidePanel)
 
   const { themeMode, toggleTheme } = useThemeMode()
-  const [repoPanelOpen, setRepoPanelOpen] = useState(false)
-
-  const toggleRepoPanel = useCallback(() => {
-    setRepoPanelOpen((prev) => !prev)
-  }, [])
-
   useEffect(() => {
     loadConfig()
   }, [])
@@ -53,11 +51,11 @@ function MainApp(): JSX.Element {
     <AppProviders themeMode={themeMode}>
       <AppShell
         activeView={activeView}
+        activeSidePanel={activeSidePanel}
         currentRepoPath={currentRepo?.path}
         loading={loading}
-        repoPanelOpen={repoPanelOpen}
         themeMode={themeMode}
-        onToggleRepoPanel={toggleRepoPanel}
+        onToggleSidePanel={toggleSidePanel}
         onToggleTheme={toggleTheme}
       />
     </AppProviders>

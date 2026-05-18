@@ -1,7 +1,9 @@
 import type { JSX } from 'react'
 
-import type { AppThemeMode, AppView } from '../../app/types'
+import type { AppThemeMode, AppView, SidePanel } from '../../app/types'
 import ActivityRail from '../ActivityRail'
+import ChatPanel from '../ChatPanel'
+import GlobalSettingsPanel from '../GlobalSettingsPanel'
 import NotificationBar from '../NotificationBar'
 import RepoPanel from '../RepoPanel'
 import StatusBar from '../StatusBar'
@@ -13,21 +15,21 @@ import styles from './AppShell.module.css'
 
 interface AppShellProps {
   activeView: AppView
+  activeSidePanel: SidePanel
   currentRepoPath: string | undefined
   loading: boolean
-  repoPanelOpen: boolean
   themeMode: AppThemeMode
-  onToggleRepoPanel: () => void
+  onToggleSidePanel: (panel: SidePanel) => void
   onToggleTheme: () => void
 }
 
 function AppShell({
   activeView,
+  activeSidePanel,
   currentRepoPath,
   loading,
-  repoPanelOpen,
   themeMode,
-  onToggleRepoPanel,
+  onToggleSidePanel,
   onToggleTheme
 }: AppShellProps): JSX.Element {
   return (
@@ -41,12 +43,20 @@ function AppShell({
       )}
       <div className={styles['ig-workbench']}>
         <ActivityRail
-          repoPanelOpen={repoPanelOpen}
+          activeSidePanel={activeSidePanel}
           themeMode={themeMode}
-          onToggleRepoPanel={onToggleRepoPanel}
+          onToggleSidePanel={onToggleSidePanel}
           onToggleTheme={onToggleTheme}
         />
-        <RepoPanel isOpen={repoPanelOpen} onClose={onToggleRepoPanel} />
+        {activeSidePanel === 'repo' && (
+          <RepoPanel isOpen={true} onClose={() => onToggleSidePanel('repo')} />
+        )}
+        {activeSidePanel === 'chat' && (
+          <ChatPanel isOpen={true} onClose={() => onToggleSidePanel('chat')} />
+        )}
+        {activeSidePanel === 'settings' && (
+          <GlobalSettingsPanel isOpen={true} onClose={() => onToggleSidePanel('settings')} />
+        )}
         <main className={styles['ig-content']}>
           {activeView === 'changes' && <ChangesView />}
           {activeView === 'history' && <HistoryView />}
