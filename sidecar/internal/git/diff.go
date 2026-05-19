@@ -1,4 +1,4 @@
-package git
+﻿package git
 
 import (
 	"fmt"
@@ -27,11 +27,9 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 	// 获取 HEAD tree 作为基准
 	headTree, err := r.headTree()
 	if err != nil {
-		// 初始提交时没有 HEAD tree，使用空 tree
 		headTree = &object.Tree{}
 	}
 
-	// 获取 index tree（暂存区作为基准，与工作区对比）
 	idx, err := r.repo.Storer.Index()
 	if err != nil {
 		return nil, fmt.Errorf("获取 index 失败: %w", err)
@@ -47,9 +45,7 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 			continue
 		}
 
-		// 获取暂存区版本（或 HEAD 版本）
 		var oldContent string
-		// 先尝试从 index 获取
 		for _, entry := range idx.Entries {
 			if entry.Name == path {
 				blob, bErr := r.repo.BlobObject(entry.Hash)
@@ -65,7 +61,6 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 			}
 		}
 		if oldContent == "" {
-			// fallback: 从 HEAD tree 获取
 			if headTree != nil {
 				f, fErr := headTree.File(path)
 				if fErr == nil {
@@ -74,7 +69,6 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 			}
 		}
 
-		// 获取工作区版本
 		newContent := ""
 		if fileStatus.Worktree != gogit.Deleted {
 			wFile, wErr := wt.Filesystem.Open(path)
@@ -86,13 +80,15 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 		}
 
 		fpInfo := buildFilePatch(path, path, oldContent, newContent, fileStatus.Worktree == gogit.Deleted)
+		if !isRealChange(fpInfo) {
+			continue
+		}
 		detail.FilePatches = append(detail.FilePatches, fpInfo)
 	}
 
 	return detail, nil
 }
 
-// DiffStaged 获取已暂存变更的结构化 diff（等价于 git diff --staged）
 func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 	wt, err := r.repo.Worktree()
 	if err != nil {
@@ -124,7 +120,6 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 			continue
 		}
 
-		// HEAD 版本
 		var oldContent string
 		if headTree != nil {
 			f, fErr := headTree.File(path)
@@ -133,7 +128,6 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 			}
 		}
 
-		// Index 版本
 		newContent := ""
 		if fileStatus.Staging != gogit.Deleted {
 			for _, entry := range idx.Entries {
@@ -153,13 +147,15 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 		}
 
 		fpInfo := buildFilePatch(path, path, oldContent, newContent, fileStatus.Staging == gogit.Deleted)
+		if !isRealChange(fpInfo) {
+			continue
+		}
 		detail.FilePatches = append(detail.FilePatches, fpInfo)
 	}
 
 	return detail, nil
 }
 
-// headTree 获取 HEAD commit 的 tree 对象
 func (r *goGitBackend) headTree() (*object.Tree, error) {
 	headRef, err := r.repo.Head()
 	if err != nil {
@@ -172,7 +168,33 @@ func (r *goGitBackend) headTree() (*object.Tree, error) {
 	return commit.Tree()
 }
 
-// buildFilePatch 通过简单的行级 diff 构建 FilePatchInfo
+func isRealChange(fpInfo FilePatchInfo) bool {
+	if fpInfo.IsBinary {
+		return true
+	}
+	if len(fpInfo.Chunks) == 0 {
+		return false
+	}
+	for _, chunk := range fpInfo.Chunks {
+		if chunk.Type != "Equal" {
+			return true
+		}
+	}
+	return false
+}
+
+func splitLines(content string) []string {
+	if content == "" {
+		return nil
+	}
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	normalized = strings.TrimSuffix(normalized, "\n")
+	if normalized == "" {
+		return nil
+	}
+	return strings.Split(normalized, "\n")
+}
+
 func buildFilePatch(fromPath, toPath, oldContent, newContent string, isDelete bool) FilePatchInfo {
 	info := FilePatchInfo{
 		FromPath: fromPath,
@@ -180,144 +202,146 @@ func buildFilePatch(fromPath, toPath, oldContent, newContent string, isDelete bo
 		Chunks:   make([]ChunkInfo, 0),
 	}
 
+	oldLines := splitLines(oldContent)
+	newLines := splitLines(newContent)
+
 	if isDelete {
 		info.ToPath = ""
-		if oldContent != "" {
-			info.Chunks = append(info.Chunks, ChunkInfo{Content: oldContent, Type: "Delete"})
+		if len(oldLines) > 0 {
+			info.Chunks = append(info.Chunks, ChunkInfo{Content: strings.Join(oldLines, "\n") + "\n", Type: "Delete"})
 		}
 		return info
 	}
 
-	if oldContent == "" && newContent != "" {
+	if len(oldLines) == 0 && len(newLines) > 0 {
 		info.FromPath = ""
-		info.Chunks = append(info.Chunks, ChunkInfo{Content: newContent, Type: "Add"})
+		info.Chunks = append(info.Chunks, ChunkInfo{Content: strings.Join(newLines, "\n") + "\n", Type: "Add"})
 		return info
 	}
 
-	// 简单 line-level diff: 使用 LCS-based diff
-	oldLines := strings.Split(oldContent, "\n")
-	newLines := strings.Split(newContent, "\n")
 	chunks := diffLines(oldLines, newLines)
 	info.Chunks = chunks
 	return info
 }
 
-// diffLines 简单的行级 diff 算法，产出 chunk 列表
+// diffLines 使用 Myers 差异算法生成行级 diff chunk 列表
 func diffLines(oldLines, newLines []string) []ChunkInfo {
-	// 使用 Hunt-McIlroy / simple LCS approach
-	// 为简化实现，采用逐段比较
-	lcs := computeLCS(oldLines, newLines)
+	edits := myersDiff(oldLines, newLines)
+	return editsToChunks(edits, oldLines, newLines)
+}
+
+// editOp 表示一次编辑操作
+// lineNum: 对于 Equal 和 Delete 操作，是 oldLines 中的行号(-1)；对于 Add，是 newLines 中的行号(-1)
+type editOp struct {
+	kind    int // 0=Equal, 1=Delete, 2=Add
+	lineNum int // 行号
+}
+
+// myersDiff 使用 Myers 差异算法计算从 old 到 new 的最短编辑脚本
+func myersDiff(old, new []string) []editOp {
+	n, m := len(old), len(new)
+	max := n + m
+
+	// 使用两个数组来跟踪到达每个对角线的步数
+	fp := make([]int, 2*max+1)
+	// 存储路径信息：path[k] = 在到达对角线 k 时的编辑序列
+	paths := make([][]editOp, 2*max+1)
+
+	// 初始化对角线起点
+	for d := 0; d <= max; d++ {
+		for k := -d; k <= d; k += 2 {
+			idx := k + max
+
+			var x int
+			var prevPath []editOp
+			if k == -d || (k != d && fp[idx-1] < fp[idx+1]) {
+				// 从 k+1 向下移动 (上一次往右走)
+				x = fp[idx+1]
+				prevPath = paths[idx+1]
+			} else {
+				// 从 k-1 向下移动 (上一次往下走)
+				x = fp[idx-1] + 1
+				prevPath = paths[idx-1]
+			}
+
+			y := x - k
+
+			// 记录路径
+			path := make([]editOp, len(prevPath))
+			copy(path, prevPath)
+
+			// 检查是否从上一步移动而来（删除或添加操作）
+			if k == -d || (k != d && fp[idx-1] < fp[idx+1]) {
+				// 来自 k+1：添加操作（在 old 中删除，在 new 中添加新行？实际上是从 (x, y-1) 到 (x, y)，即添加 new[y-1]）
+				if y-1 >= 0 && y-1 < m {
+					path = append(path, editOp{kind: 2, lineNum: y - 1})
+				}
+			} else {
+				// 来自 k-1：删除操作（从 (x-1, y) 到 (x, y)，即删除 old[x-1]）
+				if x-1 >= 0 && x-1 < n {
+					path = append(path, editOp{kind: 1, lineNum: x - 1})
+				}
+			}
+
+			// 沿着对角线前进 (相等行)
+			for x < n && y < m && old[x] == new[y] {
+				path = append(path, editOp{kind: 0, lineNum: x})
+				x++
+				y++
+			}
+
+			fp[idx] = x
+			paths[idx] = path
+
+			if x >= n && y >= m {
+				return path
+			}
+		}
+	}
+
+	return nil
+}
+
+// editsToChunks 将编辑操作序列转换为 ChunkInfo 列表
+func editsToChunks(edits []editOp, oldLines, newLines []string) []ChunkInfo {
 	var chunks []ChunkInfo
 
-	oi, ni, li := 0, 0, 0
-
-	for li < len(lcs) {
-		// 找到 lcs[li] 在 old 和 new 中的位置
-		lcsLine := lcs[li]
-
-		// 输出 old 中到 lcsLine 之前的删除行
-		var delBuf strings.Builder
-		for oi < len(oldLines) && oldLines[oi] != lcsLine {
-			delBuf.WriteString(oldLines[oi])
-			delBuf.WriteString("\n")
-			oi++
-		}
-		if delBuf.Len() > 0 {
-			chunks = append(chunks, ChunkInfo{Content: delBuf.String(), Type: "Delete"})
+	i := 0
+	for i < len(edits) {
+		// 收集连续的同类型操作
+		kind := edits[i].kind
+		start := i
+		for i < len(edits) && edits[i].kind == kind {
+			i++
 		}
 
-		// 输出 new 中到 lcsLine 之前的新增行
-		var addBuf strings.Builder
-		for ni < len(newLines) && newLines[ni] != lcsLine {
-			addBuf.WriteString(newLines[ni])
-			addBuf.WriteString("\n")
-			ni++
-		}
-		if addBuf.Len() > 0 {
-			chunks = append(chunks, ChunkInfo{Content: addBuf.String(), Type: "Add"})
+		var buf strings.Builder
+		for _, op := range edits[start:i] {
+			var line string
+			switch op.kind {
+			case 0: // Equal: 行来自 old (或 new，内容相同)
+				line = oldLines[op.lineNum]
+			case 1: // Delete: 行来自 old
+				line = oldLines[op.lineNum]
+			case 2: // Add: 行来自 new
+				line = newLines[op.lineNum]
+			}
+			buf.WriteString(line + "\n")
 		}
 
-		// 输出相同行
-		var eqBuf strings.Builder
-		for li < len(lcs) && oi < len(oldLines) && ni < len(newLines) &&
-			oldLines[oi] == newLines[ni] && oldLines[oi] == lcs[li] {
-			eqBuf.WriteString(oldLines[oi])
-			eqBuf.WriteString("\n")
-			oi++
-			ni++
-			li++
+		chunkType := "Equal"
+		if kind == 1 {
+			chunkType = "Delete"
+		} else if kind == 2 {
+			chunkType = "Add"
 		}
-		if eqBuf.Len() > 0 {
-			chunks = append(chunks, ChunkInfo{Content: eqBuf.String(), Type: "Equal"})
-		}
-	}
 
-	// 剩余的 old 行
-	var delBuf strings.Builder
-	for oi < len(oldLines) {
-		delBuf.WriteString(oldLines[oi])
-		delBuf.WriteString("\n")
-		oi++
-	}
-	if delBuf.Len() > 0 {
-		chunks = append(chunks, ChunkInfo{Content: delBuf.String(), Type: "Delete"})
-	}
-
-	// 剩余的 new 行
-	var addBuf strings.Builder
-	for ni < len(newLines) {
-		addBuf.WriteString(newLines[ni])
-		addBuf.WriteString("\n")
-		ni++
-	}
-	if addBuf.Len() > 0 {
-		chunks = append(chunks, ChunkInfo{Content: addBuf.String(), Type: "Add"})
+		chunks = append(chunks, ChunkInfo{Content: buf.String(), Type: chunkType})
 	}
 
 	return chunks
 }
 
-// computeLCS 计算两个字符串切片的最长公共子序列
-func computeLCS(a, b []string) []string {
-	m, n := len(a), len(b)
-	// DP table
-	dp := make([][]int, m+1)
-	for i := range dp {
-		dp[i] = make([]int, n+1)
-	}
-	for i := 1; i <= m; i++ {
-		for j := 1; j <= n; j++ {
-			if a[i-1] == b[j-1] {
-				dp[i][j] = dp[i-1][j-1] + 1
-			} else if dp[i-1][j] >= dp[i][j-1] {
-				dp[i][j] = dp[i-1][j]
-			} else {
-				dp[i][j] = dp[i][j-1]
-			}
-		}
-	}
-	// Backtrack
-	result := make([]string, 0, dp[m][n])
-	i, j := m, n
-	for i > 0 && j > 0 {
-		if a[i-1] == b[j-1] {
-			result = append(result, a[i-1])
-			i--
-			j--
-		} else if dp[i-1][j] >= dp[i][j-1] {
-			i--
-		} else {
-			j--
-		}
-	}
-	// Reverse
-	for l, r := 0, len(result)-1; l < r; l, r = l+1, r-1 {
-		result[l], result[r] = result[r], result[l]
-	}
-	return result
-}
-
-// DiffCommits 获取两个 commit 之间的文件变更列表
 func (r *goGitBackend) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, error) {
 	hashA := plumbing.NewHash(hashAStr)
 	hashB := plumbing.NewHash(hashBStr)
@@ -348,8 +372,6 @@ func (r *goGitBackend) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, erro
 	return changesToDiffEntries(changes), nil
 }
 
-// DiffWithParent 获取指定 commit 与其第一个父 commit 之间的差异
-// 对于初始提交（无父 commit），返回该次提交引入的所有文件
 func (r *goGitBackend) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
@@ -362,7 +384,6 @@ func (r *goGitBackend) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 		return nil, fmt.Errorf("获取 tree 失败: %w", err)
 	}
 
-	// 如果有父 commit，与父 commit 对比
 	if commit.NumParents() > 0 {
 		parent, err := commit.Parent(0)
 		if err != nil {
@@ -379,14 +400,9 @@ func (r *goGitBackend) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 		return changesToDiffEntries(changes), nil
 	}
 
-	// 初始提交：所有文件都是新增的
 	var entries []DiffEntry
 	err = currentTree.Files().ForEach(func(f *object.File) error {
-		entries = append(entries, DiffEntry{
-			Action: "insert",
-			From:   "",
-			To:     f.Name,
-		})
+		entries = append(entries, DiffEntry{Action: "insert", From: "", To: f.Name})
 		return nil
 	})
 	if err != nil {
@@ -395,7 +411,6 @@ func (r *goGitBackend) DiffWithParent(hashStr string) ([]DiffEntry, error) {
 	return entries, nil
 }
 
-// GetCommitPatch 获取指定 commit 与其父 commit 之间的具体差异（结构化对象）
 func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
@@ -419,7 +434,6 @@ func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 			return nil, fmt.Errorf("获取父 tree 失败: %w", err)
 		}
 	} else {
-		// 初始提交时，提供一个空的 Tree，这样会显示整个文件被添加
 		parentTree = &object.Tree{}
 	}
 
@@ -433,9 +447,7 @@ func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 		return nil, fmt.Errorf("生成 patch 失败: %w", err)
 	}
 
-	detail := &PatchDetail{
-		FilePatches: make([]FilePatchInfo, 0),
-	}
+	detail := &PatchDetail{FilePatches: make([]FilePatchInfo, 0)}
 
 	for _, fp := range patch.FilePatches() {
 		from, to := fp.Files()
@@ -462,10 +474,7 @@ func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 			case diff.Delete:
 				opType = "Delete"
 			}
-			info.Chunks = append(info.Chunks, ChunkInfo{
-				Content: chunk.Content(),
-				Type:    opType,
-			})
+			info.Chunks = append(info.Chunks, ChunkInfo{Content: chunk.Content(), Type: opType})
 		}
 		detail.FilePatches = append(detail.FilePatches, info)
 	}
@@ -473,7 +482,6 @@ func (r *goGitBackend) GetCommitPatch(hashStr string) (*PatchDetail, error) {
 	return detail, nil
 }
 
-// FileContentAtCommit 读取指定 commit 中某个文件的内容
 func (r *goGitBackend) FileContentAtCommit(hashStr, filePath string) (string, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
@@ -498,7 +506,6 @@ func (r *goGitBackend) FileContentAtCommit(hashStr, filePath string) (string, er
 	return content, nil
 }
 
-// ListFilesAtCommit 列出指定 commit 中的所有文件路径
 func (r *goGitBackend) ListFilesAtCommit(hashStr string) ([]string, error) {
 	hash := plumbing.NewHash(hashStr)
 	commit, err := r.repo.CommitObject(hash)
@@ -522,7 +529,6 @@ func (r *goGitBackend) ListFilesAtCommit(hashStr string) ([]string, error) {
 	return paths, nil
 }
 
-// changesToDiffEntries 将 go-git 的 Changes 转换为 DiffEntry 列表
 func changesToDiffEntries(changes object.Changes) []DiffEntry {
 	entries := make([]DiffEntry, 0, len(changes))
 	for _, c := range changes {
@@ -532,13 +538,13 @@ func changesToDiffEntries(changes object.Changes) []DiffEntry {
 			continue
 		}
 		switch action {
-		case 0: // Insert
+		case 0:
 			entry.Action = "insert"
 			entry.To = c.To.Name
-		case 1: // Delete
+		case 1:
 			entry.Action = "delete"
 			entry.From = c.From.Name
-		case 2: // Modify
+		case 2:
 			entry.Action = "modify"
 			entry.From = c.From.Name
 			entry.To = c.To.Name
