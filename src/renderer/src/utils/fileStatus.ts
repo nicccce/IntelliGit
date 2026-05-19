@@ -44,15 +44,15 @@ export function statusColor(code: string): string {
 export function statusLabel(code: string): string {
   switch (code) {
     case 'M':
-      return 'M'
+      return '\xB7' // 中圆点 ·
     case 'A':
-      return 'A'
+      return '+'
     case 'D':
-      return 'D'
+      return '-'
     case 'R':
-      return 'R'
+      return '\xB7' // 重命名也视为修改
     case '?':
-      return 'U'
+      return '+'
     default:
       return ' '
   }

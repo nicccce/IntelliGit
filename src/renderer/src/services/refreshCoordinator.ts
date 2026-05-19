@@ -23,7 +23,10 @@ export function clearRepositoryScopedState(): void {
  * 刷新文件状态和分支信息后，自动同步当前选中文件的 diff。
  * 如果选中的文件已不在对应列表中，则回到空白界面。
  */
-async function syncSelectedFileDiff(staged: { path: string }[], unstaged: { path: string }[]): Promise<void> {
+async function syncSelectedFileDiff(
+  staged: { path: string }[],
+  unstaged: { path: string }[]
+): Promise<void> {
   const { selectedFilePath, diffSource, clearDiffState, refreshCurrentDiff, selectFile } =
     useDiffStore.getState()
 
@@ -108,4 +111,3 @@ export async function refreshAll(): Promise<void> {
     useUiStore.getState().setLoading(false)
   }
 }
-
