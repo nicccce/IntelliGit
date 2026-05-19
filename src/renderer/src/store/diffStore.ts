@@ -34,7 +34,7 @@ export const useDiffStore = create<DiffStoreState>((set, get) => ({
       set(EMPTY_DIFF_STATE)
       return
     }
-    // 根据来源清空对应的 diff 数据
+    // 根据来源清空对应的 diff 数据（用户主动切换时显示加载中是可接受的）
     if (source === 'unstaged') {
       set({ selectedFilePath: path, diffSource: source, workdirDiff: null })
     } else {
@@ -53,21 +53,24 @@ export const useDiffStore = create<DiffStoreState>((set, get) => ({
     }
   },
 
+  /**
+   * 静默刷新当前 diff：不先清空数据，避免闪烁。
+   * 请求成功后直接替换，请求失败则保留旧数据。
+   */
   refreshCurrentDiff: async () => {
     const { selectedFilePath, diffSource } = get()
     if (!selectedFilePath || !diffSource) return
     try {
       if (diffSource === 'unstaged') {
-        set({ workdirDiff: null })
         const workdirDiff = await invokeGit('diff.workdir', { path: selectedFilePath })
         set({ workdirDiff })
       } else {
-        set({ stagedDiff: null })
         const stagedDiff = await invokeGit('diff.staged', { path: selectedFilePath })
         set({ stagedDiff })
       }
     } catch (err) {
       console.error('[DiffStore] refreshCurrentDiff 失败:', err)
+      // 失败时保留旧 diff，不更新
     }
   },
 
