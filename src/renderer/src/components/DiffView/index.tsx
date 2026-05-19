@@ -26,39 +26,78 @@ function DiffView(): JSX.Element {
           {filePatch.isBinary ? (
             <div className={styles['ig-diff-binary']}>二进制文件</div>
           ) : (
-            filePatch.chunks.map((chunk, chunkIndex) => {
-              const lines = chunk.content.replace(/\n$/, '').split('\n')
-              return (
-                <div key={chunkIndex} className={styles['ig-diff-chunk']}>
-                  {chunk.type !== 'Equal' && (
-                    <div className={styles['ig-diff-hunk-hdr']}>
-                      <span>
-                        {chunk.type === 'Add' ? '新增' : '删除'} {lines.length} 行
-                      </span>
-                    </div>
-                  )}
-                  {lines.map((line, lineIndex) => (
-                    <div
-                      key={lineIndex}
-                      className={classNames(
-                        styles['ig-diff-line'],
-                        chunk.type === 'Add' && styles.added,
-                        chunk.type === 'Delete' && styles.removed
-                      )}
-                    >
-                      <span className={styles['ig-diff-ln']}>{lineIndex + 1}</span>
-                      <span className={styles['ig-diff-lc']}>
-                        {chunk.type === 'Add' ? '+' : chunk.type === 'Delete' ? '-' : ' '} {line}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )
-            })
+            <DiffChunks chunks={filePatch.chunks} />
           )}
         </div>
       ))}
     </div>
+  )
+}
+
+/**
+ * 将 chunks 渲染为连续行号的行内 diff 视图。
+ * 左侧列 = 旧文件行号（仅 Equal / Delete 递增），
+ * 右侧列 = 新文件行号（仅 Equal / Add 递增）。
+ */
+function DiffChunks({
+  chunks
+}: {
+  chunks: Array<{ content: string; type: 'Add' | 'Delete' | 'Equal' }>
+}): JSX.Element {
+  let oldLineNum = 1
+  let newLineNum = 1
+  const rows: Array<{
+    oldLine: string
+    newLine: string
+    prefix: string
+    text: string
+    type: 'Add' | 'Delete' | 'Equal'
+  }> = []
+
+  for (const chunk of chunks) {
+    // 保留末尾空行，但去除最后一个多余的换行符
+    const lines = chunk.content.split('\n')
+    // 如果末尾是换行符，split 会多一个空字符串，去掉它
+    if (lines.length > 0 && lines[lines.length - 1] === '') {
+      lines.pop()
+    }
+
+    for (const line of lines) {
+      const oldStr = chunk.type === 'Add' ? '' : String(oldLineNum)
+      const newStr = chunk.type === 'Delete' ? '' : String(newLineNum)
+      const prefix = chunk.type === 'Add' ? '+' : chunk.type === 'Delete' ? '-' : ' '
+
+      rows.push({
+        oldLine: oldStr,
+        newLine: newStr,
+        prefix,
+        text: line,
+        type: chunk.type
+      })
+
+      if (chunk.type !== 'Add') oldLineNum++
+      if (chunk.type !== 'Delete') newLineNum++
+    }
+  }
+
+  return (
+    <>
+      {rows.map((row, index) => (
+        <div
+          key={index}
+          className={classNames(
+            styles['ig-diff-line'],
+            row.type === 'Add' && styles.added,
+            row.type === 'Delete' && styles.removed
+          )}
+        >
+          <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
+          <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+          <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
+          <span className={styles['ig-diff-lc']}>{row.text}</span>
+        </div>
+      ))}
+    </>
   )
 }
 
