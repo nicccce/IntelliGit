@@ -117,3 +117,40 @@
   word-break: break-all;
   white-space: pre-wrap;
 }
+
+/* 折叠行 */
+.ig-diff-folding {
+  border-right-color: transparent !important;
+}
+
+.ig-diff-fold-text {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 11px;
+  user-select: none;
+  padding-left: 2px;
+}
+
+/* 折叠行容器 */
+.ig-diff-fold-line {
+  border-bottom: 1px solid var(--bg-tertiary);
+  border-top: 1px solid var(--bg-tertiary);
+  display: flex;
+  min-height: 20px;
+  padding: 0 4px 0 0;
+  cursor: pointer;
+  align-items: center;
+}
+
+.ig-diff-fold-line:hover {
+  background: var(--surface-hover);
+}
+
+/* 上下文行（折叠区域头尾保留 3 行） */
+.ig-diff-context {
+  background: var(--bg-tertiary);
+}
+
+.ig-diff-context:hover {
+  background: var(--surface-hover);
+}
