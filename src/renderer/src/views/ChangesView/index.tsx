@@ -36,8 +36,8 @@ function ChangesView(): JSX.Element {
     isDragging: isHResizing
   } = useResizable({
     direction: 'horizontal',
-    defaultRatio: 0.25,
-    minRatio: 0.2,
+    defaultRatio: 0.23,
+    minRatio: 0.15,
     maxRatio: 0.5,
     containerRef: horizontalContainerRef
   })

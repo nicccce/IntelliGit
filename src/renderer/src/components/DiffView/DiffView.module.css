@@ -15,6 +15,31 @@
   font-family: var(--font-mono);
   font-size: 12px;
   line-height: 1.6;
+  background: var(--bg-secondary);
+}
+
+/* 自定义滚动条 */
+.ig-diff-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-diff-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-diff-scroll::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-diff-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.ig-diff-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
 }
 
 .ig-diff-binary {
@@ -39,7 +64,8 @@
 .ig-diff-line {
   display: flex;
   min-height: 20px;
-  padding: 0 12px 0 0;
+  padding: 0 4px 0 0;
+  background: var(--bg-primary);
   transition: background var(--transition-fast);
 }
 
@@ -77,6 +103,7 @@
 }
 
 .ig-diff-prefix {
+  width: 10px;
   flex-shrink: 0;
   text-align: center;
   user-select: none;
@@ -89,5 +116,4 @@
   flex: 1;
   word-break: break-all;
   white-space: pre-wrap;
-  padding-left: 4px;
 }
