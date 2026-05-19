@@ -8,6 +8,9 @@
 }
 
 .ig-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   min-height: 36px;
   flex-shrink: 0;
   padding: 8px 10px;
@@ -15,9 +18,36 @@
   background: var(--bg-tertiary);
 }
 
+.ig-diff-header-left {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
 .ig-diff-title {
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ig-diff-stats {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-left: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ig-diff-stat-add {
+  color: var(--accent-green);
+}
+
+.ig-diff-stat-del {
+  color: var(--accent-red);
 }
