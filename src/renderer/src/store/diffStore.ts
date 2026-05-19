@@ -12,6 +12,7 @@ export interface DiffStoreState {
   stagedDiff: PatchDetail | null
   clearDiffState: () => void
   selectFile: (path: string, source: DiffSource) => Promise<void>
+  refreshCurrentDiff: () => Promise<void>
   fetchRawDiff: (path: string) => Promise<string>
 }
 
@@ -49,6 +50,24 @@ export const useDiffStore = create<DiffStoreState>((set, get) => ({
       }
     } catch (err) {
       console.error('[DiffStore] selectFile diff 失败:', err)
+    }
+  },
+
+  refreshCurrentDiff: async () => {
+    const { selectedFilePath, diffSource } = get()
+    if (!selectedFilePath || !diffSource) return
+    try {
+      if (diffSource === 'unstaged') {
+        set({ workdirDiff: null })
+        const workdirDiff = await invokeGit('diff.workdir', { path: selectedFilePath })
+        set({ workdirDiff })
+      } else {
+        set({ stagedDiff: null })
+        const stagedDiff = await invokeGit('diff.staged', { path: selectedFilePath })
+        set({ stagedDiff })
+      }
+    } catch (err) {
+      console.error('[DiffStore] refreshCurrentDiff 失败:', err)
     }
   },
 

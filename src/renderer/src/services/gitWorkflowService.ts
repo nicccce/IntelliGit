@@ -24,6 +24,15 @@ export async function addFile(path: string): Promise<void> {
     try {
       await invokeGit('staging.add', { path })
       await useGitStatusStore.getState().refreshStatus()
+      const { selectedFilePath, diffSource } = useDiffStore.getState()
+      if (selectedFilePath === path) {
+        // 如果已经在查看已暂存视图，只刷新 diff；否则切换到已暂存视图
+        if (diffSource === 'staged') {
+          await useDiffStore.getState().refreshCurrentDiff()
+        } else {
+          await useDiffStore.getState().selectFile(path, 'staged')
+        }
+      }
     } catch (err) {
       useUiStore.getState().setError(`Add 失败: ${errorMessage(err)}`)
     }
@@ -35,6 +44,15 @@ export async function addAll(): Promise<void> {
     try {
       await invokeGit('staging.addAll')
       await useGitStatusStore.getState().refreshStatus()
+      const { selectedFilePath, diffSource } = useDiffStore.getState()
+      if (selectedFilePath) {
+        // 如果当前已在查看已暂存视图，只刷新；否则切换到已暂存视图
+        if (diffSource === 'staged') {
+          await useDiffStore.getState().refreshCurrentDiff()
+        } else {
+          await useDiffStore.getState().selectFile(selectedFilePath, 'staged')
+        }
+      }
     } catch (err) {
       useUiStore.getState().setError(`Add All 失败: ${errorMessage(err)}`)
     }
@@ -46,6 +64,15 @@ export async function removeFile(path: string): Promise<void> {
     try {
       await invokeGit('staging.remove', { path })
       await useGitStatusStore.getState().refreshStatus()
+      const { selectedFilePath, diffSource } = useDiffStore.getState()
+      if (selectedFilePath === path) {
+        // 如果已经在查看未暂存视图，只刷新 diff；否则切换到未暂存视图
+        if (diffSource === 'unstaged') {
+          await useDiffStore.getState().refreshCurrentDiff()
+        } else {
+          await useDiffStore.getState().selectFile(path, 'unstaged')
+        }
+      }
     } catch (err) {
       useUiStore.getState().setError(`Remove 失败: ${errorMessage(err)}`)
     }
@@ -57,9 +84,9 @@ export async function applyPatch(patch: string): Promise<void> {
     await withOperation('staging.applyPatch', async () => {
       await invokeGit('staging.applyPatch', { patch })
       await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, diffSource, selectFile } = useDiffStore.getState()
-      if (selectedFilePath && diffSource) {
-        await selectFile(selectedFilePath, diffSource)
+      const { selectedFilePath } = useDiffStore.getState()
+      if (selectedFilePath) {
+        await useDiffStore.getState().refreshCurrentDiff()
       }
     })
   } catch (err) {
@@ -72,9 +99,9 @@ export async function unstageHunk(patch: string): Promise<void> {
     await withOperation('staging.unstageHunk', async () => {
       await invokeGit('staging.unstageHunk', { patch })
       await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, diffSource, selectFile } = useDiffStore.getState()
-      if (selectedFilePath && diffSource) {
-        await selectFile(selectedFilePath, diffSource)
+      const { selectedFilePath } = useDiffStore.getState()
+      if (selectedFilePath) {
+        await useDiffStore.getState().refreshCurrentDiff()
       }
     })
   } catch (err) {
