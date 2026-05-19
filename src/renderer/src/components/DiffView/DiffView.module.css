@@ -7,18 +7,6 @@
   font-size: 14px;
 }
 
-.ig-diff-source-badge {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 8px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--accent-blue);
-}
-
 .ig-diff-scroll {
   flex: 1;
   overflow-y: auto;

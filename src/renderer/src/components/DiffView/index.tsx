@@ -12,25 +12,12 @@ function DiffView(): JSX.Element {
 
   if (!selectedFilePath) return <div className={styles['ig-diff-empty']}>← 选择文件查看差异</div>
 
-  const sourceLabel = diffSource === 'staged' ? '已暂存' : '未暂存'
-
   // 正在加载 diff 数据
-  if (!diff)
-    return (
-      <div className={styles['ig-diff-empty']}>
-        <span className={styles['ig-diff-source-badge']}>{sourceLabel}</span>
-        加载差异中...
-      </div>
-    )
+  if (!diff) return <div className={styles['ig-diff-empty']}>加载中...</div>
 
   // 已加载但确实无差异
   if (diff.filePatches.length === 0)
-    return (
-      <div className={styles['ig-diff-empty']}>
-        <span className={styles['ig-diff-source-badge']}>{sourceLabel}</span>
-        无差异内容
-      </div>
-    )
+    return <div className={styles['ig-diff-empty']}>无差异内容</div>
 
   return (
     <div className={styles['ig-diff-scroll']}>
