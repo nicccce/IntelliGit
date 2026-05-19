@@ -18,6 +18,7 @@ export type { LlmClient, LlmResponse } from './llmClient'
 
 export { toolRegistry, GIT_TOOL_NAMES, GIT_TOOL_DEFINITIONS } from './toolRegistry'
 export type { GitToolName } from './toolRegistry'
+export { registerDefaultGitTools } from './gitTools'
 
 export * from './prompts'
 

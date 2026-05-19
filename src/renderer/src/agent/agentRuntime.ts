@@ -1,5 +1,6 @@
 import type { LlmConfig, AgentTask, AgentResult, AgentMessage } from './types'
 import { createLlmClient } from './llmClient'
+import { registerDefaultGitTools } from './gitTools'
 import { toolRegistry } from './toolRegistry'
 import { getFallbackResult } from './fallback'
 
@@ -22,11 +23,12 @@ export async function runAgent<T = unknown>(
   task: AgentTask,
   parseResult?: (rawOutput: string) => T | null
 ): Promise<AgentResult<T>> {
+  registerDefaultGitTools()
+
   const client = createLlmClient(config)
   const maxIterations = task.maxIterations ?? DEFAULT_MAX_ITERATIONS
 
-  const toolDefs =
-    task.tools?.length ? toolRegistry.listByNames(task.tools) : []
+  const toolDefs = task.tools?.length ? toolRegistry.listByNames(task.tools) : []
 
   const messages: AgentMessage[] = [
     { role: 'system', content: task.systemPrompt },

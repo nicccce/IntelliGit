@@ -39,21 +39,27 @@ class ToolRegistry {
 
 export const toolRegistry = new ToolRegistry()
 
-// ─── 预置 Git Tool 定义（由 P1 工作流绑定真实 execute） ──────────────────────
-// 此处提前声明 definition，P1 工作流注册时注入 execute 实现。
+// ─── 预置 Git Tool 定义 ──────────────────────────────────────────────────────
+// P0 负责提供可被 Agent Runtime 直接调用的基础 Git 工具能力。
 
 export const GIT_TOOL_NAMES = {
   GET_STATUS: 'git.getStatus',
   GET_DIFF: 'git.getDiff',
   GET_STAGED_DIFF: 'git.getStagedDiff',
+  GET_RAW_DIFF: 'git.getRawDiff',
+  GET_RAW_STAGED_DIFF: 'git.getRawStagedDiff',
   STAGE_FILE: 'git.stageFile',
   UNSTAGE_FILE: 'git.unstageFile',
   STAGE_ALL: 'git.stageAll',
   CREATE_COMMIT: 'git.createCommit',
+  GET_COMMIT_LOG: 'git.getCommitLog',
+  GET_COMMIT_DETAIL: 'git.getCommitDetail',
   GET_BRANCH_INFO: 'git.getBranchInfo',
+  GET_MERGE_STATUS: 'git.getMergeStatus',
   GET_CONFLICT_FILES: 'git.getConflictFiles',
   GET_TRIPLET_CONTENT: 'git.getTripletContent',
   APPLY_PATCH: 'git.applyPatch',
+  UNSTAGE_HUNK: 'git.unstageHunk',
   CONTINUE_MERGE: 'git.continueMerge',
   ABORT_MERGE: 'git.abortMerge'
 } as const
@@ -82,6 +88,26 @@ export const GIT_TOOL_DEFINITIONS: Record<GitToolName, ToolDefinition> = {
   'git.getStagedDiff': {
     name: 'git.getStagedDiff',
     description: '获取暂存区的 unified diff，可选指定文件路径',
+    parameters: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: '指定文件路径（可选）' }
+      }
+    }
+  },
+  'git.getRawDiff': {
+    name: 'git.getRawDiff',
+    description: '获取工作区（未暂存）的原始 unified diff 文本，可选指定文件路径',
+    parameters: {
+      type: 'object',
+      properties: {
+        filePath: { type: 'string', description: '指定文件路径（可选）' }
+      }
+    }
+  },
+  'git.getRawStagedDiff': {
+    name: 'git.getRawStagedDiff',
+    description: '获取暂存区的原始 unified diff 文本，可选指定文件路径',
     parameters: {
       type: 'object',
       properties: {
@@ -127,9 +153,36 @@ export const GIT_TOOL_DEFINITIONS: Record<GitToolName, ToolDefinition> = {
       required: ['message']
     }
   },
+  'git.getCommitLog': {
+    name: 'git.getCommitLog',
+    description: '获取当前分支提交历史',
+    parameters: {
+      type: 'object',
+      properties: {
+        max: { type: 'number', description: '最大返回数量，默认由底层 Git 服务决定' },
+        from: { type: 'string', description: '起始引用或提交哈希（可选）' }
+      }
+    }
+  },
+  'git.getCommitDetail': {
+    name: 'git.getCommitDetail',
+    description: '获取指定提交的详情',
+    parameters: {
+      type: 'object',
+      properties: {
+        hash: { type: 'string', description: '提交哈希' }
+      },
+      required: ['hash']
+    }
+  },
   'git.getBranchInfo': {
     name: 'git.getBranchInfo',
     description: '获取当前分支、本地分支列表及 ahead/behind 信息',
+    parameters: { type: 'object', properties: {} }
+  },
+  'git.getMergeStatus': {
+    name: 'git.getMergeStatus',
+    description: '判断当前仓库是否处于 merge 状态，并返回 MERGE_HEAD 与冲突文件',
     parameters: { type: 'object', properties: {} }
   },
   'git.getConflictFiles': {
@@ -159,10 +212,26 @@ export const GIT_TOOL_DEFINITIONS: Record<GitToolName, ToolDefinition> = {
       required: ['patch']
     }
   },
+  'git.unstageHunk': {
+    name: 'git.unstageHunk',
+    description: '通过反向 patch 从暂存区取消指定 hunk',
+    parameters: {
+      type: 'object',
+      properties: {
+        patch: { type: 'string', description: '用于取消暂存的 unified diff patch 内容' }
+      },
+      required: ['patch']
+    }
+  },
   'git.continueMerge': {
     name: 'git.continueMerge',
-    description: '所有冲突解决后继续 merge 操作',
-    parameters: { type: 'object', properties: {} }
+    description: '所有冲突解决后继续 merge 操作，可选提供合并提交信息',
+    parameters: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: '合并提交信息（可选）' }
+      }
+    }
   },
   'git.abortMerge': {
     name: 'git.abortMerge',
