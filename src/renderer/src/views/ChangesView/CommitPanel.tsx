@@ -27,6 +27,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const [isAnalyzingGroups, setIsAnalyzingGroups] = useState(false)
   const [groups, setGroups] = useState<CommitIntentGroup[]>([])
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null)
+  const [smartCommitNotice, setSmartCommitNotice] = useState<string | null>(null)
   const { showSuccess, setError } = useCommitPanelModel()
 
   const handleCommit = useCallback(async () => {
@@ -42,9 +43,11 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       const result = await generateSmartCommitMessage()
       if (result.success && result.data) {
         setCommitMsg(result.data)
-        showSuccess(result.fallback ? '已使用模板生成提交信息' : 'AI 提交信息已生成')
+        setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成提交信息' : null)
+        showSuccess(result.fallback ? '已使用本地模板生成提交信息' : 'AI 提交信息已生成')
       } else {
-        setError(result.error || 'AI 生成提交信息失败')
+        setSmartCommitNotice(null)
+        setError(result.error || '生成提交信息失败')
       }
     } finally {
       setIsAiGenerating(false)
@@ -59,9 +62,11 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       if (result.success && result.data && result.data.groups.length > 0) {
         setGroups(result.data.groups)
         setSelectedGroupIndex(0)
-        showSuccess(result.fallback ? '已使用模板生成变更分组' : 'AI 变更分组已生成')
+        setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
+        showSuccess(result.fallback ? '已使用本地模板生成变更分组' : 'AI 变更分组已生成')
       } else {
-        setError(result.error || 'AI 变更分组失败')
+        setSmartCommitNotice(null)
+        setError(result.error || '变更分组失败')
       }
     } finally {
       setIsAnalyzingGroups(false)
@@ -78,8 +83,12 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       const result = await stageGroupAndGenerateMessage(group)
       if (result.success && result.data) {
         setCommitMsg(result.data.message)
-        showSuccess(result.data.fallback ? '已暂存分组并使用模板生成提交信息' : '已暂存分组并生成提交信息')
+        setSmartCommitNotice(
+          result.data.fallback ? result.data.fallbackReason || 'AI 未启用，已使用本地模板生成提交信息' : null
+        )
+        showSuccess(result.data.fallback ? '已暂存分组并使用本地模板生成提交信息' : '已暂存分组并生成提交信息')
       } else {
+        setSmartCommitNotice(null)
         setError(result.error || '按分组生成提交信息失败')
       }
     } finally {
@@ -111,6 +120,8 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           </Button>
         )}
       </div>
+
+      {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
 
       {groups.length > 0 && (
         <Radio.Group

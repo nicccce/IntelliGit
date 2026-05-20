@@ -1,58 +1,25 @@
 import type { AgentResult } from '../agent'
-import {
-  buildCommitMessage,
-  COMMIT_GROUPS_SCHEMA,
-  COMMIT_MESSAGE_SCHEMA,
-  parseStructured,
-  renderCommitAnalyzePrompt,
-  renderCommitMessagePrompt,
-  runAgentWithFallback,
-  type CommitMessageResult
-} from '../agent'
 import { invokeGit } from '../api/gitClient'
 import { useGitStatusStore } from '../store/gitStatusStore'
 import { withOperation } from '../store/operationStore'
 import { useUiStore } from '../store/uiStore'
-import { getCurrentLlmConfig } from './llmConfigService'
+import {
+  smartCommitProvider,
+  type CommitIntentGroup,
+  type SmartCommitAnalysisResult
+} from './smartCommitProvider'
 
-export interface CommitIntentGroup {
-  type: string
-  scope?: string
-  summary: string
-  files: string[]
-}
-
-export interface SmartCommitAnalysisResult {
-  groups: CommitIntentGroup[]
-}
+export type { CommitIntentGroup, SmartCommitAnalysisResult }
 
 export interface SmartCommitGroupWorkflowResult {
   group: CommitIntentGroup
   message: string
   fallback?: boolean
-}
-
-/**
- * 控制传给 LLM 的 diff 上下文长度，避免大变更导致请求体过大。
- * 注意：这里仅截断 AI 分析上下文，不会修改真实工作区或暂存区内容。
- */
-const MAX_DIFF_CONTEXT_LENGTH = 20000
-
-function truncateDiffForPrompt(diff: string): string {
-  if (diff.length <= MAX_DIFF_CONTEXT_LENGTH) return diff
-  return `${diff.slice(0, MAX_DIFF_CONTEXT_LENGTH)}\n\n... diff 内容过长，已截断，仅用于生成提交建议 ...`
+  fallbackReason?: string
 }
 
 function normalizeFiles(files: string[]): string[] {
   return [...new Set(files.map((file) => file.trim()).filter(Boolean))]
-}
-
-function formatCommitMessage(result: CommitMessageResult): string {
-  return buildCommitMessage({
-    ...result,
-    scope: result.scope?.trim() || undefined,
-    body: result.body?.trim() || undefined
-  })
 }
 
 function buildGroupContext(group: CommitIntentGroup): string {
@@ -60,9 +27,19 @@ function buildGroupContext(group: CommitIntentGroup): string {
   return `提交意图：${group.type}${scope}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}`
 }
 
+function getChangedFiles(): string[] {
+  return normalizeFiles(useGitStatusStore.getState().fileStatuses.map((file) => file.path))
+}
+
+function getStagedFileCount(): number {
+  return useGitStatusStore
+    .getState()
+    .fileStatuses.filter((file) => file.staging && file.staging !== 'unmodified').length
+}
+
 /**
- * P1 智能提交分析入口：读取当前 diff，并让 Agent 按提交意图进行文件级分组。
- * 第一版先提供文件级语义分组，后续可在 P0 AST / Hunk 能力完善后升级为逻辑块级分组。
+ * 智能提交分析入口：读取当前 diff，并交给 SmartCommitProvider 进行意图分组。
+ * Provider 内部会优先使用 AI；未配置或调用失败时自动使用本地 fallback，保证流程闭环可用。
  */
 export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartCommitAnalysisResult>> {
   const [workdirDiff, stagedDiff] = await Promise.all([
@@ -71,7 +48,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
   ])
 
   const diff = workdirDiff.diff || stagedDiff.diff
-  const files = normalizeFiles(useGitStatusStore.getState().fileStatuses.map((file) => file.path))
+  const files = getChangedFiles()
 
   if (!diff.trim()) {
     return {
@@ -80,20 +57,11 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
     }
   }
 
-  return runAgentWithFallback<SmartCommitAnalysisResult>(
-    getCurrentLlmConfig(),
-    {
-      taskType: 'commit.groupByIntent',
-      systemPrompt: '你是一位专业的 Git 提交助手，请将变更按提交意图进行分组。',
-      userMessage: renderCommitAnalyzePrompt(truncateDiffForPrompt(diff)),
-      context: { files }
-    },
-    (rawOutput) => parseStructured<SmartCommitAnalysisResult>(rawOutput, COMMIT_GROUPS_SCHEMA)
-  )
+  return smartCommitProvider.analyzeChanges({ diff, files })
 }
 
 /**
- * P1 AI Commit 信息生成入口：基于暂存区 diff 生成 Conventional Commits 提交信息。
+ * Commit 信息生成入口：基于暂存区 diff 生成 Conventional Commits 提交信息。
  * 若暂存区为空，会自动暂存全部变更，以保证按钮点击后能形成“分析 -> 生成 -> 填入”的最小闭环。
  */
 export async function generateSmartCommitMessage(): Promise<AgentResult<string>> {
@@ -112,37 +80,13 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
         return { success: false, error: '当前没有可用于生成提交信息的暂存变更' }
       }
 
-      const stagedFileCount = useGitStatusStore
-        .getState()
-        .fileStatuses.filter((file) => file.staging && file.staging !== 'unmodified').length
-
-      const result = await runAgentWithFallback<CommitMessageResult>(
-        getCurrentLlmConfig(),
-        {
-          taskType: 'commit.generateMessage',
-          systemPrompt: '你是一位专业的 Git 提交助手，请生成符合 Conventional Commits 的提交信息。',
-          userMessage: renderCommitMessagePrompt(truncateDiffForPrompt(stagedDiff.diff)),
-          context: { stagedFileCount }
-        },
-        (rawOutput) => parseStructured<CommitMessageResult>(rawOutput, COMMIT_MESSAGE_SCHEMA)
-      )
-
-      if (!result.success || !result.data) {
-        return {
-          success: false,
-          error: result.error,
-          fallback: result.fallback,
-          rawOutput: result.rawOutput
-        }
-      }
-
-      return {
-        ...result,
-        data: formatCommitMessage(result.data)
-      }
+      return smartCommitProvider.generateMessage({
+        diff: stagedDiff.diff,
+        stagedFileCount: getStagedFileCount()
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      useUiStore.getState().setError(`AI 生成提交信息失败: ${message}`)
+      useUiStore.getState().setError(`生成提交信息失败: ${message}`)
       return { success: false, error: message }
     }
   })
@@ -160,7 +104,7 @@ export async function stageGroupAndGenerateMessage(
       const files = normalizeFiles(group.files)
       if (files.length === 0) return { success: false, error: '该分组没有可暂存的文件' }
 
-      // 文件级分组暂存：逐个暂存 AI 分组中的文件，避免影响其它未选择分组。
+      // 文件级分组暂存：逐个暂存分组中的文件，避免影响其它未选择分组。
       for (const filePath of files) {
         await invokeGit('staging.add', { path: filePath })
       }
@@ -178,19 +122,11 @@ export async function stageGroupAndGenerateMessage(
         return { success: false, error: '该分组暂存后没有可用于生成提交信息的 diff' }
       }
 
-      const result = await runAgentWithFallback<CommitMessageResult>(
-        getCurrentLlmConfig(),
-        {
-          taskType: 'commit.generateMessage',
-          systemPrompt: '你是一位专业的 Git 提交助手，请为指定变更分组生成提交信息。',
-          userMessage: renderCommitMessagePrompt(
-            truncateDiffForPrompt(groupDiff),
-            buildGroupContext(group)
-          ),
-          context: { stagedFileCount: files.length }
-        },
-        (rawOutput) => parseStructured<CommitMessageResult>(rawOutput, COMMIT_MESSAGE_SCHEMA)
-      )
+      const result = await smartCommitProvider.generateMessage({
+        diff: groupDiff,
+        stagedFileCount: files.length,
+        groupContext: buildGroupContext(group)
+      })
 
       if (!result.success || !result.data) {
         return {
@@ -205,8 +141,9 @@ export async function stageGroupAndGenerateMessage(
         ...result,
         data: {
           group,
-          message: formatCommitMessage(result.data),
-          fallback: result.fallback
+          message: result.data,
+          fallback: result.fallback,
+          fallbackReason: result.fallback ? result.error : undefined
         }
       }
     } catch (err) {

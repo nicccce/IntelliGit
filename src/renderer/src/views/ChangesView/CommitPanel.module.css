@@ -13,6 +13,17 @@
   flex-shrink: 0;
 }
 
+.ig-smart-notice {
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--surface-hover);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .ig-group-list {
   flex-shrink: 0;
   max-height: 110px;
