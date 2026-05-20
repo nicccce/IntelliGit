@@ -1,3 +1,137 @@
+/* ====== 选择列（两列） ====== */
+
+.ig-diff-chk-block,
+.ig-diff-chk-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 100%;
+  min-height: inherit;
+  user-select: none;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+/* ---- 块选择列（第一列） ---- */
+.ig-diff-chk-block {
+  /* 默认无背景，无文字 */
+  width: 14px;
+  background: color-mix(in srgb, var(--border-secondary) 30%, transparent);
+}
+
+/* 全部选中：实心蓝色背景 */
+.ig-diff-chk-block-all {
+  background: var(--accent-blue);
+}
+
+/* 部分选中：半透明蓝色背景 + 浅色虚线边框 */
+.ig-diff-chk-block-partial {
+  background: color-mix(in srgb, var(--accent-blue) 30%, transparent);
+  border-right: 1px dashed color-mix(in srgb, var(--accent-blue) 50%, transparent);
+}
+
+/* hover 时加重 */
+.ig-diff-chk-block:hover,
+.ig-diff-chk-block-hovered {
+  background: color-mix(in srgb, var(--accent-blue) 50%, var(--surface-active));
+}
+.ig-diff-chk-block-all:hover,
+.ig-diff-chk-block-all.ig-diff-chk-block-hovered {
+  background: var(--accent-blue);
+  filter: brightness(1.2);
+}
+.ig-diff-chk-block-partial:hover,
+.ig-diff-chk-block-partial.ig-diff-chk-block-hovered {
+  background: color-mix(in srgb, var(--accent-blue) 50%, transparent);
+}
+
+/* ---- 行选择联合容器 ---- */
+.ig-diff-chk-line-group {
+  display: flex;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ig-diff-chk-line-group:hover,
+.ig-diff-chk-line-group-hovered {
+  background: color-mix(in srgb, var(--accent-blue) 20%, var(--surface-active));
+}
+
+.ig-diff-chk-line-group-checked {
+  background: color-mix(in srgb, var(--accent-blue) 15%, transparent);
+}
+
+/* ---- 行选择列（第二列） ---- */
+.ig-diff-chk-line {
+  width: 18px;
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 13px;
+  transition: color var(--transition-fast);
+}
+
+.ig-diff-chk-line-group:hover .ig-diff-chk-line,
+.ig-diff-chk-line-group-hovered .ig-diff-chk-line {
+  color: var(--accent-green);
+}
+
+.ig-diff-chk-line-group-checked .ig-diff-chk-line {
+  background: color-mix(in srgb, var(--accent-blue) 25%, transparent) !important;
+  color: var(--accent-green) !important;
+  font-weight: 700;
+}
+
+/* ---- 行号列（在联合容器内） ---- */
+.ig-diff-chk-ln {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 36px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0.5;
+  font-size: 11px;
+  padding: 0 4px;
+  border-right: 1px solid var(--border-primary);
+  user-select: none;
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.ig-diff-chk-line-group:hover .ig-diff-chk-ln,
+.ig-diff-chk-line-group-hovered .ig-diff-chk-ln {
+  color: var(--accent-green) !important;
+  opacity: 1 !important;
+}
+
+.ig-diff-chk-line-group-checked .ig-diff-chk-ln {
+  background: color-mix(in srgb, var(--accent-blue) 25%, transparent) !important;
+  color: var(--accent-blue) !important;
+  font-weight: 600;
+  opacity: 1 !important;
+}
+
+/* ---- 禁用状态（未修改行/上下文行）：不响应任何悬浮事件 ---- */
+.ig-diff-chk-disabled {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* ---- 选中行：仅两列行号变色，不干扰 diff 内容 ---- */
+.ig-diff-ln-selected {
+  background: color-mix(in srgb, var(--accent-blue) 25%, transparent) !important;
+  color: var(--accent-blue) !important;
+  font-weight: 600;
+  opacity: 1 !important;
+}
+
+/* ====== 空/加载状态 ====== */
+
 .ig-diff-empty {
   display: flex;
   height: 100%;
@@ -63,30 +197,17 @@
 
 .ig-diff-line {
   display: flex;
-  min-height: 20px;
-  padding: 0 4px 0 0;
+  min-height: 22px;
+  padding: 0;
   background: var(--bg-primary);
-  transition: background var(--transition-fast);
-}
-
-.ig-diff-line:hover {
-  background: var(--surface-hover);
 }
 
 .ig-diff-line.added {
   background: var(--diff-add-bg);
 }
 
-.ig-diff-line.added:hover {
-  background: var(--diff-add-hover);
-}
-
 .ig-diff-line.removed {
   background: var(--diff-remove-bg);
-}
-
-.ig-diff-line.removed:hover {
-  background: var(--diff-remove-hover);
 }
 
 .ig-diff-ln-old,
@@ -149,8 +270,4 @@
 /* 上下文行（折叠区域头尾保留 3 行） */
 .ig-diff-context {
   background: var(--bg-tertiary);
-}
-
-.ig-diff-context:hover {
-  background: var(--surface-hover);
 }

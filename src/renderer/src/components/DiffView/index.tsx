@@ -1,21 +1,30 @@
-import { useState, useCallback, type JSX } from 'react'
+import { useState, useCallback, useMemo, type JSX } from 'react'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
 import styles from './DiffView.module.css'
 
-function DiffView(): JSX.Element {
+/** 生成行级唯一 key */
+function lineKey(filePatchIndex: number, chunkIndex: number, lineIndex: number): string {
+  return `${filePatchIndex}-${chunkIndex}-${lineIndex}`
+}
+
+interface DiffViewProps {
+  selectedSet: Set<string>
+  onToggleLine: (key: string) => void
+  /** 切换整个 chunk 的选择状态 */
+  onToggleChunk: (filePatchIndex: number, chunkIndex: number) => void
+}
+
+function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): JSX.Element {
   const { workdirDiff, stagedDiff, selectedFilePath, diffSource } = useDiffViewModel()
 
-  // 根据 diff 来源决定显示哪个 diff 数据
   const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
 
   if (!selectedFilePath) return <div className={styles['ig-diff-empty']}>← 选择文件查看差异</div>
 
-  // 正在加载 diff 数据
   if (!diff) return <div className={styles['ig-diff-empty']}>加载中...</div>
 
-  // 已加载但确实无差异
   if (diff.filePatches.length === 0)
     return <div className={styles['ig-diff-empty']}>无差异内容</div>
 
@@ -26,7 +35,13 @@ function DiffView(): JSX.Element {
           {filePatch.isBinary ? (
             <div className={styles['ig-diff-binary']}>二进制文件</div>
           ) : (
-            <DiffChunks chunks={filePatch.chunks} />
+            <DiffChunks
+              filePatchIndex={filePatchIndex}
+              chunks={filePatch.chunks}
+              selectedSet={selectedSet}
+              onToggleLine={onToggleLine}
+              onToggleChunk={onToggleChunk}
+            />
           )}
         </div>
       ))}
@@ -34,21 +49,28 @@ function DiffView(): JSX.Element {
   )
 }
 
+interface DiffChunksProps {
+  filePatchIndex: number
+  chunks: Array<{ content: string; type: 'Add' | 'Delete' | 'Equal' }>
+  selectedSet: Set<string>
+  onToggleLine: (key: string) => void
+  onToggleChunk: (filePatchIndex: number, chunkIndex: number) => void
+}
+
 /**
- * 将 chunks 渲染为可折叠的 diff 视图。
- * 折叠规则：
- *  - Equal 块中，头尾各 3 行保留作为上下文，中间部分可折叠
- *  - 折叠是一次性的（展开后不再显示折叠行）
- *  - Add/Delete 始终展开
- * 折叠提示箭头：↓ 块前、↑ 块后、↕ 块中间
+ * 将 chunks 渲染为可折叠的 diff 视图，每行左侧增加两列选择按钮。
  */
 function DiffChunks({
-  chunks
-}: {
-  chunks: Array<{ content: string; type: 'Add' | 'Delete' | 'Equal' }>
-}): JSX.Element {
+  filePatchIndex,
+  chunks,
+  selectedSet,
+  onToggleLine,
+  onToggleChunk
+}: DiffChunksProps): JSX.Element {
   // 存储每个 Equal 块的展开状态，key 为 chunk 索引
   const [expandedSet, setExpanded] = useState<Set<number>>(new Set())
+  // 当前 hover 的 chunk 索引（用于块按钮悬停时联动高亮该块的行按钮）
+  const [hoveredChunkIndex, setHoveredChunkIndex] = useState<number | null>(null)
 
   const expand = useCallback((chunkIndex: number) => {
     setExpanded((prev) => {
@@ -58,6 +80,54 @@ function DiffChunks({
     })
   }, [])
 
+  // 预先计算每行的 lineKey 列表，用于块级选择
+  const chunkLineKeys: Array<{ chunkIndex: number; keys: string[] }> = useMemo(() => {
+    const result: Array<{ chunkIndex: number; keys: string[] }> = []
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const chunk = chunks[ci]
+      const lines = chunk.content.split('\n')
+      // 去除末尾空行
+      if (lines.length > 0 && lines[lines.length - 1] === '') {
+        lines.pop()
+      }
+      const keys: string[] = []
+      for (let li = 0; li < lines.length; li++) {
+        keys.push(lineKey(filePatchIndex, ci, li))
+      }
+      result.push({ chunkIndex: ci, keys })
+    }
+    return result
+  }, [chunks, filePatchIndex])
+
+  // 判断某个 chunk 的选择状态：'none' | 'partial' | 'all'
+  const getChunkSelectionState = useCallback(
+    (chunkIndex: number): 'none' | 'partial' | 'all' => {
+      const info = chunkLineKeys[chunkIndex]
+      if (!info) return 'none'
+      const chunk = chunks[chunkIndex]
+      if (chunk.type === 'Equal') return 'none'
+      const lines = chunk.content.split('\n')
+      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
+      let changedCount = 0
+      let selectedCount = 0
+      for (let li = 0; li < lines.length; li++) {
+        changedCount++
+        if (selectedSet.has(info.keys[li])) selectedCount++
+      }
+      if (selectedCount === 0) return 'none'
+      if (selectedCount === changedCount) return 'all'
+      return 'partial'
+    },
+    [chunkLineKeys, chunks, selectedSet]
+  )
+
+  const handleChunkToggle = useCallback(
+    (chunkIndex: number) => {
+      onToggleChunk(filePatchIndex, chunkIndex)
+    },
+    [filePatchIndex, onToggleChunk]
+  )
+
   let oldLineNum = 1
   let newLineNum = 1
   const rows: Array<{
@@ -66,15 +136,19 @@ function DiffChunks({
     prefix: string
     text: string
     type: 'Add' | 'Delete' | 'Equal'
+    chunkIndex: number
+    lineIndex: number
   }> = []
 
-  for (const chunk of chunks) {
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci]
     const lines = chunk.content.split('\n')
     if (lines.length > 0 && lines[lines.length - 1] === '') {
       lines.pop()
     }
 
-    for (const line of lines) {
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li]
       const oldStr = chunk.type === 'Add' ? '' : String(oldLineNum)
       const newStr = chunk.type === 'Delete' ? '' : String(newLineNum)
       const prefix = chunk.type === 'Add' ? '+' : chunk.type === 'Delete' ? '-' : ' '
@@ -84,7 +158,9 @@ function DiffChunks({
         newLine: newStr,
         prefix,
         text: line,
-        type: chunk.type
+        type: chunk.type,
+        chunkIndex: ci,
+        lineIndex: li
       })
 
       if (chunk.type !== 'Add') oldLineNum++
@@ -94,7 +170,6 @@ function DiffChunks({
 
   const CONTEXT_LINES = 3
 
-  // 判断 Equal 块前后是否有变更块
   function hasPrevChangeBlock(chunkIndex: number): boolean {
     for (let i = chunkIndex - 1; i >= 0; i--) {
       if (chunks[i].type !== 'Equal') return true
@@ -108,7 +183,6 @@ function DiffChunks({
     return false
   }
 
-  // 判断 Equal 块前后的变更情况，确定折叠箭头方向
   function getArrowDirection(chunkIndex: number): 'down' | 'up' | 'both' {
     let hasPrevChange = false
     let hasNextChange = false
@@ -129,7 +203,7 @@ function DiffChunks({
     if (hasPrevChange && hasNextChange) return 'both'
     if (hasPrevChange) return 'down'
     if (hasNextChange) return 'up'
-    return 'both' // 前后都没有变更，用 ↕
+    return 'both'
   }
 
   const arrowLabel: Record<string, string> = {
@@ -153,14 +227,12 @@ function DiffChunks({
       const prevChange = hasPrevChangeBlock(ci)
       const nextChange = hasNextChangeBlock(ci)
 
-      // 仅当实际邻近变更块时才保留对应侧的上下文行
       const headLines = prevChange ? Math.min(CONTEXT_LINES, lineCount) : 0
       const tailLines = nextChange ? Math.min(CONTEXT_LINES, lineCount - headLines) : 0
       const foldMiddle = Math.max(0, lineCount - headLines - tailLines)
       const showFold = foldMiddle > 0
       const expanded = expandedSet.has(ci)
 
-      // 前部上下文（仅当前面有变更块时）
       for (let i = 0; i < headLines; i++) {
         const row = rows[rowIndex]
         chunksOutput.push(
@@ -168,8 +240,29 @@ function DiffChunks({
             key={`r-${ci}-head-${i}`}
             className={classNames(styles['ig-diff-line'], styles['ig-diff-context'])}
           >
-            <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
-            <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+            <span
+              className={classNames(styles['ig-diff-chk-block'], styles['ig-diff-chk-disabled'])}
+            />
+            <span
+              className={classNames(
+                styles['ig-diff-chk-line-group'],
+                styles['ig-diff-chk-disabled']
+              )}
+            >
+              <span
+                className={classNames(styles['ig-diff-chk-line'], styles['ig-diff-chk-disabled'])}
+              />
+              <span
+                className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-chk-disabled'])}
+              >
+                {row.oldLine}
+              </span>
+              <span
+                className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-chk-disabled'])}
+              >
+                {row.newLine}
+              </span>
+            </span>
             <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
             <span className={styles['ig-diff-lc']}>{row.text}</span>
           </div>
@@ -177,7 +270,6 @@ function DiffChunks({
         rowIndex++
       }
 
-      // 中间折叠/展开部分
       if (showFold && !expanded) {
         const dir = getArrowDirection(ci)
         chunksOutput.push(
@@ -186,8 +278,33 @@ function DiffChunks({
             className={styles['ig-diff-fold-line']}
             onClick={() => expand(ci)}
           >
-            <span className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-folding'])} />
-            <span className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-folding'])} />
+            <span
+              className={classNames(styles['ig-diff-chk-block'], styles['ig-diff-chk-disabled'])}
+            />
+            <span
+              className={classNames(
+                styles['ig-diff-chk-line-group'],
+                styles['ig-diff-chk-disabled']
+              )}
+            >
+              <span
+                className={classNames(styles['ig-diff-chk-line'], styles['ig-diff-chk-disabled'])}
+              />
+              <span
+                className={classNames(
+                  styles['ig-diff-ln-old'],
+                  styles['ig-diff-folding'],
+                  styles['ig-diff-chk-disabled']
+                )}
+              />
+              <span
+                className={classNames(
+                  styles['ig-diff-ln-new'],
+                  styles['ig-diff-folding'],
+                  styles['ig-diff-chk-disabled']
+                )}
+              />
+            </span>
             <span className={classNames(styles['ig-diff-prefix'], styles['ig-diff-folding'])} />
             <span className={styles['ig-diff-fold-text']}>
               {arrowLabel[dir]} 展开 {foldMiddle} 行
@@ -203,8 +320,29 @@ function DiffChunks({
               key={`r-${ci}-mid-${i}`}
               className={classNames(styles['ig-diff-line'], styles['ig-diff-context'])}
             >
-              <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
-              <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+              <span
+                className={classNames(styles['ig-diff-chk-block'], styles['ig-diff-chk-disabled'])}
+              />
+              <span
+                className={classNames(
+                  styles['ig-diff-chk-line-group'],
+                  styles['ig-diff-chk-disabled']
+                )}
+              >
+                <span
+                  className={classNames(styles['ig-diff-chk-line'], styles['ig-diff-chk-disabled'])}
+                />
+                <span
+                  className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-chk-disabled'])}
+                >
+                  {row.oldLine}
+                </span>
+                <span
+                  className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-chk-disabled'])}
+                >
+                  {row.newLine}
+                </span>
+              </span>
               <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
               <span className={styles['ig-diff-lc']}>{row.text}</span>
             </div>
@@ -212,7 +350,6 @@ function DiffChunks({
           rowIndex++
         }
       } else {
-        // 行数不够折叠，全部直接渲染
         for (let i = 0; i < foldMiddle; i++) {
           const row = rows[rowIndex]
           chunksOutput.push(
@@ -220,8 +357,29 @@ function DiffChunks({
               key={`r-${ci}-mid-${i}`}
               className={classNames(styles['ig-diff-line'], styles['ig-diff-context'])}
             >
-              <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
-              <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+              <span
+                className={classNames(styles['ig-diff-chk-block'], styles['ig-diff-chk-disabled'])}
+              />
+              <span
+                className={classNames(
+                  styles['ig-diff-chk-line-group'],
+                  styles['ig-diff-chk-disabled']
+                )}
+              >
+                <span
+                  className={classNames(styles['ig-diff-chk-line'], styles['ig-diff-chk-disabled'])}
+                />
+                <span
+                  className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-chk-disabled'])}
+                >
+                  {row.oldLine}
+                </span>
+                <span
+                  className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-chk-disabled'])}
+                >
+                  {row.newLine}
+                </span>
+              </span>
               <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
               <span className={styles['ig-diff-lc']}>{row.text}</span>
             </div>
@@ -230,7 +388,6 @@ function DiffChunks({
         }
       }
 
-      // 尾部上下文（仅当后面有变更块时）
       for (let i = 0; i < tailLines; i++) {
         const row = rows[rowIndex]
         chunksOutput.push(
@@ -238,8 +395,29 @@ function DiffChunks({
             key={`r-${ci}-tail-${i}`}
             className={classNames(styles['ig-diff-line'], styles['ig-diff-context'])}
           >
-            <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
-            <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+            <span
+              className={classNames(styles['ig-diff-chk-block'], styles['ig-diff-chk-disabled'])}
+            />
+            <span
+              className={classNames(
+                styles['ig-diff-chk-line-group'],
+                styles['ig-diff-chk-disabled']
+              )}
+            >
+              <span
+                className={classNames(styles['ig-diff-chk-line'], styles['ig-diff-chk-disabled'])}
+              />
+              <span
+                className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-chk-disabled'])}
+              >
+                {row.oldLine}
+              </span>
+              <span
+                className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-chk-disabled'])}
+              >
+                {row.newLine}
+              </span>
+            </span>
             <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
             <span className={styles['ig-diff-lc']}>{row.text}</span>
           </div>
@@ -248,8 +426,12 @@ function DiffChunks({
       }
     } else {
       // Add / Delete 始终展开
+      const blockHovered = hoveredChunkIndex === ci
+      const selState = getChunkSelectionState(ci)
       for (let i = 0; i < lineCount; i++) {
         const row = rows[rowIndex]
+        const key = lineKey(filePatchIndex, row.chunkIndex, row.lineIndex)
+        const isSel = selectedSet.has(key)
         chunksOutput.push(
           <div
             key={`r-${ci}-${i}`}
@@ -259,8 +441,48 @@ function DiffChunks({
               row.type === 'Delete' && styles.removed
             )}
           >
-            <span className={styles['ig-diff-ln-old']}>{row.oldLine}</span>
-            <span className={styles['ig-diff-ln-new']}>{row.newLine}</span>
+            {/* 块选择列 — 无文字，仅通过颜色指示状态 */}
+            <span
+              className={classNames(
+                styles['ig-diff-chk-block'],
+                selState === 'all' && styles['ig-diff-chk-block-all'],
+                selState === 'partial' && styles['ig-diff-chk-block-partial'],
+                blockHovered && styles['ig-diff-chk-block-hovered']
+              )}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleChunkToggle(ci)
+              }}
+              onMouseEnter={() => setHoveredChunkIndex(ci)}
+              onMouseLeave={() => setHoveredChunkIndex(null)}
+            />
+            {/* 行选择联合容器（✓ 标记 + 两列行号） */}
+            <span
+              className={classNames(
+                styles['ig-diff-chk-line-group'],
+                blockHovered && styles['ig-diff-chk-line-group-hovered'],
+                isSel && styles['ig-diff-chk-line-group-checked']
+              )}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleLine(key)
+              }}
+            >
+              <span
+                className={classNames(
+                  styles['ig-diff-chk-line'],
+                  isSel && styles['ig-diff-chk-line-checked']
+                )}
+              >
+                {isSel ? '✓' : ''}
+              </span>
+              <span className={classNames(styles['ig-diff-ln-old'], styles['ig-diff-chk-ln'])}>
+                {row.oldLine}
+              </span>
+              <span className={classNames(styles['ig-diff-ln-new'], styles['ig-diff-chk-ln'])}>
+                {row.newLine}
+              </span>
+            </span>
             <span className={styles['ig-diff-prefix']}>{row.prefix}</span>
             <span className={styles['ig-diff-lc']}>{row.text}</span>
           </div>

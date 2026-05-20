@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useRef } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { Button, Empty } from 'antd'
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 
@@ -10,6 +10,7 @@ import { useResizable } from '../../hooks'
 import CommitPanel from './CommitPanel'
 import DiffPane from './DiffPane'
 import FileSection from './FileSection'
+import type { FileSelectionState } from './FileSection'
 import styles from './ChangesView.module.css'
 
 function ChangesView(): JSX.Element {
@@ -23,6 +24,29 @@ function ChangesView(): JSX.Element {
     isBusy,
     isCommitRunning
   } = useChangesViewModel()
+
+  // ---------- 文件选择状态缓存 ----------
+  // key = `${diffSource}::${filePath}`; value = FileSelectionState
+  const [fileSelMap, setFileSelMap] = useState<Record<string, FileSelectionState>>({})
+
+  const handleSelectionChange = useCallback(
+    (source: DiffSource, filePath: string, state: FileSelectionState) => {
+      const key = `${source}::${filePath}`
+      setFileSelMap((prev) => {
+        if (prev[key] === state) return prev
+        return { ...prev, [key]: state }
+      })
+    },
+    []
+  )
+
+  /** 获取某个文件的选择状态（默认未暂存区全选；已暂存区则使用缓存） */
+  const getSelectionState = useCallback(
+    (source: DiffSource, filePath: string): FileSelectionState => {
+      return fileSelMap[`${source}::${filePath}`] ?? 'all'
+    },
+    [fileSelMap]
+  )
 
   const handleSelectFile = (source: DiffSource) => (path: string) => {
     selectFile(path, source)
@@ -90,6 +114,7 @@ function ChangesView(): JSX.Element {
               statusCode={(file) => file.worktree || file.staging}
               onSelectFile={handleSelectFile('unstaged')}
               onFileAction={addFile}
+              getSelectionState={(filePath) => getSelectionState('unstaged', filePath)}
               headerAction={
                 <Button
                   size="small"
@@ -123,6 +148,7 @@ function ChangesView(): JSX.Element {
               statusCode={(file) => file.staging}
               onSelectFile={handleSelectFile('staged')}
               onFileAction={removeFile}
+              getSelectionState={(filePath) => getSelectionState('staged', filePath)}
             />
           </div>
         </div>
@@ -144,7 +170,11 @@ function ChangesView(): JSX.Element {
 
       {/* ---------- 右侧：Diff 面板 ---------- */}
       <div className={styles['ig-right-panel']}>
-        <DiffPane selectedFilePath={selectedFilePath} diffSource={diffSource} />
+        <DiffPane
+          selectedFilePath={selectedFilePath}
+          diffSource={diffSource}
+          onSelectionChange={handleSelectionChange}
+        />
       </div>
     </div>
   )
