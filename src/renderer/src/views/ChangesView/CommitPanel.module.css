@@ -7,6 +7,46 @@
   height: 100%;
 }
 
+.ig-group-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.ig-group-list {
+  flex-shrink: 0;
+  max-height: 110px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.ig-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+}
+
+.ig-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.ig-group-files {
+  max-width: 360px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .ig-input-wrapper {
   position: relative;
   flex: 1;

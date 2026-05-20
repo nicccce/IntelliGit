@@ -26,6 +26,12 @@ export interface SmartCommitAnalysisResult {
   groups: CommitIntentGroup[]
 }
 
+export interface SmartCommitGroupWorkflowResult {
+  group: CommitIntentGroup
+  message: string
+  fallback?: boolean
+}
+
 /**
  * 控制传给 LLM 的 diff 上下文长度，避免大变更导致请求体过大。
  * 注意：这里仅截断 AI 分析上下文，不会修改真实工作区或暂存区内容。
@@ -47,6 +53,11 @@ function formatCommitMessage(result: CommitMessageResult): string {
     scope: result.scope?.trim() || undefined,
     body: result.body?.trim() || undefined
   })
+}
+
+function buildGroupContext(group: CommitIntentGroup): string {
+  const scope = group.scope ? `\n作用域：${group.scope}` : ''
+  return `提交意图：${group.type}${scope}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}`
 }
 
 /**
@@ -132,6 +143,75 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       useUiStore.getState().setError(`AI 生成提交信息失败: ${message}`)
+      return { success: false, error: message }
+    }
+  })
+}
+
+/**
+ * 按用户选择的意图分组暂存文件，并只基于该分组的暂存 diff 生成提交信息。
+ * 当前阶段使用文件级暂存；hunk / AST 级语义分组会在底层能力完善后继续演进。
+ */
+export async function stageGroupAndGenerateMessage(
+  group: CommitIntentGroup
+): Promise<AgentResult<SmartCommitGroupWorkflowResult>> {
+  return withOperation('commit.generateMessage', async () => {
+    try {
+      const files = normalizeFiles(group.files)
+      if (files.length === 0) return { success: false, error: '该分组没有可暂存的文件' }
+
+      // 文件级分组暂存：逐个暂存 AI 分组中的文件，避免影响其它未选择分组。
+      for (const filePath of files) {
+        await invokeGit('staging.add', { path: filePath })
+      }
+      await useGitStatusStore.getState().refreshStatus()
+
+      const groupDiffParts = await Promise.all(
+        files.map(async (filePath) => {
+          const result = await invokeGit('diff.stagedRaw', { path: filePath })
+          return result.diff
+        })
+      )
+      const groupDiff = groupDiffParts.filter(Boolean).join('\n')
+
+      if (!groupDiff.trim()) {
+        return { success: false, error: '该分组暂存后没有可用于生成提交信息的 diff' }
+      }
+
+      const result = await runAgentWithFallback<CommitMessageResult>(
+        getCurrentLlmConfig(),
+        {
+          taskType: 'commit.generateMessage',
+          systemPrompt: '你是一位专业的 Git 提交助手，请为指定变更分组生成提交信息。',
+          userMessage: renderCommitMessagePrompt(
+            truncateDiffForPrompt(groupDiff),
+            buildGroupContext(group)
+          ),
+          context: { stagedFileCount: files.length }
+        },
+        (rawOutput) => parseStructured<CommitMessageResult>(rawOutput, COMMIT_MESSAGE_SCHEMA)
+      )
+
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: result.error,
+          fallback: result.fallback,
+          rawOutput: result.rawOutput
+        }
+      }
+
+      return {
+        ...result,
+        data: {
+          group,
+          message: formatCommitMessage(result.data),
+          fallback: result.fallback
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      useUiStore.getState().setError(`按分组生成提交信息失败: ${message}`)
       return { success: false, error: message }
     }
   })
