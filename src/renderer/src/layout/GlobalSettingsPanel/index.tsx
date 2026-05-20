@@ -4,8 +4,8 @@ import { Alert, Button, Input, Segmented, Slider, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 
 import SidePanelShell from '../../components/SidePanelShell'
-import { useLlmConfigStore } from '../../store/llmConfigStore'
 import { saveLlmConfig, checkLlmConnection } from '../../services/llmConfigService'
+import { useGlobalSettingsPanelModel } from '../../viewModels'
 import type { LlmConfig, LlmProvider } from '../../agent/types'
 import { classNames } from '../../utils/classNames'
 import styles from './GlobalSettingsPanel.module.css'
@@ -44,7 +44,7 @@ function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProps): JSX
 }
 
 function GlobalSettingsPanelContent({ isOpen, onClose }: GlobalSettingsPanelProps): JSX.Element {
-  const { config, status, error } = useLlmConfigStore()
+  const { config, status, error } = useGlobalSettingsPanelModel()
 
   const [provider, setProvider] = useState<LlmProvider>(config?.provider ?? 'openai')
   const [apiKey, setApiKey] = useState(config?.apiKey ?? '')

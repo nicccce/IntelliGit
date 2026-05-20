@@ -18,6 +18,11 @@ export const selectError = (state: UiStoreState): string | null => state.error
 
 export const selectSuccessMessage = (state: UiStoreState): string | null => state.successMessage
 
+export const selectSetError = (state: UiStoreState): UiStoreState['setError'] => state.setError
+
+export const selectShowSuccess = (state: UiStoreState): UiStoreState['showSuccess'] =>
+  state.showSuccess
+
 export const selectSetActiveView = (state: UiStoreState): UiStoreState['setActiveView'] =>
   state.setActiveView
 

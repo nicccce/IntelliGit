@@ -60,7 +60,14 @@ function toOpenAIMessages(messages: AgentMessage[]): OpenAIMessage[] {
   })
 }
 
-function toOpenAITools(tools: ToolDefinition[]) {
+function toOpenAITools(tools: ToolDefinition[]): Array<{
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: ToolDefinition['parameters']
+  }
+}> {
   return tools.map((t) => ({
     type: 'function' as const,
     function: { name: t.name, description: t.description, parameters: t.parameters }

@@ -10,7 +10,7 @@ import {
   stageGroupAndGenerateMessage,
   type CommitIntentGroup
 } from '../../services/smartCommitService'
-import { useUiStore } from '../../store/uiStore'
+import { useCommitPanelModel } from '../../viewModels'
 import styles from './CommitPanel.module.css'
 
 const { TextArea } = Input
@@ -27,8 +27,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const [isAnalyzingGroups, setIsAnalyzingGroups] = useState(false)
   const [groups, setGroups] = useState<CommitIntentGroup[]>([])
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null)
-  const showSuccess = useUiStore((state) => state.showSuccess)
-  const setError = useUiStore((state) => state.setError)
+  const { showSuccess, setError } = useCommitPanelModel()
 
   const handleCommit = useCallback(async () => {
     if (!commitMsg.trim()) return

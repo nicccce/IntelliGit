@@ -9,6 +9,8 @@ import {
 import { useDiffStore } from '../store'
 import type { DiffSource } from '../store/diffStore'
 
+export type { DiffSource }
+
 interface DiffViewModel {
   selectedFilePath: string | null
   diffSource: DiffSource | null

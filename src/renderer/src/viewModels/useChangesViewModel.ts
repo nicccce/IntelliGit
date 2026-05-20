@@ -13,6 +13,8 @@ import {
 } from '../store/selectors'
 import { splitFileStatuses } from '../utils/fileStatus'
 
+export type { DiffSource }
+
 interface ChangesViewModel {
   currentRepo: RepoConfig | null
   selectedFilePath: string | null

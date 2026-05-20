@@ -3,8 +3,7 @@ import { useCallback } from 'react'
 import { Button } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 
-import { useUiStore } from '../../store'
-import { selectSetSidePanelWidth, selectSidePanelWidth } from '../../store/selectors'
+import { useSidePanelShellModel } from '../../viewModels'
 import styles from './SidePanelShell.module.css'
 
 interface SidePanelShellProps {
@@ -30,8 +29,7 @@ function SidePanelShell({
   minWidth = 200,
   maxWidth = 520
 }: SidePanelShellProps): JSX.Element | null {
-  const panelWidth = useUiStore(selectSidePanelWidth)
-  const setPanelWidth = useUiStore(selectSetSidePanelWidth)
+  const { panelWidth, resizePanel } = useSidePanelShellModel()
 
   const handleResizeMouseDown = useCallback(
     (event: ReactMouseEvent): void => {
@@ -40,8 +38,7 @@ function SidePanelShell({
       document.body.style.userSelect = 'none'
 
       const onMouseMove = (moveEvent: MouseEvent): void => {
-        const newWidth = Math.max(minWidth, Math.min(maxWidth, moveEvent.clientX - 52))
-        setPanelWidth(newWidth)
+        resizePanel(moveEvent.clientX, minWidth, maxWidth)
       }
 
       const onMouseUp = (): void => {
@@ -54,7 +51,7 @@ function SidePanelShell({
       window.addEventListener('mousemove', onMouseMove)
       window.addEventListener('mouseup', onMouseUp)
     },
-    [minWidth, maxWidth, setPanelWidth]
+    [minWidth, maxWidth, resizePanel]
   )
 
   if (!isOpen) return null
