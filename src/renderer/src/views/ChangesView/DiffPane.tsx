@@ -8,6 +8,11 @@ import type { DiffSource } from '../../viewModels'
 import DiffView from '../../components/DiffView'
 import styles from './DiffPane.module.css'
 import type { FileSelectionState } from './FileSection'
+import {
+  updateSelection,
+  clearSelection,
+  consumeResetSignal
+} from '../../services/selectionRegistry'
 
 interface DiffPaneProps {
   selectedFilePath: string | null
@@ -78,6 +83,14 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
   const cacheRef = useRef<Map<string, { set: Set<string>; initialized: boolean }>>(new Map())
   const resetKey = diffSource && selectedFilePath ? `${diffSource}::${selectedFilePath}` : null
 
+  // 处理来自 service 层的重置信号（部分/完整暂存或取消暂存后需重置为全选）
+  const mustResetRef = useRef(false)
+  // 标记：等新 diff 加载后需要补全新行（确保即使 diff 内容变化仍然保持全选）
+  const forceFullRef = useRef(false)
+  if (resetKey && !mustResetRef.current) {
+    mustResetRef.current = consumeResetSignal(resetKey)
+  }
+
   const initCache = (key: string | null): { set: Set<string>; initialized: boolean } => {
     if (!key) return { set: new Set(), initialized: false }
     const existing = cacheRef.current.get(key)
@@ -101,10 +114,24 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
 
   const allChangedKeys = useMemo(() => collectChangedLineKeys(diff), [diff])
 
+  // ----- 立即响应重置信号：在渲染阶段直接设为全选，避免异步等待导致延迟 -----
+  if (resetKey && mustResetRef.current) {
+    const entry = cacheRef.current.get(resetKey)
+    if (entry) {
+      mustResetRef.current = false
+      forceFullRef.current = true
+      entry.set = new Set(allChangedKeys)
+      entry.initialized = true
+      setSelectedSet(new Set(allChangedKeys))
+    }
+  }
+
   // 当 diff 加载完成后，若当前文件未初始化且选择集为空，则默认全选
   useEffect(() => {
     if (!resetKey || allChangedKeys.size === 0) return
     const entry = cacheRef.current.get(resetKey)
+
+    // 重置信号已由上方立即处理，此处不再重复处理
     if (!entry || entry.initialized) return
     if (selectedSet.size !== 0) return
 
@@ -114,11 +141,25 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
     entry.initialized = true
     setSelectedSet(fullSet)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resetKey, allChangedKeys.size])
+  }, [resetKey, allChangedKeys.size, diff])
 
-  // 当 allChangedKeys 变化时，清理 selectedSet 中已不存在的脏 key，若全部无效则重新全选
+  // 当 allChangedKeys 变化时，清理 selectedSet 中已不存在的脏 key，
+  // 若 forceFullRef 为 true 则补全新 key（diff 更新后自动全选，确保不落下新行）
   useEffect(() => {
     if (!resetKey || allChangedKeys.size === 0) return
+
+    // 强制全选标记：diff 刷新后重新全选（确保新出现的行也被选中）
+    if (forceFullRef.current) {
+      forceFullRef.current = false
+      const fullSet = new Set(allChangedKeys)
+      setSelectedSet(fullSet)
+      const entry = cacheRef.current.get(resetKey)
+      if (entry) {
+        entry.set = fullSet
+        entry.initialized = true
+      }
+      return
+    }
 
     let changed = false
     const cleaned = new Set(selectedSet)
@@ -149,23 +190,41 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey, allChangedKeys])
 
-  // 当 selectedSet 变化时更新缓存，并通知父组件选择状态
+  // 当 selectedSet 变化时更新缓存，通知父组件选择状态，并同步到注册表
   useEffect(() => {
     if (!resetKey) return
     const entry = cacheRef.current.get(resetKey)
     if (entry) {
       entry.set = new Set(selectedSet)
     }
-    if (onSelectionChange && diffSource && selectedFilePath) {
-      const state: FileSelectionState =
-        selectedSet.size === 0
-          ? 'none'
-          : selectedSet.size === allChangedKeys.size
-            ? 'all'
-            : 'partial'
-      onSelectionChange(diffSource, selectedFilePath, state)
+    if (diffSource && selectedFilePath) {
+      // 同步到全局注册表（用于部分暂存操作）
+      updateSelection(diffSource, selectedFilePath, selectedSet, diff)
+
+      if (onSelectionChange) {
+        const state: FileSelectionState =
+          selectedSet.size === 0
+            ? 'none'
+            : selectedSet.size === allChangedKeys.size
+              ? 'all'
+              : 'partial'
+        onSelectionChange(diffSource, selectedFilePath, state)
+      }
+
+      // 如果选择集为空，清理注册表
+      if (selectedSet.size === 0) {
+        clearSelection(diffSource, selectedFilePath)
+      }
     }
-  }, [resetKey, selectedSet, allChangedKeys.size, onSelectionChange, diffSource, selectedFilePath])
+  }, [
+    resetKey,
+    selectedSet,
+    allChangedKeys.size,
+    onSelectionChange,
+    diffSource,
+    selectedFilePath,
+    diff
+  ])
 
   const isAllSelected = useMemo(
     () => allChangedKeys.size > 0 && allChangedKeys.size === selectedSet.size,

@@ -9,6 +9,7 @@ import { useUiStore } from '../store/uiStore'
 import { findRemoteBranch, hasLocalBranch } from '../utils/branchOptions'
 import { buildRemotePayload } from './remoteService'
 import { refreshAllLocal, refreshRemote } from './refreshCoordinator'
+import { buildSelectionPatch, clearSelection, enqueueReset, resetEntry } from './selectionRegistry'
 
 function cleanSetting(value: string | undefined): string | undefined {
   const normalized = value?.trim()
@@ -19,19 +20,58 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/**
+ * 文件操作后的统一刷新行为
+ * @param path - 操作的文件路径
+ * @param targetSource - 操作后对应的目标视图
+ * @param shouldSwitch - 是否切换视图（部分操作为 false，全选操作为 true）
+ */
+async function refreshAfterFileOperation(
+  path: string,
+  targetSource: 'staged' | 'unstaged',
+  shouldSwitch: boolean = true
+): Promise<void> {
+  await useGitStatusStore.getState().refreshStatus()
+  if (!shouldSwitch) {
+    // 部分操作：不切换视图，仅刷新当前 diff
+    const { selectedFilePath } = useDiffStore.getState()
+    if (selectedFilePath === path) {
+      await useDiffStore.getState().refreshCurrentDiff()
+    }
+    return
+  }
+  // 全选操作：切换视图
+  const { selectedFilePath, diffSource } = useDiffStore.getState()
+  if (selectedFilePath === path) {
+    if (diffSource === targetSource) {
+      await useDiffStore.getState().refreshCurrentDiff()
+    } else {
+      await useDiffStore.getState().selectFile(path, targetSource)
+    }
+  }
+}
+
+/** 根据选择状态智能暂存：全选走完整 add（切换视图），部分选走 applyPatch（保留视图） */
 export async function addFile(path: string): Promise<void> {
   await withOperation('staging.add', async () => {
     try {
-      await invokeGit('staging.add', { path })
-      await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, diffSource } = useDiffStore.getState()
-      if (selectedFilePath === path) {
-        // 如果已经在查看已暂存视图，只刷新 diff；否则切换到已暂存视图
-        if (diffSource === 'staged') {
-          await useDiffStore.getState().refreshCurrentDiff()
-        } else {
-          await useDiffStore.getState().selectFile(path, 'staged')
-        }
+      const patch = buildSelectionPatch('unstaged', path)
+      if (patch === null) {
+        // null 表示全选或无法构建 → 退化为完整文件暂存（切换视图）
+        await addFullFile(path)
+      } else if (patch === '') {
+        // 空字符串表示无选中行 → 不操作
+        return
+      } else {
+        // 有部分选中行 → apply patch 到暂存区（保留当前视图）
+        await invokeGit('staging.applyPatch', { patch })
+        clearSelection('unstaged', path)
+        // 两侧都重置为全选（发信号给 DiffPane）
+        enqueueReset('unstaged::' + path)
+        enqueueReset('staged::' + path)
+        resetEntry('unstaged', path)
+        resetEntry('staged', path)
+        await refreshAfterFileOperation(path, 'staged', false)
       }
     } catch (err) {
       useUiStore.getState().setError(`Add 失败: ${errorMessage(err)}`)
@@ -46,7 +86,6 @@ export async function addAll(): Promise<void> {
       await useGitStatusStore.getState().refreshStatus()
       const { selectedFilePath, diffSource } = useDiffStore.getState()
       if (selectedFilePath) {
-        // 如果当前已在查看已暂存视图，只刷新；否则切换到已暂存视图
         if (diffSource === 'staged') {
           await useDiffStore.getState().refreshCurrentDiff()
         } else {
@@ -59,19 +98,53 @@ export async function addAll(): Promise<void> {
   })
 }
 
+/**
+ * 完整暂存一个文件（跳过选择状态检查，暂存完整文件，并切换视图）
+ */
+export async function addFullFile(path: string): Promise<void> {
+  await invokeGit('staging.add', { path })
+  // 完整文件操作后，两侧都重置为全选（发信号给 DiffPane）
+  enqueueReset('unstaged::' + path)
+  enqueueReset('staged::' + path)
+  resetEntry('unstaged', path)
+  resetEntry('staged', path)
+  await refreshAfterFileOperation(path, 'staged', true)
+}
+
+/**
+ * 完整取消暂存一个文件（并切换视图）
+ */
+export async function removeFullFile(path: string): Promise<void> {
+  await invokeGit('staging.remove', { path })
+  // 完整文件操作后，两侧都重置为全选（发信号给 DiffPane 清除缓存）
+  enqueueReset('staged::' + path)
+  enqueueReset('unstaged::' + path)
+  resetEntry('staged', path)
+  resetEntry('unstaged', path)
+  await refreshAfterFileOperation(path, 'unstaged', true)
+}
+
+/** 根据选择状态智能取消暂存：全选走完整 remove（切换视图），部分选走 unstageHunk（保留视图） */
 export async function removeFile(path: string): Promise<void> {
   await withOperation('staging.remove', async () => {
     try {
-      await invokeGit('staging.remove', { path })
-      await useGitStatusStore.getState().refreshStatus()
-      const { selectedFilePath, diffSource } = useDiffStore.getState()
-      if (selectedFilePath === path) {
-        // 如果已经在查看未暂存视图，只刷新 diff；否则切换到未暂存视图
-        if (diffSource === 'unstaged') {
-          await useDiffStore.getState().refreshCurrentDiff()
-        } else {
-          await useDiffStore.getState().selectFile(path, 'unstaged')
-        }
+      const patch = buildSelectionPatch('staged', path)
+      if (patch === null) {
+        // null 表示全选或无法构建 → 退化为完整文件取消暂存（切换视图）
+        await removeFullFile(path)
+      } else if (patch === '') {
+        // 空字符串表示无选中行 → 不操作
+        return
+      } else {
+        // 有部分选中行 → unstage patch（保留当前视图）
+        await invokeGit('staging.unstageHunk', { patch })
+        clearSelection('staged', path)
+        // 两侧都重置为全选
+        enqueueReset('staged::' + path)
+        enqueueReset('unstaged::' + path)
+        resetEntry('staged', path)
+        resetEntry('unstaged', path)
+        await refreshAfterFileOperation(path, 'unstaged', false)
       }
     } catch (err) {
       useUiStore.getState().setError(`Remove 失败: ${errorMessage(err)}`)

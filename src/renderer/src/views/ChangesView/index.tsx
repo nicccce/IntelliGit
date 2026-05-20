@@ -3,7 +3,11 @@ import { useRef, useState, useCallback } from 'react'
 import { Button, Empty } from 'antd'
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
 
-import { addAll, addFile, removeFile } from '../../services/gitWorkflowService'
+import {
+  addFile as originalAddFile,
+  removeFile as originalRemoveFile,
+  addAll as originalAddAll
+} from '../../services/gitWorkflowService'
 import { useChangesViewModel } from '../../viewModels'
 import type { DiffSource } from '../../viewModels'
 import { useResizable } from '../../hooks'
@@ -51,6 +55,38 @@ function ChangesView(): JSX.Element {
   const handleSelectFile = (source: DiffSource) => (path: string) => {
     selectFile(path, source)
   }
+
+  // ---------- 包装文件操作：操作完成后立即更新两侧的选择状态标记为全选 ----------
+  const wrappedAddFile = useCallback(async (path: string) => {
+    await originalAddFile(path)
+    // 操作完成后，无论 diff 视图是否显示该文件，两侧都标记为全选
+    setFileSelMap((prev) => ({
+      ...prev,
+      ['unstaged::' + path]: 'all' as FileSelectionState,
+      ['staged::' + path]: 'all' as FileSelectionState
+    }))
+  }, [])
+
+  const wrappedRemoveFile = useCallback(async (path: string) => {
+    await originalRemoveFile(path)
+    setFileSelMap((prev) => ({
+      ...prev,
+      ['staged::' + path]: 'all' as FileSelectionState,
+      ['unstaged::' + path]: 'all' as FileSelectionState
+    }))
+  }, [])
+
+  const wrappedAddAll = useCallback(async () => {
+    await originalAddAll()
+    // 全部暂存后，所有文件两侧都重置为全选
+    setFileSelMap((prev) => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        next[key] = 'all' as FileSelectionState
+      }
+      return next
+    })
+  }, [])
 
   // 左右分割（水平方向），默认左侧占比 40%，最小 25%，最大 55%
   const horizontalContainerRef = useRef<HTMLDivElement>(null)
@@ -113,13 +149,13 @@ function ChangesView(): JSX.Element {
               actionIcon={<PlusOutlined />}
               statusCode={(file) => file.worktree || file.staging}
               onSelectFile={handleSelectFile('unstaged')}
-              onFileAction={addFile}
+              onFileAction={wrappedAddFile}
               getSelectionState={(filePath) => getSelectionState('unstaged', filePath)}
               headerAction={
                 <Button
                   size="small"
                   type="link"
-                  onClick={addAll}
+                  onClick={wrappedAddAll}
                   disabled={unstaged.length === 0 || isBusy}
                 >
                   全部暂存
@@ -147,7 +183,7 @@ function ChangesView(): JSX.Element {
               actionIcon={<CloseOutlined />}
               statusCode={(file) => file.staging}
               onSelectFile={handleSelectFile('staged')}
-              onFileAction={removeFile}
+              onFileAction={wrappedRemoveFile}
               getSelectionState={(filePath) => getSelectionState('staged', filePath)}
             />
           </div>
