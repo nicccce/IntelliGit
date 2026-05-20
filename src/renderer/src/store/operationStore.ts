@@ -13,6 +13,7 @@ export type OperationKey =
   | 'staging.applyPatch'
   | 'staging.unstageHunk'
   | 'commit.create'
+  | 'commit.generateMessage'
   | 'commit.checkoutCommit'
   | 'commit.reset'
   | 'branch.checkout'
