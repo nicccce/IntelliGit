@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
-import { useCallback, useState } from 'react'
-import { ClusterOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Button, Input, Radio, Space, Tag, Tooltip } from 'antd'
+import { useCallback, useMemo, useState } from 'react'
+import { CheckCircleOutlined, ClusterOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { Alert, Button, Input, Radio, Space, Tag, Tooltip } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
 import {
@@ -28,13 +28,39 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const [groups, setGroups] = useState<CommitIntentGroup[]>([])
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null)
   const [smartCommitNotice, setSmartCommitNotice] = useState<string | null>(null)
+  const [commitFeedback, setCommitFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
   const { showSuccess, setError } = useCommitPanelModel()
+  const normalizedCommitMsg = useMemo(() => commitMsg.trim(), [commitMsg])
+  const canCommit = normalizedCommitMsg.length > 0 && stagedCount > 0 && !isBusy && !isCommitRunning
 
   const handleCommit = useCallback(async () => {
-    if (!commitMsg.trim()) return
-    await createCommit(commitMsg.trim())
-    setCommitMsg('')
-  }, [commitMsg])
+    if (!normalizedCommitMsg) {
+      setError('请输入提交信息')
+      return
+    }
+    if (stagedCount === 0) {
+      setError('请先暂存至少一个文件')
+      return
+    }
+
+    setCommitFeedback(null)
+    const result = await createCommit(normalizedCommitMsg)
+    if (result.success) {
+      const successMessage = `提交成功${result.hash ? `: ${result.hash.slice(0, 8)}` : ''}`
+      setCommitMsg('')
+      setGroups([])
+      setSelectedGroupIndex(null)
+      setSmartCommitNotice(null)
+      setCommitFeedback({ type: 'success', message: successMessage })
+      showSuccess(successMessage)
+      return
+    }
+
+    setCommitFeedback({ type: 'error', message: result.error ? `提交失败: ${result.error}` : '提交失败' })
+  }, [normalizedCommitMsg, setError, showSuccess, stagedCount])
 
   const handleGenerateCommitMessage = useCallback(async () => {
     // P1 智能提交入口：调用 Agent 基于暂存区 diff 生成提交信息。
@@ -151,8 +177,14 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           className={styles['ig-commit-input']}
           placeholder="输入提交信息…"
           value={commitMsg}
-          onChange={(event) => setCommitMsg(event.target.value)}
+          onChange={(event) => {
+            setCommitMsg(event.target.value)
+            setCommitFeedback(null)
+          }}
           rows={3}
+          showCount
+          maxLength={500}
+          disabled={isCommitRunning}
         />
         <Tooltip title="AI 生成提交信息">
           <Button
@@ -165,16 +197,32 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           />
         </Tooltip>
       </div>
-      <Button
-        id="btn-commit"
-        className={styles['ig-commit-btn']}
-        type="primary"
-        onClick={handleCommit}
-        disabled={!commitMsg.trim() || stagedCount === 0 || isBusy}
-        loading={isCommitRunning}
-      >
-        {`提交 (${stagedCount} 个文件已暂存)`}
-      </Button>
+
+      <div className={styles['ig-commit-confirm']}>
+        <div className={styles['ig-commit-summary']}>
+          {normalizedCommitMsg ? '提交信息已就绪，可继续编辑后确认提交' : '请生成或输入 Commit Message'}
+        </div>
+        <Button
+          id="btn-commit"
+          className={styles['ig-commit-btn']}
+          type="primary"
+          icon={<CheckCircleOutlined />}
+          onClick={handleCommit}
+          disabled={!canCommit}
+          loading={isCommitRunning}
+        >
+          {`确认创建 Commit (${stagedCount} 个文件已暂存)`}
+        </Button>
+      </div>
+
+      {commitFeedback && (
+        <Alert
+          className={styles['ig-commit-feedback']}
+          type={commitFeedback.type}
+          message={commitFeedback.message}
+          showIcon
+        />
+      )}
     </div>
   )
 }

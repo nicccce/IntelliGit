@@ -182,8 +182,14 @@ export async function unstageHunk(patch: string): Promise<void> {
   }
 }
 
-export async function createCommit(message: string): Promise<void> {
-  await withOperation('commit.create', async () => {
+export interface CreateCommitResult {
+  success: boolean
+  hash?: string
+  error?: string
+}
+
+export async function createCommit(message: string): Promise<CreateCommitResult> {
+  return withOperation('commit.create', async () => {
     try {
       const currentRepo = useRepositoryStore.getState().currentRepo
       const authorEmail = cleanSetting(currentRepo?.commitAuthorEmail)
@@ -191,14 +197,14 @@ export async function createCommit(message: string): Promise<void> {
         cleanSetting(currentRepo?.commitAuthorName) ||
         (authorEmail ? cleanSetting(currentRepo?.authUsername) : undefined)
 
-      await invokeGit('commit.create', {
+      const result = await invokeGit('commit.create', {
         message,
         authorName,
         authorEmail
       })
 
       useHistoryStore.getState().clearSelectedCommit()
-      useUiStore.getState().showSuccess('提交成功')
+      useUiStore.getState().showSuccess(`提交成功: ${result.hash.slice(0, 8)}`)
       await refreshAllLocal()
       refreshRemote().catch((err) =>
         console.error('[gitWorkflowService] createCommit 异步远程刷新失败:', err)
@@ -207,8 +213,12 @@ export async function createCommit(message: string): Promise<void> {
         .getState()
         .fetchAllHistory()
         .catch((err) => console.error('[gitWorkflowService] createCommit 异步获取全历史失败:', err))
+
+      return { success: true, hash: result.hash }
     } catch (err) {
-      useUiStore.getState().setError(`Commit 失败: ${errorMessage(err)}`)
+      const message = errorMessage(err)
+      useUiStore.getState().setError(`Commit 失败: ${message}`)
+      return { success: false, error: message }
     }
   })
 }
