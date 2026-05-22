@@ -10,13 +10,17 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"sync"
 
 	"intelligit-sidecar/internal/handler"
 	"intelligit-sidecar/internal/protocol"
 )
+
+const maxConcurrentRequests = 8
 
 func main() {
 	// 日志输出到 stderr，避免污染 stdout 协议通道
@@ -36,6 +40,9 @@ func main() {
 
 	log.Println("就绪，等待请求...")
 
+	requestSlots := make(chan struct{}, maxConcurrentRequests)
+	var wg sync.WaitGroup
+
 	// 主循环：读取请求 → 分发 → 响应
 	for {
 		req, err := codec.ReadRequest()
@@ -50,20 +57,48 @@ func main() {
 
 		log.Printf("收到请求: id=%s command=%s", req.ID, req.Command)
 
-		// 分发请求并获取响应
-		resp := router.Dispatch(req)
+		requestSlots <- struct{}{}
+		wg.Add(1)
+		go func(r *protocol.Request) {
+			defer wg.Done()
+			defer func() {
+				<-requestSlots
+			}()
 
-		// 写入响应
-		if err := codec.WriteResponse(resp); err != nil {
-			log.Printf("写入响应失败: %v", err)
-		}
-
-		if resp.Success {
-			log.Printf("请求完成: id=%s ✓", req.ID)
-		} else {
-			log.Printf("请求失败: id=%s error=%s", req.ID, resp.Error)
-		}
+			handleRequest(router, codec, r)
+		}(req)
 	}
 
+	wg.Wait()
 	log.Println("IntelliGit Sidecar 已退出")
+}
+
+func handleRequest(router *handler.Router, codec *protocol.Codec, req *protocol.Request) {
+	resp := dispatchRequest(router, req)
+
+	// 写入响应
+	if err := codec.WriteResponse(resp); err != nil {
+		log.Printf("写入响应失败: %v", err)
+	}
+
+	if resp.Success {
+		log.Printf("请求完成: id=%s ✓", req.ID)
+	} else {
+		log.Printf("请求失败: id=%s error=%s", req.ID, resp.Error)
+	}
+}
+
+func dispatchRequest(router *handler.Router, req *protocol.Request) (resp *protocol.Response) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Printf("请求处理 panic: id=%s panic=%v", req.ID, recovered)
+			resp = &protocol.Response{
+				ID:      req.ID,
+				Success: false,
+				Error:   fmt.Sprintf("请求处理 panic: %v", recovered),
+			}
+		}
+	}()
+
+	return router.Dispatch(req)
 }

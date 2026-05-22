@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -15,6 +16,7 @@ type Repository struct {
 	path  string
 	goGit *goGitBackend
 	cli   *gitCliBackend
+	mu    sync.RWMutex
 }
 
 // Open 打开一个已存在的 Git 仓库
@@ -77,124 +79,214 @@ func newRepository(path string, repo *gogit.Repository) *Repository {
 
 // Path 返回仓库根目录路径
 func (r *Repository) Path() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.path
 }
 
 // Head 获取当前 HEAD 引用
 func (r *Repository) Head() (hash string, branch string, err error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Head()
 }
 
 // IsClean 返回工作区是否干净（无未提交的修改）
 func (r *Repository) IsClean() (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.IsClean()
 }
 
 func (r *Repository) Status() ([]FileStatus, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Status()
 }
 
 func (r *Repository) Add(path string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Add(path)
 }
 
 func (r *Repository) AddAll() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.AddAll()
 }
 
 func (r *Repository) AddGlob(pattern string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.AddGlob(pattern)
 }
 
 func (r *Repository) Remove(path string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Remove(path)
 }
 
 func (r *Repository) Restore(path string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Restore(path)
 }
 
 func (r *Repository) ApplyPatch(patchContent string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.cli.ApplyPatch(patchContent)
 }
 
 func (r *Repository) UnstageHunk(patchContent string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.cli.UnstageHunk(patchContent)
 }
 
 func (r *Repository) DiscardHunk(patchContent string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.cli.DiscardHunk(patchContent)
 }
 
 func (r *Repository) Commit(message, authorName, authorEmail string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Commit(message, authorName, authorEmail)
 }
 
 func (r *Repository) Log(max int) ([]CommitInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Log(max)
 }
 
 func (r *Repository) LogFrom(hashStr string, max int) ([]CommitInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.LogFrom(hashStr, max)
 }
 
 func (r *Repository) GetCommit(hashStr string) (*CommitInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.GetCommit(hashStr)
 }
 
 func (r *Repository) Branches() ([]BranchInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Branches()
 }
 
 func (r *Repository) RemoteBranches() ([]BranchInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.RemoteBranches()
 }
 
 func (r *Repository) CurrentBranch() (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.CurrentBranch()
 }
 
 func (r *Repository) CreateBranch(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.CreateBranch(name)
 }
 
 func (r *Repository) DeleteBranch(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.DeleteBranch(name)
 }
 
 func (r *Repository) Checkout(branch string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Checkout(branch)
 }
 
 func (r *Repository) CheckoutNewBranch(branch string, startPoint string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.CheckoutNewBranch(branch, startPoint)
 }
 
 func (r *Repository) AheadBehind(branchName string) (ahead int, behind int, err error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.AheadBehind(branchName)
 }
 
 func (r *Repository) Remotes() ([]RemoteInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Remotes()
 }
 
 func (r *Repository) AddRemote(name, url string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.AddRemote(name, url)
 }
 
 func (r *Repository) SetRemoteURL(name, url string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.SetRemoteURL(name, url)
 }
 
 func (r *Repository) RemoveRemote(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.RemoveRemote(name)
 }
 
 func (r *Repository) Fetch(remoteName string, auth *AuthMethod, progress io.Writer) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.Fetch(remoteName, auth, progress)
 }
 
 func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Writer) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	branchRef, err := r.goGit.PullFastForward(remoteName, auth, progress)
 	if err == nil {
 		return nil
@@ -208,69 +300,120 @@ func (r *Repository) Pull(remoteName string, auth *AuthMethod, progress io.Write
 }
 
 func (r *Repository) Push(remoteName string, auth *AuthMethod, progress io.Writer) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.Push(remoteName, auth, progress)
 }
 
 func (r *Repository) MergeStatus() (*MergeStatusResult, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.cli.MergeStatus()
 }
 
 func (r *Repository) MergeAbort() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.cli.MergeAbort()
 }
 
 func (r *Repository) MergeContinue(message string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.cli.MergeContinue(message)
 }
 
 func (r *Repository) DiffWorkdir(filePath string) (*PatchDetail, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.DiffWorkdir(filePath)
 }
 
 func (r *Repository) DiffStaged(filePath string) (*PatchDetail, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.DiffStaged(filePath)
 }
 
 func (r *Repository) DiffWorkdirRaw(filePath string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.cli.DiffWorkdirRaw(filePath)
 }
 
 func (r *Repository) DiffStagedRaw(filePath string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.cli.DiffStagedRaw(filePath)
 }
 
 func (r *Repository) DiffCommits(hashAStr, hashBStr string) ([]DiffEntry, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.DiffCommits(hashAStr, hashBStr)
 }
 
 func (r *Repository) DiffWithParent(hashStr string) ([]DiffEntry, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.DiffWithParent(hashStr)
 }
 
 func (r *Repository) GetCommitPatch(hashStr string) (*PatchDetail, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.GetCommitPatch(hashStr)
 }
 
 func (r *Repository) FileContentAtCommit(hashStr, filePath string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.FileContentAtCommit(hashStr, filePath)
 }
 
 func (r *Repository) ListFilesAtCommit(hashStr string) ([]string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.ListFilesAtCommit(hashStr)
 }
 
 func (r *Repository) ResetToCommit(hashStr string, mode string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.ResetToCommit(hashStr, mode)
 }
 
 func (r *Repository) CheckoutCommit(hashStr string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	return r.goGit.CheckoutCommit(hashStr)
 }
 
 func (r *Repository) LogAll(max int) ([]CommitInfo, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.goGit.LogAll(max)
 }
 
 func (r *Repository) LogAllRaw(max int) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.cli.LogAllRaw(max)
 }
