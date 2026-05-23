@@ -1,4 +1,4 @@
-﻿package git
+package git
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
+	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
@@ -34,6 +35,7 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 	if err != nil {
 		return nil, fmt.Errorf("获取 index 失败: %w", err)
 	}
+	indexMap := buildIndexMap(idx)
 
 	detail := &PatchDetail{FilePatches: make([]FilePatchInfo, 0)}
 
@@ -46,18 +48,15 @@ func (r *goGitBackend) DiffWorkdir(filePath string) (*PatchDetail, error) {
 		}
 
 		var oldContent string
-		for _, entry := range idx.Entries {
-			if entry.Name == path {
-				blob, bErr := r.repo.BlobObject(entry.Hash)
-				if bErr == nil {
-					reader, rErr := blob.Reader()
-					if rErr == nil {
-						data, _ := io.ReadAll(reader)
-						reader.Close()
-						oldContent = string(data)
-					}
+		if entry, ok := indexMap[path]; ok {
+			blob, bErr := r.repo.BlobObject(entry.Hash)
+			if bErr == nil {
+				reader, rErr := blob.Reader()
+				if rErr == nil {
+					data, _ := io.ReadAll(reader)
+					reader.Close()
+					oldContent = string(data)
 				}
-				break
 			}
 		}
 		if oldContent == "" {
@@ -109,6 +108,7 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 	if err != nil {
 		return nil, fmt.Errorf("获取 index 失败: %w", err)
 	}
+	indexMap := buildIndexMap(idx)
 
 	detail := &PatchDetail{FilePatches: make([]FilePatchInfo, 0)}
 
@@ -130,18 +130,15 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 
 		newContent := ""
 		if fileStatus.Staging != gogit.Deleted {
-			for _, entry := range idx.Entries {
-				if entry.Name == path {
-					blob, bErr := r.repo.BlobObject(entry.Hash)
-					if bErr == nil {
-						reader, rErr := blob.Reader()
-						if rErr == nil {
-							data, _ := io.ReadAll(reader)
-							reader.Close()
-							newContent = string(data)
-						}
+			if entry, ok := indexMap[path]; ok {
+				blob, bErr := r.repo.BlobObject(entry.Hash)
+				if bErr == nil {
+					reader, rErr := blob.Reader()
+					if rErr == nil {
+						data, _ := io.ReadAll(reader)
+						reader.Close()
+						newContent = string(data)
 					}
-					break
 				}
 			}
 		}
@@ -154,6 +151,21 @@ func (r *goGitBackend) DiffStaged(filePath string) (*PatchDetail, error) {
 	}
 
 	return detail, nil
+}
+
+func buildIndexMap(idx *index.Index) map[string]*index.Entry {
+	if idx == nil {
+		return nil
+	}
+
+	indexMap := make(map[string]*index.Entry, len(idx.Entries))
+	for _, entry := range idx.Entries {
+		if _, exists := indexMap[entry.Name]; exists {
+			continue
+		}
+		indexMap[entry.Name] = entry
+	}
+	return indexMap
 }
 
 func (r *goGitBackend) headTree() (*object.Tree, error) {
