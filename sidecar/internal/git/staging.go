@@ -28,6 +28,16 @@ func (r *goGitBackend) Status() ([]FileStatus, error) {
 	// 预先获取 HEAD tree 和 index，用于内容级二次验证
 	headTree, _ := r.headTree()
 	idx, _ := r.repo.Storer.Index()
+	var indexMap map[string]*index.Entry
+	if idx != nil {
+		indexMap = make(map[string]*index.Entry, len(idx.Entries))
+		for _, entry := range idx.Entries {
+			if _, exists := indexMap[entry.Name]; exists {
+				continue
+			}
+			indexMap[entry.Name] = entry
+		}
+	}
 
 	var result []FileStatus
 	for path, s := range status {
@@ -35,17 +45,12 @@ func (r *goGitBackend) Status() ([]FileStatus, error) {
 		if s.Worktree == gogit.Modified {
 			// 获取 reference 内容（优先 index，fallback 到 HEAD）
 			var refContent string
-			if idx != nil {
-				for _, entry := range idx.Entries {
-					if entry.Name == path {
-						if blob, bErr := r.repo.BlobObject(entry.Hash); bErr == nil {
-							if reader, rErr := blob.Reader(); rErr == nil {
-								data, _ := io.ReadAll(reader)
-								reader.Close()
-								refContent = string(data)
-							}
-						}
-						break
+			if entry, ok := indexMap[path]; ok {
+				if blob, bErr := r.repo.BlobObject(entry.Hash); bErr == nil {
+					if reader, rErr := blob.Reader(); rErr == nil {
+						data, _ := io.ReadAll(reader)
+						reader.Close()
+						refContent = string(data)
 					}
 				}
 			}
@@ -84,17 +89,12 @@ func (r *goGitBackend) Status() ([]FileStatus, error) {
 
 			// 获取 index 版本内容作为新版本
 			var indexContent string
-			if idx != nil {
-				for _, entry := range idx.Entries {
-					if entry.Name == path {
-						if blob, bErr := r.repo.BlobObject(entry.Hash); bErr == nil {
-							if reader, rErr := blob.Reader(); rErr == nil {
-								data, _ := io.ReadAll(reader)
-								reader.Close()
-								indexContent = string(data)
-							}
-						}
-						break
+			if entry, ok := indexMap[path]; ok {
+				if blob, bErr := r.repo.BlobObject(entry.Hash); bErr == nil {
+					if reader, rErr := blob.Reader(); rErr == nil {
+						data, _ := io.ReadAll(reader)
+						reader.Close()
+						indexContent = string(data)
 					}
 				}
 			}
