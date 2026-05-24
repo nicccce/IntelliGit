@@ -181,6 +181,10 @@ func (r *goGitBackend) headTree() (*object.Tree, error) {
 }
 
 func isRealChange(fpInfo FilePatchInfo) bool {
+	// 新增空文件：fromPath 为空但 toPath 不为空，视为真实变更
+	if fpInfo.FromPath == "" && fpInfo.ToPath != "" {
+		return true
+	}
 	if fpInfo.IsBinary {
 		return true
 	}
@@ -225,9 +229,10 @@ func buildFilePatch(fromPath, toPath, oldContent, newContent string, isDelete bo
 		return info
 	}
 
-	if len(oldLines) == 0 && len(newLines) > 0 {
+	if len(oldLines) == 0 && len(newLines) == 0 {
+		// 新增空文件：old 空，new 也为空，表示新增了一个完全空的文件
+		// 不添加任何 chunk（Chunks 保持为空），但通过 isRealChange 识别
 		info.FromPath = ""
-		info.Chunks = append(info.Chunks, ChunkInfo{Content: strings.Join(newLines, "\n") + "\n", Type: "Add"})
 		return info
 	}
 

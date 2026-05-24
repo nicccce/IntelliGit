@@ -25,8 +25,15 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
 
   if (!diff) return <div className={styles['ig-diff-empty']}>加载中...</div>
 
+  // 修改后文件内容无差异
   if (diff.filePatches.length === 0)
     return <div className={styles['ig-diff-empty']}>无差异内容</div>
+
+  // 新增空文件
+  const isEmptyNewFile =
+    diff.filePatches.length > 0 &&
+    diff.filePatches.every((fp) => !fp.isBinary && fp.chunks.length === 0)
+  if (isEmptyNewFile) return <div className={styles['ig-diff-empty']}>新增文件为空</div>
 
   return (
     <div className={styles['ig-diff-scroll']}>

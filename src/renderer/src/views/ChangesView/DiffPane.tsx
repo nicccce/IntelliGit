@@ -203,16 +203,18 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
 
       if (onSelectionChange) {
         const state: FileSelectionState =
-          selectedSet.size === 0
-            ? 'none'
-            : selectedSet.size === allChangedKeys.size
-              ? 'all'
-              : 'partial'
+          allChangedKeys.size === 0
+            ? 'all'
+            : selectedSet.size === 0
+              ? 'none'
+              : selectedSet.size === allChangedKeys.size
+                ? 'all'
+                : 'partial'
         onSelectionChange(diffSource, selectedFilePath, state)
       }
 
-      // 如果选择集为空，清理注册表
-      if (selectedSet.size === 0) {
+      // 如果选择集为空，清理注册表（但空文件除外，空文件应始终视为全选）
+      if (allChangedKeys.size > 0 && selectedSet.size === 0) {
         clearSelection(diffSource, selectedFilePath)
       }
     }
@@ -227,12 +229,14 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
   ])
 
   const isAllSelected = useMemo(
-    () => allChangedKeys.size > 0 && allChangedKeys.size === selectedSet.size,
+    () =>
+      allChangedKeys.size === 0 ||
+      (allChangedKeys.size > 0 && allChangedKeys.size === selectedSet.size),
     [allChangedKeys, selectedSet]
   )
   const isPartiallySelected = useMemo(
-    () => selectedSet.size > 0 && !isAllSelected,
-    [selectedSet, isAllSelected]
+    () => allChangedKeys.size > 0 && selectedSet.size > 0 && !isAllSelected,
+    [allChangedKeys.size, selectedSet.size, isAllSelected]
   )
 
   const onToggleLine = useCallback((key: string) => {
@@ -283,7 +287,8 @@ function DiffPane({ selectedFilePath, diffSource, onSelectionChange }: DiffPaneP
 
   const sourceLabel = diffSource === 'staged' ? '（已暂存）' : '（未暂存）'
 
-  const checkAllDisabled = allChangedKeys.size === 0
+  const checkAllDisabled =
+    allChangedKeys.size === 0 && diff !== null ? false : allChangedKeys.size === 0
 
   return (
     <div className={styles['ig-diff-view']}>
