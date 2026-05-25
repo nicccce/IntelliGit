@@ -1,31 +1,62 @@
 .ig-global-settings {
   display: flex;
-  height: 100%;
+  min-height: 100%;
   flex-direction: column;
   overflow-y: auto;
   padding: var(--space-md);
   gap: var(--space-md);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
 }
 
 .ig-settings-section {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-md);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
 }
 
 .ig-settings-section:last-child {
   border-bottom: none;
 }
 
-.ig-settings-section h3 {
+.ig-section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.ig-section-title h3 {
   margin: 0 0 2px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.ig-section-title span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.ig-settings-empty:global(.ant-empty) {
+  margin: 4px 0;
+  padding: var(--space-sm);
+  border: 1px dashed var(--border-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+}
+
+.ig-settings-empty :global(.ant-empty-description) {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .ig-form-group {
@@ -48,9 +79,10 @@
   align-items: center;
   gap: var(--space-sm);
   padding: 6px var(--space-sm);
+  border: 1px solid var(--border-secondary);
   border-radius: 4px;
   font-size: 12px;
-  background: var(--bg-subtle);
+  background: var(--bg-tertiary);
 }
 
 .ig-status-dot {

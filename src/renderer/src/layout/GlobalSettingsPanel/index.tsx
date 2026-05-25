@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import { Alert, Button, Input, Segmented, Slider, Tooltip } from 'antd'
+import { Alert, Button, Empty, Input, Segmented, Slider, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 
 import SidePanelShell from '../../components/SidePanelShell'
@@ -40,10 +40,14 @@ function getStatusLabel(status: string): string {
 function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProps): JSX.Element | null {
   if (!isOpen) return null
 
-  return <GlobalSettingsPanelContent isOpen={isOpen} onClose={onClose} />
+  return <GlobalSettingsPanelContent onClose={onClose} />
 }
 
-function GlobalSettingsPanelContent({ isOpen, onClose }: GlobalSettingsPanelProps): JSX.Element {
+interface GlobalSettingsPanelContentProps {
+  onClose: () => void
+}
+
+function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps): JSX.Element {
   const { config, status, error } = useGlobalSettingsPanelModel()
 
   const [provider, setProvider] = useState<LlmProvider>(config?.provider ?? 'openai')
@@ -55,17 +59,25 @@ function GlobalSettingsPanelContent({ isOpen, onClose }: GlobalSettingsPanelProp
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
 
-  const initialValues = useMemo(
-    () => ({
-      provider: config?.provider ?? 'openai',
+  const initialValues = useMemo(() => {
+    const configProvider = config?.provider ?? 'openai'
+
+    return {
+      provider: configProvider,
       apiKey: config?.apiKey ?? '',
       baseUrl: config?.baseUrl ?? '',
-      modelName: config?.modelName ?? DEFAULT_MODELS[config?.provider ?? 'openai'],
+      modelName: config?.modelName ?? DEFAULT_MODELS[configProvider],
       temperature: config?.temperature ?? 0.2,
       maxTokens: config?.maxTokens ?? 4096
-    }),
-    [config]
-  )
+    }
+  }, [
+    config?.apiKey,
+    config?.baseUrl,
+    config?.maxTokens,
+    config?.modelName,
+    config?.provider,
+    config?.temperature
+  ])
 
   const isDirty =
     provider !== initialValues.provider ||
@@ -131,11 +143,22 @@ function GlobalSettingsPanelContent({ isOpen, onClose }: GlobalSettingsPanelProp
   const canTest = !testing && !!config && !isDirty
 
   return (
-    <SidePanelShell title="全局设置" isOpen={isOpen} onClose={onClose}>
+    <SidePanelShell title="全局设置" isOpen={true} onClose={onClose}>
       <div className={styles['ig-global-settings']}>
         {/* AI 服务配置 */}
         <div className={styles['ig-settings-section']}>
-          <h3>AI 服务</h3>
+          <div className={styles['ig-section-title']}>
+            <h3>AI 服务</h3>
+            <span>{config ? '已保存模型配置' : '未配置，可先填写后保存'}</span>
+          </div>
+
+          {!config && (
+            <Empty
+              className={styles['ig-settings-empty']}
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="配置 AI 服务后，可用于智能生成提交信息和变更分组"
+            />
+          )}
 
           <div className={styles['ig-form-group']}>
             <label>服务商</label>
@@ -224,7 +247,7 @@ function GlobalSettingsPanelContent({ isOpen, onClose }: GlobalSettingsPanelProp
             <Alert
               type="error"
               showIcon
-              message="AI 服务连接失败，请检查 API Key 和网络配置"
+              description="AI 服务连接失败，请检查 API Key 和网络配置"
             />
           )}
 

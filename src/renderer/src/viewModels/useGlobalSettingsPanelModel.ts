@@ -1,12 +1,20 @@
+import type { AgentStatus, LlmConfig } from '../agent/types'
 import { useLlmConfigStore } from '../store/llmConfigStore'
-import { selectLlmConfigSnapshot } from '../store/selectors'
 
 interface GlobalSettingsPanelModel {
-  config: ReturnType<typeof selectLlmConfigSnapshot>['config']
-  status: ReturnType<typeof selectLlmConfigSnapshot>['status']
-  error: ReturnType<typeof selectLlmConfigSnapshot>['error']
+  config: LlmConfig | undefined
+  status: AgentStatus
+  error: string | null
 }
 
 export function useGlobalSettingsPanelModel(): GlobalSettingsPanelModel {
-  return useLlmConfigStore(selectLlmConfigSnapshot)
+  const config = useLlmConfigStore((state) => state.config)
+  const status = useLlmConfigStore((state) => state.status)
+  const error = useLlmConfigStore((state) => state.error)
+
+  return {
+    config,
+    status,
+    error
+  }
 }

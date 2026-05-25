@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Spin } from 'antd'
 
 import { useRepositoryStore, useUiStore } from '../store'
@@ -29,12 +29,14 @@ function MainApp(): JSX.Element {
   const toggleSidePanel = useUiStore(selectToggleSidePanel)
 
   const { themeMode, toggleTheme } = useThemeMode()
+  const refreshLocal = useCallback(() => refreshAllLocal(), [])
+
   useEffect(() => {
     loadConfig()
   }, [])
 
   useSidecarHealthCheck()
-  useAutoRefresh(currentRepo?.path, refreshAllLocal)
+  useAutoRefresh(currentRepo?.path, refreshLocal)
 
   if (!configLoaded) {
     return (
