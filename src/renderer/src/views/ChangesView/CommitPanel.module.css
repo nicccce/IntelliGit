@@ -1,143 +1,247 @@
 .ig-commit-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  background: var(--bg-secondary);
+  display: grid;
   height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(86px, 1fr) 76px auto auto;
+  gap: 8px;
+  overflow: hidden;
+  padding: 8px;
+  border-top: 1px solid var(--border-secondary);
+  background: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
 }
 
 .ig-group-toolbar {
   display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.ig-toolbar-copy {
+  min-width: 0;
+}
+
+.ig-toolbar-title {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ig-toolbar-subtitle {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-toolbar-actions {
+  display: flex;
   flex-shrink: 0;
+  gap: 6px;
+}
+
+.ig-commit-scroll-area {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
 }
 
 .ig-smart-notice {
   flex-shrink: 0;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: 7px;
   color: var(--text-secondary);
   background: var(--surface-hover);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
 .ig-group-list {
-  flex-shrink: 0;
-  max-height: 110px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 6px;
   border: 1px solid var(--border-secondary);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg-primary);
+}
+
+.ig-group-space {
+  width: 100%;
+}
+
+.ig-group-radio:global(.ant-radio-wrapper) {
+  width: 100%;
+  margin-inline-end: 0;
+  align-items: flex-start;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ig-group-radio:global(.ant-radio-wrapper):hover {
+  border-color: var(--border-focus);
+  background: var(--surface-hover);
+}
+
+.ig-group-radio:global(.ant-radio-wrapper-checked) {
+  border-color: var(--border-focus);
+  background: var(--surface-active);
 }
 
 .ig-group-item {
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   max-width: 100%;
 }
 
 .ig-group-title {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   color: var(--text-primary);
   font-size: 12px;
+  font-weight: 600;
+}
+
+.ig-group-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ig-group-files {
-  max-width: 360px;
+  max-width: 100%;
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 11px;
+  line-height: 1.4;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .ig-input-wrapper {
   position: relative;
-  flex: 1;
-  min-height: 60px;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
 }
 
 .ig-commit-input:global(.ant-input) {
   width: 100%;
   height: 100%;
-  min-height: 60px;
+  min-height: 76px;
   color: var(--text-primary);
-  background: var(--bg-primary);
+  background: transparent;
   resize: none;
   box-sizing: border-box;
-  padding-right: 40px;
-  padding-bottom: 36px;
+  border: none;
+  padding-right: 44px;
+  padding-bottom: 32px;
 }
 
-.ig-commit-input::-webkit-scrollbar {
-  width: 5px;
-}
-
-.ig-commit-input::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.ig-commit-input::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
-  border-radius: 3px;
-}
-
-.ig-commit-input::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+.ig-commit-input:global(.ant-input):focus {
+  box-shadow: none;
 }
 
 .ig-ai-btn:global(.ant-btn) {
   position: absolute;
-  left: 8px;
+  right: 8px;
   bottom: 8px;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--accent-blue);
   background: var(--surface-active);
   border: 1px solid var(--border-focus);
-  border-radius: 6px;
+  border-radius: 7px;
   font-size: 13px;
   z-index: 1;
-  opacity: 0.7;
-  transition: opacity var(--transition-fast);
+  opacity: 0.78;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 
 .ig-ai-btn:global(.ant-btn):hover {
   opacity: 1;
+  transform: translateY(-1px);
 }
 
 .ig-commit-confirm {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
 }
 
 .ig-commit-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.4;
 }
 
+.ig-commit-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ig-commit-btn:global(.ant-btn) {
   flex-shrink: 0;
   width: 100%;
-  height: 28px;
+  height: 30px;
   font-size: 12px;
+  font-weight: 600;
 }
 
 .ig-commit-feedback:global(.ant-alert) {
-  flex-shrink: 0;
-  padding: 6px 8px;
+  min-height: 0;
+  padding: 5px 8px;
+  border-radius: 8px;
   font-size: 12px;
+}
+
+.ig-commit-input::-webkit-scrollbar,
+.ig-group-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ig-commit-input::-webkit-scrollbar-track,
+.ig-group-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-commit-input::-webkit-scrollbar-thumb,
+.ig-group-list::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
+.ig-commit-input::-webkit-scrollbar-thumb:hover,
+.ig-group-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

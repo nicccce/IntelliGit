@@ -34,6 +34,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   } | null>(null)
   const { showSuccess, setError } = useCommitPanelModel()
   const normalizedCommitMsg = useMemo(() => commitMsg.trim(), [commitMsg])
+  const selectedGroup = selectedGroupIndex === null ? null : groups[selectedGroupIndex]
   const canCommit = normalizedCommitMsg.length > 0 && stagedCount > 0 && !isBusy && !isCommitRunning
 
   const handleCommit = useCallback(async () => {
@@ -125,51 +126,35 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   return (
     <div className={styles['ig-commit-panel']}>
       <div className={styles['ig-group-toolbar']}>
-        <Button
-          size="small"
-          icon={<ClusterOutlined />}
-          loading={isAnalyzingGroups}
-          disabled={isBusy || isCommitRunning}
-          onClick={handleAnalyzeGroups}
-        >
-          分析变更分组
-        </Button>
-        {groups.length > 0 && (
+        <div className={styles['ig-toolbar-copy']}>
+          <div className={styles['ig-toolbar-title']}>智能提交</div>
+          <div className={styles['ig-toolbar-subtitle']}>
+            {groups.length > 0 ? `已生成 ${groups.length} 个变更分组` : '先分析变更，再选择分组暂存'}
+          </div>
+        </div>
+        <div className={styles['ig-toolbar-actions']}>
           <Button
             size="small"
-            type="primary"
-            loading={isAiGenerating}
-            disabled={selectedGroupIndex === null || isBusy || isCommitRunning}
-            onClick={handleStageSelectedGroup}
+            icon={<ClusterOutlined />}
+            loading={isAnalyzingGroups}
+            disabled={isBusy || isCommitRunning}
+            onClick={handleAnalyzeGroups}
           >
-            暂存所选分组
+            分析分组
           </Button>
-        )}
+          {groups.length > 0 && (
+            <Button
+              size="small"
+              type="primary"
+              loading={isAiGenerating}
+              disabled={selectedGroupIndex === null || isBusy || isCommitRunning}
+              onClick={handleStageSelectedGroup}
+            >
+              暂存所选
+            </Button>
+          )}
+        </div>
       </div>
-
-      {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
-
-      {groups.length > 0 && (
-        <Radio.Group
-          className={styles['ig-group-list']}
-          value={selectedGroupIndex}
-          onChange={(event) => setSelectedGroupIndex(event.target.value)}
-        >
-          <Space direction="vertical" size={6}>
-            {groups.map((group, index) => (
-              <Radio key={`${group.type}-${group.summary}-${index}`} value={index}>
-                <div className={styles['ig-group-item']}>
-                  <div className={styles['ig-group-title']}>
-                    <Tag color="blue">{group.type}</Tag>
-                    <span>{group.summary}</span>
-                  </div>
-                  <div className={styles['ig-group-files']}>{group.files.join('、')}</div>
-                </div>
-              </Radio>
-            ))}
-          </Space>
-        </Radio.Group>
-      )}
 
       <div className={styles['ig-input-wrapper']}>
         <TextArea
@@ -200,7 +185,8 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
 
       <div className={styles['ig-commit-confirm']}>
         <div className={styles['ig-commit-summary']}>
-          {normalizedCommitMsg ? '提交信息已就绪，可继续编辑后确认提交' : '请生成或输入 Commit Message'}
+          <span>{normalizedCommitMsg ? '提交信息已就绪' : '请生成或输入 Commit Message'}</span>
+          {selectedGroup && <span>{`当前分组：${selectedGroup.summary}`}</span>}
         </div>
         <Button
           id="btn-commit"
@@ -222,6 +208,38 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           message={commitFeedback.message}
           showIcon
         />
+      )}
+
+      {(smartCommitNotice || groups.length > 0) && (
+        <div className={styles['ig-commit-scroll-area']}>
+          {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
+
+          {groups.length > 0 && (
+            <Radio.Group
+              className={styles['ig-group-list']}
+              value={selectedGroupIndex}
+              onChange={(event) => setSelectedGroupIndex(event.target.value)}
+            >
+              <Space direction="vertical" size={6} className={styles['ig-group-space']}>
+                {groups.map((group, index) => (
+                  <Radio
+                    key={`${group.type}-${group.summary}-${index}`}
+                    className={styles['ig-group-radio']}
+                    value={index}
+                  >
+                    <div className={styles['ig-group-item']}>
+                      <div className={styles['ig-group-title']}>
+                        <Tag color="blue">{group.type}</Tag>
+                        <span>{group.summary}</span>
+                      </div>
+                      <div className={styles['ig-group-files']}>{group.files.join('、')}</div>
+                    </div>
+                  </Radio>
+                ))}
+              </Space>
+            </Radio.Group>
+          )}
+        </div>
       )}
     </div>
   )

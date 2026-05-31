@@ -40,6 +40,21 @@ interface OpenAIResponse {
   }>
 }
 
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com'
+
+function normalizeOpenAIBaseUrl(baseUrl: string | undefined): string {
+  const normalized = (baseUrl || DEFAULT_OPENAI_BASE_URL).trim().replace(/\/+$/, '')
+  return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`
+}
+
+function buildOpenAIEndpoint(baseUrl: string): string {
+  return `${baseUrl}/chat/completions`
+}
+
+function sanitizeLlmError(text: string): string {
+  return text.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-***')
+}
+
 function toOpenAIMessages(messages: AgentMessage[]): OpenAIMessage[] {
   return messages.map((msg) => {
     if (msg.role === 'tool') {
@@ -80,7 +95,7 @@ class OpenAICompatibleClient implements LlmClient {
 
   constructor(config: LlmConfig) {
     this.config = config
-    this.baseUrl = (config.baseUrl || 'https://api.openai.com').replace(/\/$/, '')
+    this.baseUrl = normalizeOpenAIBaseUrl(config.baseUrl)
   }
 
   async chat(messages: AgentMessage[], tools?: ToolDefinition[]): Promise<LlmResponse> {
@@ -95,18 +110,17 @@ class OpenAICompatibleClient implements LlmClient {
       body.tool_choice = 'auto'
     }
 
-    const res = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-      method: 'POST',
+    const res = await window.electronAPI.proxyLlmRequest({
+      url: buildOpenAIEndpoint(this.baseUrl),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.config.apiKey}` },
       body: JSON.stringify(body)
     })
 
     if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText)
-      throw new Error(`LLM 请求失败 ${res.status}: ${text}`)
+      throw new Error(`LLM 请求失败 ${res.status}: ${sanitizeLlmError(res.body || res.statusText)}`)
     }
 
-    const data = (await res.json()) as OpenAIResponse
+    const data = JSON.parse(res.body) as OpenAIResponse
     const choice = data.choices[0]
     const rawToolCalls = choice.message.tool_calls
 
@@ -228,8 +242,8 @@ class AnthropicClient implements LlmClient {
     }
 
     const baseUrl = (this.config.baseUrl || 'https://api.anthropic.com').replace(/\/$/, '')
-    const res = await fetch(`${baseUrl}/v1/messages`, {
-      method: 'POST',
+    const res = await window.electronAPI.proxyLlmRequest({
+      url: `${baseUrl}/v1/messages`,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': this.config.apiKey,
@@ -239,11 +253,10 @@ class AnthropicClient implements LlmClient {
     })
 
     if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText)
-      throw new Error(`LLM 请求失败 ${res.status}: ${text}`)
+      throw new Error(`LLM 请求失败 ${res.status}: ${sanitizeLlmError(res.body || res.statusText)}`)
     }
 
-    const data = (await res.json()) as AnthropicResponse
+    const data = JSON.parse(res.body) as AnthropicResponse
     const textBlocks = data.content.filter((c) => c.type === 'text')
     const toolBlocks = data.content.filter((c) => c.type === 'tool_use')
 

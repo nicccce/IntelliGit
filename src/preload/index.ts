@@ -59,6 +59,10 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.CHECK_DIR_EMPTY, path)
   },
 
+  proxyLlmRequest: (request) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LLM_PROXY, request)
+  },
+
   mode: resolveElectronMode(process.env.ELECTRON_MODE)
 }
 

@@ -26,8 +26,12 @@ const PROVIDER_HINTS: Record<LlmProvider, string> = {
 }
 
 const DEFAULT_MODELS: Record<LlmProvider, string> = {
-  openai: 'gpt-4o',
+  openai: 'deepseek-chat',
   anthropic: 'claude-3-5-sonnet-20241022'
+}
+
+const DEFAULT_BASE_URLS: Partial<Record<LlmProvider, string>> = {
+  openai: 'https://api.deepseek.com'
 }
 
 function getStatusLabel(status: string): string {
@@ -52,7 +56,7 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
 
   const [provider, setProvider] = useState<LlmProvider>(config?.provider ?? 'openai')
   const [apiKey, setApiKey] = useState(config?.apiKey ?? '')
-  const [baseUrl, setBaseUrl] = useState(config?.baseUrl ?? '')
+  const [baseUrl, setBaseUrl] = useState(config?.baseUrl ?? DEFAULT_BASE_URLS[config?.provider ?? 'openai'] ?? '')
   const [modelName, setModelName] = useState(config?.modelName ?? DEFAULT_MODELS[config?.provider ?? 'openai'])
   const [temperature, setTemperature] = useState(config?.temperature ?? 0.2)
   const [maxTokens, setMaxTokens] = useState(config?.maxTokens ?? 4096)
@@ -65,7 +69,7 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
     return {
       provider: configProvider,
       apiKey: config?.apiKey ?? '',
-      baseUrl: config?.baseUrl ?? '',
+      baseUrl: config?.baseUrl ?? DEFAULT_BASE_URLS[configProvider] ?? '',
       modelName: config?.modelName ?? DEFAULT_MODELS[configProvider],
       temperature: config?.temperature ?? 0.2,
       maxTokens: config?.maxTokens ?? 4096
@@ -94,8 +98,11 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
       if (!modelName || modelName === DEFAULT_MODELS[provider]) {
         setModelName(DEFAULT_MODELS[next])
       }
+      if (!baseUrl || baseUrl === DEFAULT_BASE_URLS[provider]) {
+        setBaseUrl(DEFAULT_BASE_URLS[next] ?? '')
+      }
     },
-    [modelName, provider]
+    [baseUrl, modelName, provider]
   )
 
   const handleSave = useCallback(async () => {
@@ -121,7 +128,7 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
     try {
       await saveLlmConfig(undefined)
       setApiKey('')
-      setBaseUrl('')
+      setBaseUrl(DEFAULT_BASE_URLS[provider] ?? '')
       setModelName(DEFAULT_MODELS[provider])
       setTemperature(0.2)
       setMaxTokens(4096)
@@ -188,7 +195,7 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
               <Input
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="https://api.openai.com（留空使用默认）"
+                placeholder="https://api.deepseek.com（兼容 OpenAI 协议）"
               />
             </div>
           )}

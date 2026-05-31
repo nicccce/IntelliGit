@@ -101,7 +101,7 @@ export const COMMIT_MESSAGE_SCHEMA: JsonSchema = {
   properties: {
     type: {
       type: 'string',
-      enum: ['feat', 'fix', 'refactor', 'style', 'docs', 'test', 'chore', 'perf']
+      enum: ['feat', 'fix', 'refactor', 'style', 'docs', 'test', 'chore', 'perf', 'build', 'ci']
     },
     scope: { type: 'string' },
     subject: { type: 'string' },

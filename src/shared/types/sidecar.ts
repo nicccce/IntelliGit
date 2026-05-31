@@ -74,6 +74,19 @@ export interface LlmConfig {
   maxTokens?: number
 }
 
+export interface LlmProxyRequest {
+  url: string
+  headers: Record<string, string>
+  body: string
+}
+
+export interface LlmProxyResponse {
+  ok: boolean
+  status: number
+  statusText: string
+  body: string
+}
+
 // ─── 仓库配置（持久化存储） ───────────────────────────────────────────────────
 
 /** 单个仓库的配置信息 */
@@ -129,7 +142,9 @@ export const IPC_CHANNELS = {
   /** 检查目录是否存在 */
   CHECK_DIR_EXISTS: 'check:dirExists',
   /** 检查目录是否为空 */
-  CHECK_DIR_EMPTY: 'check:dirEmpty'
+  CHECK_DIR_EMPTY: 'check:dirEmpty',
+  /** 渲染进程 -> 主进程：代理 LLM HTTP 请求 */
+  LLM_PROXY: 'llm:proxy'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -153,6 +168,8 @@ export interface ElectronAPI {
   checkDirExists: (path: string) => Promise<boolean>
   /** 检查目录是否为空 */
   checkDirEmpty: (path: string) => Promise<boolean>
+  /** 代理 LLM HTTP 请求 */
+  proxyLlmRequest: (request: LlmProxyRequest) => Promise<LlmProxyResponse>
   /** 当前运行模式（test 或 main） */
   mode: ElectronMode
 }

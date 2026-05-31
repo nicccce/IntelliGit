@@ -62,9 +62,9 @@
 /* ========== 提交面板固定锚点 ========== */
 .ig-commit-anchor {
   flex-shrink: 0;
-  height: 156px;
-  min-height: 120px;
-  max-height: 240px;
+  height: 280px;
+  min-height: 240px;
+  max-height: 320px;
   overflow: hidden;
   border-top: 1px solid var(--border-primary);
   background: var(--bg-secondary);

@@ -48,9 +48,37 @@ function truncateDiffForPrompt(diff: string): string {
 function formatCommitMessage(result: CommitMessageResult): string {
   return buildCommitMessage({
     ...result,
+    type: result.type?.trim() || 'chore',
     scope: result.scope?.trim() || undefined,
-    body: result.body?.trim() || undefined
+    subject: result.subject?.trim() || '更新代码变更',
+    body: result.body?.trim() || undefined,
+    breaking: Boolean(result.breaking)
   })
+}
+
+function sanitizeGroups(
+  result: SmartCommitAnalysisResult,
+  inputFiles: string[]
+): SmartCommitAnalysisResult | null {
+  const allowedFiles = new Set(inputFiles)
+  const usedFiles = new Set<string>()
+  const groups = result.groups
+    .map((group) => ({
+      ...group,
+      type: group.type.trim() || 'chore',
+      scope: group.scope?.trim() || undefined,
+      summary: group.summary.trim(),
+      files: group.files
+        .map((file) => file.trim())
+        .filter((file) => allowedFiles.has(file) && !usedFiles.has(file))
+    }))
+    .filter((group) => {
+      group.files.forEach((file) => usedFiles.add(file))
+      return group.summary && group.files.length > 0
+    })
+    .slice(0, 5)
+
+  return groups.length > 0 ? { groups } : null
 }
 
 function hasUsableLlmConfig(config: LlmConfig | undefined): config is LlmConfig {
@@ -86,7 +114,15 @@ export class LlmSmartCommitProvider implements SmartCommitProvider {
       (rawOutput) => parseStructured<SmartCommitAnalysisResult>(rawOutput, COMMIT_GROUPS_SCHEMA)
     )
 
-    if (result.success && result.data) return result
+    if (result.success && result.data) {
+      const sanitized = sanitizeGroups(result.data, input.files)
+      if (sanitized) {
+        return {
+          ...result,
+          data: sanitized
+        }
+      }
+    }
 
     const fallback = fallbackCommitGroups(input.files) as AgentResult<SmartCommitAnalysisResult>
     return {
