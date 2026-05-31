@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import { useCallback, useMemo, useState } from 'react'
 import { CheckCircleOutlined, ClusterOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, Button, Input, Radio, Space, Tag, Tooltip } from 'antd'
+import { Alert, Button, Collapse, Input, Radio, Space, Tag, Tooltip } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
 import {
@@ -211,35 +211,48 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       )}
 
       {(smartCommitNotice || groups.length > 0) && (
-        <div className={styles['ig-commit-scroll-area']}>
-          {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
+        <Collapse
+          className={styles['ig-group-collapse']}
+          size="small"
+          defaultActiveKey={groups.length > 0 ? ['groups'] : []}
+          items={[
+            {
+              key: 'groups',
+              label: groups.length > 0 ? `分析结果：${groups.length} 个分组` : '智能提交提示',
+              children: (
+                <div className={styles['ig-commit-scroll-area']}>
+                  {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
 
-          {groups.length > 0 && (
-            <Radio.Group
-              className={styles['ig-group-list']}
-              value={selectedGroupIndex}
-              onChange={(event) => setSelectedGroupIndex(event.target.value)}
-            >
-              <Space direction="vertical" size={6} className={styles['ig-group-space']}>
-                {groups.map((group, index) => (
-                  <Radio
-                    key={`${group.type}-${group.summary}-${index}`}
-                    className={styles['ig-group-radio']}
-                    value={index}
-                  >
-                    <div className={styles['ig-group-item']}>
-                      <div className={styles['ig-group-title']}>
-                        <Tag color="blue">{group.type}</Tag>
-                        <span>{group.summary}</span>
-                      </div>
-                      <div className={styles['ig-group-files']}>{group.files.join('、')}</div>
-                    </div>
-                  </Radio>
-                ))}
-              </Space>
-            </Radio.Group>
-          )}
-        </div>
+                  {groups.length > 0 && (
+                    <Radio.Group
+                      className={styles['ig-group-list']}
+                      value={selectedGroupIndex}
+                      onChange={(event) => setSelectedGroupIndex(event.target.value)}
+                    >
+                      <Space direction="vertical" size={6} className={styles['ig-group-space']}>
+                        {groups.map((group, index) => (
+                          <Radio
+                            key={`${group.type}-${group.summary}-${index}`}
+                            className={styles['ig-group-radio']}
+                            value={index}
+                          >
+                            <div className={styles['ig-group-item']}>
+                              <div className={styles['ig-group-title']}>
+                                <Tag color="blue">{group.type}</Tag>
+                                <span>{group.summary}</span>
+                              </div>
+                              <div className={styles['ig-group-files']}>{group.files.join('、')}</div>
+                            </div>
+                          </Radio>
+                        ))}
+                      </Space>
+                    </Radio.Group>
+                  )}
+                </div>
+              )
+            }
+          ]}
+        />
       )}
     </div>
   )
