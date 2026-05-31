@@ -1,10 +1,10 @@
 .ig-commit-panel {
-  display: grid;
+  display: flex;
   height: 100%;
   min-height: 0;
-  grid-template-rows: auto minmax(86px, 1fr) 76px auto auto;
+  flex-direction: column;
   gap: 8px;
-  overflow: hidden;
+  overflow: auto;
   padding: 8px;
   border-top: 1px solid var(--border-secondary);
   background: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
@@ -48,8 +48,34 @@
   gap: 6px;
 }
 
+.ig-group-collapse:global(.ant-collapse) {
+  flex: 0 0 auto;
+  max-height: 170px;
+  overflow: auto;
+  border-color: var(--border-secondary);
+  background: var(--bg-primary);
+}
+
+.ig-group-collapse :global(.ant-collapse-header) {
+  align-items: center !important;
+  padding: 6px 8px !important;
+  color: var(--text-primary) !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ig-group-collapse :global(.ant-collapse-content) {
+  border-color: var(--border-secondary);
+  background: var(--bg-primary);
+}
+
+.ig-group-collapse :global(.ant-collapse-content-box) {
+  padding: 6px !important;
+}
+
 .ig-commit-scroll-area {
   display: flex;
+  max-height: 120px;
   min-height: 0;
   flex-direction: column;
   gap: 6px;
@@ -137,7 +163,8 @@
 
 .ig-input-wrapper {
   position: relative;
-  min-height: 0;
+  min-height: 88px;
+  flex: 0 0 88px;
   overflow: hidden;
   border: 1px solid var(--border-secondary);
   border-radius: 8px;
