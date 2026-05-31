@@ -39,18 +39,43 @@ export interface SmartCommitAnalyzeInput {
  * 注意：这里仅截断 AI 分析上下文，不会修改真实工作区或暂存区内容。
  */
 const MAX_DIFF_CONTEXT_LENGTH = 20000
+const MAX_COMMIT_SUBJECT_LENGTH = 72
+const MAX_GROUP_SUMMARY_LENGTH = 60
+const COMMIT_TYPES = new Set(['feat', 'fix', 'refactor', 'style', 'docs', 'test', 'chore', 'perf', 'build', 'ci'])
+const SCOPE_PATTERN = /^[a-z][a-z0-9-]*$/
 
 function truncateDiffForPrompt(diff: string): string {
   if (diff.length <= MAX_DIFF_CONTEXT_LENGTH) return diff
   return `${diff.slice(0, MAX_DIFF_CONTEXT_LENGTH)}\n\n... diff 内容过长，已截断，仅用于生成提交建议 ...`
 }
 
+function limitText(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLength) return normalized
+  return normalized.slice(0, maxLength).trimEnd()
+}
+
+function sanitizeType(type: string | undefined): string {
+  const normalized = type?.trim().toLowerCase()
+  return normalized && COMMIT_TYPES.has(normalized) ? normalized : 'chore'
+}
+
+function sanitizeScope(scope: string | undefined): string | undefined {
+  const normalized = scope?.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+  if (!normalized || !SCOPE_PATTERN.test(normalized)) return undefined
+  return normalized
+}
+
+function sanitizeSubject(subject: string | undefined): string {
+  const normalized = limitText(subject || '更新代码变更', MAX_COMMIT_SUBJECT_LENGTH)
+  return normalized.replace(/[。.!！]+$/g, '') || '更新代码变更'
+}
+
 function formatCommitMessage(result: CommitMessageResult): string {
   return buildCommitMessage({
-    ...result,
-    type: result.type?.trim() || 'chore',
-    scope: result.scope?.trim() || undefined,
-    subject: result.subject?.trim() || '更新代码变更',
+    type: sanitizeType(result.type),
+    scope: sanitizeScope(result.scope),
+    subject: sanitizeSubject(result.subject),
     body: result.body?.trim() || undefined,
     breaking: Boolean(result.breaking)
   })
@@ -64,10 +89,9 @@ function sanitizeGroups(
   const usedFiles = new Set<string>()
   const groups = result.groups
     .map((group) => ({
-      ...group,
-      type: group.type.trim() || 'chore',
-      scope: group.scope?.trim() || undefined,
-      summary: group.summary.trim(),
+      type: sanitizeType(group.type),
+      scope: sanitizeScope(group.scope),
+      summary: limitText(group.summary, MAX_GROUP_SUMMARY_LENGTH),
       files: group.files
         .map((file) => file.trim())
         .filter((file) => allowedFiles.has(file) && !usedFiles.has(file))

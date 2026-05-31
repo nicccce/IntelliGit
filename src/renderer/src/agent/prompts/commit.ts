@@ -21,9 +21,11 @@ export const COMMIT_ANALYZE_PROMPT = `请分析以下代码变更，返回 JSON 
 - 只输出 JSON，不要 Markdown 代码块，不要解释。
 - groups 最多 5 组。
 - type 只能使用 feat/fix/refactor/style/docs/test/chore/perf/build/ci。
-- summary 使用中文短句。
+- scope 使用英文小写短词，只允许字母、数字和连字符，例如 commit/settings/git/diff/renderer。
+- summary 使用中文短句，描述“为什么值得单独提交”，不要超过 30 个中文字符。
 - files 必须来自 diff 中出现的文件路径，不要编造不存在的文件。
 - 每个文件只放入一个最合适的分组。
+- 如果多个文件属于同一提交意图，应合并到同一组。
 
 \`\`\`diff
 {{diff}}
@@ -46,10 +48,14 @@ export const COMMIT_MESSAGE_PROMPT = `请根据以下暂存区变更生成一条
 要求：
 - 只输出 JSON，不要 Markdown 代码块，不要解释。
 - type 只能使用 feat/fix/refactor/style/docs/test/chore/perf/build/ci。
-- scope 优先根据路径或模块推断，例如 commit/settings/git/diff/renderer。
-- subject 使用中文，命令语气，不超过 50 个中文字符。
+- scope 优先根据路径或模块推断，例如 commit/settings/git/diff/renderer；必须是英文小写短词，只允许字母、数字和连字符。
+- subject 使用中文动宾短句，描述本次提交的核心价值，不要超过 50 个中文字符。
+- subject 不要以句号、感叹号结尾。
 - body 可留空；除非有必要说明原因，否则不要输出长 body。
 - breaking 默认为 false。
+- 如果 diff 主要是修复运行错误、黑屏、异常或失败流程，优先使用 fix。
+- 如果 diff 主要是新增用户可见能力，优先使用 feat。
+- 如果 diff 主要是结构调整但行为不变，优先使用 refactor。
 
 \`\`\`diff
 {{diff}}
