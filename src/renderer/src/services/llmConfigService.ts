@@ -1,5 +1,4 @@
 import type { LlmConfig } from '../agent/types'
-import { createLlmClient } from '../agent/llmClient'
 import { useLlmConfigStore } from '../store/llmConfigStore'
 import { loadConfig, saveConfig } from '../api/configClient'
 
@@ -52,9 +51,12 @@ export async function checkLlmConnection(): Promise<void> {
   store.setStatus('checking')
 
   try {
-    const client = createLlmClient(config)
-    await client.ping()
-    store.setStatus('ready')
+    const result = await window.electronAPI.pingLlmConfig(config)
+    if (result.ok) {
+      store.setStatus('ready')
+    } else {
+      store.setStatus('error', `连接失败: ${result.error ?? '未知错误'}`)
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     store.setStatus('error', `连接失败: ${message}`)

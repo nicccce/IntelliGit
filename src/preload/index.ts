@@ -7,9 +7,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC_CHANNELS } from '../shared/types'
 import type {
+  AgentPingResponse,
+  AgentRunRequest,
+  AgentRunResponse,
   AppConfig,
   ElectronAPI,
   ElectronMode,
+  LlmConfig,
   SidecarNotification,
   SidecarResponse
 } from '../shared/types'
@@ -61,6 +65,14 @@ const electronAPI: ElectronAPI = {
 
   proxyLlmRequest: (request) => {
     return ipcRenderer.invoke(IPC_CHANNELS.LLM_PROXY, request)
+  },
+
+  runAgentTask: (request: AgentRunRequest): Promise<AgentRunResponse> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.AGENT_RUN_TASK, request)
+  },
+
+  pingLlmConfig: (config: LlmConfig): Promise<AgentPingResponse> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.AGENT_PING_LLM, config)
   },
 
   mode: resolveElectronMode(process.env.ELECTRON_MODE)

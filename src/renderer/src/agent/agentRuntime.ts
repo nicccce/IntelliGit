@@ -1,103 +1,52 @@
-import type { LlmConfig, AgentTask, AgentResult, AgentMessage } from './types'
-import { createLlmClient } from './llmClient'
-import { registerDefaultGitTools } from './gitTools'
-import { toolRegistry } from './toolRegistry'
+import type { LlmConfig, AgentTask, AgentResult } from './types'
+import type { AgentRunResponse } from '../../../shared/types'
 import { getFallbackResult } from './fallback'
 
-// ─── Agent Runtime ────────────────────────────────────────────────────────────
+// ─── Agent Runtime（Renderer 侧薄封装） ────────────────────────────────────────
+// 实际 LLM 调用和 Tool 执行已迁移到 Main 进程（Vercel AI SDK）。
+// 此模块仅负责将任务序列化后通过 IPC 发送，并在 Main 返回结果后进行解析。
 
-const DEFAULT_MAX_ITERATIONS = 5
-
-/**
- * 执行一次 Agent 任务。
- *
- * 流程：
- * 1. 组装 system + user 消息
- * 2. 调用 LLM（含 Tool 定义）
- * 3. 若 LLM 返回 tool_calls，执行对应工具并将结果追加为 tool 消息
- * 4. 循环至 finish_reason === 'stop' 或达到 maxIterations
- * 5. 返回最终 assistant 消息内容作为 rawOutput
- */
 export async function runAgent<T = unknown>(
   config: LlmConfig,
   task: AgentTask,
   parseResult?: (rawOutput: string) => T | null
 ): Promise<AgentResult<T>> {
-  registerDefaultGitTools()
+  try {
+    const response: AgentRunResponse = await window.electronAPI.runAgentTask({
+      config,
+      systemPrompt: task.systemPrompt,
+      userMessage: task.userMessage,
+      tools: task.tools,
+      maxIterations: task.maxIterations
+    })
 
-  const client = createLlmClient(config)
-  const maxIterations = task.maxIterations ?? DEFAULT_MAX_ITERATIONS
-
-  const toolDefs = task.tools?.length ? toolRegistry.listByNames(task.tools) : []
-
-  const messages: AgentMessage[] = [
-    { role: 'system', content: task.systemPrompt },
-    { role: 'user', content: task.userMessage }
-  ]
-
-  let iteration = 0
-  let lastContent = ''
-
-  while (iteration < maxIterations) {
-    iteration++
-
-    let response
-    try {
-      response = await client.chat(messages, toolDefs.length ? toolDefs : undefined)
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
-      return { success: false, error: `LLM 调用失败: ${error}` }
+    if (!response.success) {
+      console.error('[Agent] IPC runAgentTask 失败:', response.error)
+      return { success: false, error: response.error }
     }
 
-    lastContent = response.content
+    const rawOutput = response.rawOutput ?? ''
 
-    if (response.finishReason === 'tool_calls' && response.toolCalls?.length) {
-      // 将 assistant 的 tool_calls 消息追加到对话历史
-      messages.push({
-        role: 'assistant',
-        content: response.content,
-        toolCalls: response.toolCalls
-      })
+    if (!parseResult) {
+      return { success: true, rawOutput, data: rawOutput as unknown as T }
+    }
 
-      // 逐个执行工具调用，将结果追加为 tool 消息
-      for (const toolCall of response.toolCalls) {
-        let toolResult: string
-        try {
-          const result = await toolRegistry.execute(toolCall.name, toolCall.arguments)
-          toolResult = typeof result === 'string' ? result : JSON.stringify(result)
-        } catch (err) {
-          toolResult = `工具执行失败: ${err instanceof Error ? err.message : String(err)}`
-        }
-
-        messages.push({
-          role: 'tool',
-          content: toolResult,
-          toolCallId: toolCall.id,
-          name: toolCall.name
-        })
+    const parsed = parseResult(rawOutput)
+    if (parsed === null) {
+      console.error('[Agent] 输出解析失败，rawOutput 前 300 字符:', rawOutput.slice(0, 300))
+      return {
+        success: false,
+        error: `LLM 输出解析失败，原始内容：${rawOutput.slice(0, 200)}`,
+        rawOutput
       }
-
-      continue
     }
 
-    // finish_reason === 'stop' 或 'length'，退出循环
-    break
+    return { success: true, data: parsed, rawOutput }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err)
+    console.error('[Agent] runAgentTask IPC 调用异常:', error)
+    return { success: false, error: `Agent 调用异常: ${error}` }
   }
-
-  if (!parseResult) {
-    return { success: true, rawOutput: lastContent, data: lastContent as unknown as T }
-  }
-
-  const parsed = parseResult(lastContent)
-  if (parsed === null) {
-    return {
-      success: false,
-      error: `LLM 输出解析失败，原始内容：${lastContent.slice(0, 200)}`,
-      rawOutput: lastContent
-    }
-  }
-
-  return { success: true, data: parsed, rawOutput: lastContent }
 }
 
 /**
@@ -109,7 +58,7 @@ export async function runAgentWithFallback<T = unknown>(
   task: AgentTask,
   parseResult?: (rawOutput: string) => T | null
 ): Promise<AgentResult<T>> {
-  if (!config || !config.apiKey) {
+  if (!config?.apiKey) {
     return getFallbackResult(task.taskType, task.context) as AgentResult<T>
   }
 

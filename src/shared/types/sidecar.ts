@@ -87,6 +87,29 @@ export interface LlmProxyResponse {
   body: string
 }
 
+// ─── Agent IPC 请求 / 响应 ────────────────────────────────────────────────────
+
+export interface AgentRunRequest {
+  config: LlmConfig
+  systemPrompt: string
+  userMessage: string
+  /** 要启用的 Tool 名称列表（空或不传 = 不使用 Tool） */
+  tools?: string[]
+  /** 最大工具调用轮次，默认 5 */
+  maxIterations?: number
+}
+
+export interface AgentRunResponse {
+  success: boolean
+  rawOutput?: string
+  error?: string
+}
+
+export interface AgentPingResponse {
+  ok: boolean
+  error?: string
+}
+
 // ─── 仓库配置（持久化存储） ───────────────────────────────────────────────────
 
 /** 单个仓库的配置信息 */
@@ -143,8 +166,12 @@ export const IPC_CHANNELS = {
   CHECK_DIR_EXISTS: 'check:dirExists',
   /** 检查目录是否为空 */
   CHECK_DIR_EMPTY: 'check:dirEmpty',
-  /** 渲染进程 -> 主进程：代理 LLM HTTP 请求 */
-  LLM_PROXY: 'llm:proxy'
+  /** 渲染进程 -> 主进程：代理 LLM HTTP 请求（已弃用，保留兼容） */
+  LLM_PROXY: 'llm:proxy',
+  /** 渲染进程 -> 主进程：在 Main 进程执行 Agent 任务 */
+  AGENT_RUN_TASK: 'agent:runTask',
+  /** 渲染进程 -> 主进程：检测 LLM 连通性 */
+  AGENT_PING_LLM: 'agent:pingLlm'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -168,8 +195,12 @@ export interface ElectronAPI {
   checkDirExists: (path: string) => Promise<boolean>
   /** 检查目录是否为空 */
   checkDirEmpty: (path: string) => Promise<boolean>
-  /** 代理 LLM HTTP 请求 */
+  /** 代理 LLM HTTP 请求（已弃用） */
   proxyLlmRequest: (request: LlmProxyRequest) => Promise<LlmProxyResponse>
+  /** 在 Main 进程执行 Agent 任务（使用 Vercel AI SDK） */
+  runAgentTask: (request: AgentRunRequest) => Promise<AgentRunResponse>
+  /** 检测 LLM 连通性 */
+  pingLlmConfig: (config: LlmConfig) => Promise<AgentPingResponse>
   /** 当前运行模式（test 或 main） */
   mode: ElectronMode
 }
