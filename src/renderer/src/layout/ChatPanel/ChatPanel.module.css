@@ -1,21 +1,201 @@
-.ig-chat-placeholder {
+/* ─── 整体容器 ─────────────────────────────────────────────────────────────── */
+
+.ig-chat-container {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+/* ─── 消息列表 ─────────────────────────────────────────────────────────────── */
+
+.ig-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ig-chat-empty {
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
+  height: 100%;
+  gap: var(--space-xs);
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
 
-.ig-chat-placeholder-icon {
-  font-size: 32px;
-  opacity: 0.4;
+.ig-chat-hint {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
-.ig-chat-placeholder-hint {
+/* ─── 消息气泡 ─────────────────────────────────────────────────────────────── */
+
+.ig-chat-msg-user {
+  align-self: flex-end;
+  background: var(--color-primary, #1677ff);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 12px 12px 2px 12px;
+  max-width: 85%;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.ig-chat-msg-assistant {
+  align-self: flex-start;
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border-subtle, #e8e8e8);
+  padding: 8px 12px;
+  border-radius: 2px 12px 12px 12px;
+  max-width: 95%;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ig-chat-text {
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+
+.ig-chat-error {
+  color: var(--color-error, #ff4d4f);
+  font-size: 12px;
+}
+
+/* ─── 操作计划卡片 ─────────────────────────────────────────────────────────── */
+
+.ig-chat-plan {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ig-chat-plan-label {
+  margin: 0;
   font-size: 11px;
-  opacity: 0.6;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.ig-chat-op {
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-subtle, #e8e8e8);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ig-chat-op-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ig-chat-op-cmd {
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+  background: var(--bg-code, rgba(0, 0, 0, 0.04));
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.ig-chat-op-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.ig-chat-op-risk {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-warning, #faad14);
+}
+
+.ig-chat-op-blocked {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-error, #ff4d4f);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ig-chat-plan-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+/* ─── 执行日志 ─────────────────────────────────────────────────────────────── */
+
+.ig-chat-exec-log {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ig-chat-exec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ig-chat-exec-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.ig-chat-exec-ok {
+  color: var(--color-success, #52c41a);
+}
+
+.ig-chat-exec-fail {
+  color: var(--color-error, #ff4d4f);
+}
+
+.ig-chat-exec-output {
+  margin: 0;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 2px 4px;
+  background: var(--bg-code, rgba(0, 0, 0, 0.03));
+  border-radius: 3px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* ─── 输入区域 ─────────────────────────────────────────────────────────────── */
+
+.ig-chat-input-area {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border-subtle, #e8e8e8);
+  background: var(--bg-primary);
+}
+
+.ig-chat-input {
+  flex: 1;
+  font-size: 13px;
 }

@@ -13,6 +13,8 @@ import type {
   AppConfig,
   ElectronAPI,
   ElectronMode,
+  GitExecRequest,
+  GitExecResponse,
   LlmConfig,
   SidecarNotification,
   SidecarResponse
@@ -73,6 +75,10 @@ const electronAPI: ElectronAPI = {
 
   pingLlmConfig: (config: LlmConfig): Promise<AgentPingResponse> => {
     return ipcRenderer.invoke(IPC_CHANNELS.AGENT_PING_LLM, config)
+  },
+
+  executeGitCommand: (request: GitExecRequest): Promise<GitExecResponse> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.GIT_EXEC, request)
   },
 
   mode: resolveElectronMode(process.env.ELECTRON_MODE)

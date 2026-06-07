@@ -148,6 +148,35 @@ export interface AppConfig {
   llmConfig?: LlmConfig
 }
 
+// ─── NLP Git 助手类型 ─────────────────────────────────────────────────────────
+
+export interface GitExecRequest {
+  repoPath: string
+  args: string[]
+}
+
+export interface GitExecResponse {
+  success: boolean
+  stdout?: string
+  stderr?: string
+  error?: string
+}
+
+export interface NlOperation {
+  command: string
+  args?: string[]
+  description: string
+  riskLevel: 'safe' | 'high' | 'extreme'
+  riskReason?: string
+}
+
+export interface NlCommandPlan {
+  intent: string
+  operations: NlOperation[]
+  requiresWorkflow: 'commit' | 'conflict' | null
+  summary: string
+}
+
 // ─── IPC 通道常量 ─────────────────────────────────────────────────────────────
 
 /** IPC 通道名称集中管理 */
@@ -171,7 +200,9 @@ export const IPC_CHANNELS = {
   /** 渲染进程 -> 主进程：在 Main 进程执行 Agent 任务 */
   AGENT_RUN_TASK: 'agent:runTask',
   /** 渲染进程 -> 主进程：检测 LLM 连通性 */
-  AGENT_PING_LLM: 'agent:pingLlm'
+  AGENT_PING_LLM: 'agent:pingLlm',
+  /** 渲染进程 -> 主进程：在仓库目录执行 git CLI 命令 */
+  GIT_EXEC: 'git:exec'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -201,6 +232,8 @@ export interface ElectronAPI {
   runAgentTask: (request: AgentRunRequest) => Promise<AgentRunResponse>
   /** 检测 LLM 连通性 */
   pingLlmConfig: (config: LlmConfig) => Promise<AgentPingResponse>
+  /** 在仓库目录执行 git CLI 命令（供 NLP 助手使用） */
+  executeGitCommand: (request: GitExecRequest) => Promise<GitExecResponse>
   /** 当前运行模式（test 或 main） */
   mode: ElectronMode
 }

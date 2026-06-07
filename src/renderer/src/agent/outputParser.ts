@@ -56,8 +56,15 @@ export function validateSchema(value: unknown, schema: JsonSchema): boolean {
       }
     }
     if (schema.properties) {
+      const required = new Set(schema.required ?? [])
       for (const [key, subSchema] of Object.entries(schema.properties)) {
-        if (key in obj && !validateSchema(obj[key], subSchema)) return false
+        if (!(key in obj)) continue
+        // null 值：required 字段不允许，optional 字段放行
+        if (obj[key] === null) {
+          if (required.has(key)) return false
+          continue
+        }
+        if (!validateSchema(obj[key], subSchema)) return false
       }
     }
     return true
