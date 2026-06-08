@@ -195,6 +195,25 @@
   font-weight: 600;
 }
 
+.ig-diff-hunk-owner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 12px 2px 104px;
+  border-top: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+  background: color-mix(in srgb, var(--accent-blue) 10%, var(--bg-secondary));
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+.ig-diff-hunk-owner-label {
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
 .ig-diff-line {
   display: flex;
   min-height: 22px;

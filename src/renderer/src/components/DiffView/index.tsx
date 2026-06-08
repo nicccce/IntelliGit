@@ -1,14 +1,26 @@
 import { useState, useCallback, useMemo, type JSX } from 'react'
-import { Button, Tooltip } from 'antd'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
-import { addFile, removeFile } from '../../services/gitWorkflowService'
+import type { ChunkInfo } from '../../../../shared/types'
 import styles from './DiffView.module.css'
 
 /** 生成行级唯一 key */
 function lineKey(filePatchIndex: number, chunkIndex: number, lineIndex: number): string {
   return `${filePatchIndex}-${chunkIndex}-${lineIndex}`
+}
+
+interface HunkOwnerInsight {
+  ownerLabel?: string
+  oldOwner?: { startLine: number; endLine: number }
+  newOwner?: { startLine: number; endLine: number }
+}
+
+function hunkLabel(insight: HunkOwnerInsight | undefined): string | undefined {
+  if (!insight?.ownerLabel) return undefined
+  const oldText = insight.oldOwner ? `old ${insight.oldOwner.startLine}-${insight.oldOwner.endLine}` : 'old -'
+  const newText = insight.newOwner ? `new ${insight.newOwner.startLine}-${insight.newOwner.endLine}` : 'new -'
+  return `${insight.ownerLabel} · ${oldText} · ${newText}`
 }
 
 interface DiffViewProps {
@@ -60,7 +72,7 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
 
 interface DiffChunksProps {
   filePatchIndex: number
-  chunks: Array<{ content: string; type: 'Add' | 'Delete' | 'Equal' }>
+  chunks: ChunkInfo[]
   selectedSet: Set<string>
   onToggleLine: (key: string) => void
   onToggleChunk: (filePatchIndex: number, chunkIndex: number) => void
@@ -137,21 +149,7 @@ function DiffChunks({
     [filePatchIndex, onToggleChunk]
   )
 
-  const handleStageChunk = useCallback(
-    async (chunkIndex: number) => {
-      onToggleChunk(filePatchIndex, chunkIndex)
-      await addFile(String(filePatchIndex))
-    },
-    [filePatchIndex, onToggleChunk]
-  )
-
-  const handleUnstageChunk = useCallback(
-    async (chunkIndex: number) => {
-      onToggleChunk(filePatchIndex, chunkIndex)
-      await removeFile(String(filePatchIndex))
-    },
-    [filePatchIndex, onToggleChunk]
-  )
+  const chunkHunkInsights = useMemo(() => new Map<number, HunkOwnerInsight>(), [])
 
   let oldLineNum = 1
   let newLineNum = 1
@@ -453,6 +451,15 @@ function DiffChunks({
       // Add / Delete 始终展开
       const blockHovered = hoveredChunkIndex === ci
       const selState = getChunkSelectionState(ci)
+      const ownerText = hunkLabel(chunkHunkInsights.get(ci))
+      if (ownerText) {
+        chunksOutput.push(
+          <div key={`owner-${ci}`} className={styles['ig-diff-hunk-owner']}>
+            <span className={styles['ig-diff-hunk-owner-label']}>所属符号</span>
+            <span>{ownerText}</span>
+          </div>
+        )
+      }
       for (let i = 0; i < lineCount; i++) {
         const row = rows[rowIndex]
         const key = lineKey(filePatchIndex, row.chunkIndex, row.lineIndex)
