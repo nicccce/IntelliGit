@@ -1,9 +1,12 @@
-import { generateText } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
-import { createAnthropic } from '@ai-sdk/anthropic'
 import type { LlmConfig, AgentRunRequest, AgentRunResponse, AgentPingResponse } from '../../shared/types'
 import type { SidecarManager } from '../core/SidecarManager'
 import { getGitToolsForTask } from './gitTools'
+
+type AiSdkModule = typeof import('ai')
+type OpenAiSdkModule = typeof import('@ai-sdk/openai')
+type AnthropicSdkModule = typeof import('@ai-sdk/anthropic')
+
+const dynamicImport = (specifier: string) => Function('specifier', 'return import(specifier)')(specifier) as Promise<unknown>
 
 // ─── 常量 ─────────────────────────────────────────────────────────────────────
 
@@ -24,13 +27,19 @@ function normalizeOpenAIBaseUrl(baseUrl: string | undefined): string {
   return normalized.endsWith('/v1') ? normalized : `${normalized}/v1`
 }
 
-function createModel(config: LlmConfig) {
+async function createModel(config: LlmConfig) {
+  const [{ generateText }, { createOpenAI }, { createAnthropic }] = await Promise.all([
+    dynamicImport('ai') as Promise<AiSdkModule>,
+    dynamicImport('@ai-sdk/openai') as Promise<OpenAiSdkModule>,
+    dynamicImport('@ai-sdk/anthropic') as Promise<AnthropicSdkModule>
+  ])
+
   if (config.provider === 'anthropic') {
     const client = createAnthropic({
       apiKey: config.apiKey,
       ...(config.baseUrl ? { baseURL: config.baseUrl.replace(/\/$/, '') } : {})
     })
-    return client(config.modelName)
+    return { generateText, model: client(config.modelName) }
   }
 
   const client = createOpenAI({
@@ -39,7 +48,7 @@ function createModel(config: LlmConfig) {
   })
   // v3 默认 client(modelId) 走 /responses（OpenAI Responses API），
   // DeepSeek / 通义等 OpenAI 兼容 API 只支持 /chat/completions，必须显式用 .chat()。
-  return client.chat(config.modelName)
+  return { generateText, model: client.chat(config.modelName) }
 }
 
 // ─── Agent 执行 ───────────────────────────────────────────────────────────────
@@ -54,7 +63,7 @@ export async function runAgentTask(
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
 
   try {
-    const model = createModel(config)
+    const { generateText, model } = await createModel(config)
     const tools =
       toolNames?.length ? getGitToolsForTask(sidecarManager, toolNames) : undefined
 
