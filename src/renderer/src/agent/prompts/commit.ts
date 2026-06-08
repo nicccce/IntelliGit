@@ -56,6 +56,7 @@ export const COMMIT_MESSAGE_PROMPT = `请根据以下暂存区变更生成一条
 - 如果 diff 主要是修复运行错误、黑屏、异常或失败流程，优先使用 fix。
 - 如果 diff 主要是新增用户可见能力，优先使用 feat。
 - 如果 diff 主要是结构调整但行为不变，优先使用 refactor。
+- 如果上下文提供了 AST 级符号信息，请优先结合新增/修改的函数、类、接口、组件名称来判断 scope 和 subject。
 
 \`\`\`diff
 {{diff}}
