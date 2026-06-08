@@ -8,7 +8,7 @@ import {
   type CommitIntentGroup,
   type SmartCommitAnalysisResult
 } from './smartCommitProvider'
-import { renderAstContext } from '../utils/astChangeAnalyzer'
+import { renderAstContext, type AstFileContentMap } from '../utils/astChangeAnalyzer'
 
 export type { CommitIntentGroup, SmartCommitAnalysisResult }
 
@@ -103,6 +103,62 @@ function getStagedFileCount(): number {
     .fileStatuses.filter((file) => file.staging && file.staging !== 'unmodified').length
 }
 
+type DiffFileStatus = 'added' | 'deleted' | 'modified' | 'renamed'
+
+function parseDiffFilePaths(diff: string): Array<{ oldPath?: string; filePath: string; status: DiffFileStatus }> {
+  return diff
+    .split(/^diff --git /m)
+    .filter(Boolean)
+    .map((chunk) => {
+      const header = chunk.split('\n')[0] || ''
+      const pathMatch = header.match(/a\/(.+?)\s+b\/(.+?)$/)
+      const oldPath = pathMatch?.[1]
+      const filePath = pathMatch?.[2] || oldPath || ''
+      const sectionDiff = `diff --git ${chunk}`
+      let status: DiffFileStatus = 'modified'
+
+      if (/new file mode|--- \/dev\/null/m.test(sectionDiff)) {
+        status = 'added'
+      } else if (/deleted file mode|\+\+\+ \/dev\/null/m.test(sectionDiff)) {
+        status = 'deleted'
+      } else if (/rename from|rename to/m.test(sectionDiff) || Boolean(oldPath && oldPath !== filePath)) {
+        status = 'renamed'
+      }
+
+      return { oldPath, filePath, status }
+    })
+    .filter((file) => file.filePath)
+}
+
+async function readGitText(path: string, ref: 'HEAD' | 'WORKTREE' | 'INDEX'): Promise<string> {
+  try {
+    if (ref === 'WORKTREE') {
+      return await Promise.resolve('')
+    }
+
+    const result = await invokeGit('diff.fileContent', { hash: 'HEAD', path })
+    return result.content
+  } catch {
+    return ''
+  }
+}
+
+async function buildAstContentMap(diff: string): Promise<AstFileContentMap> {
+  const entries = parseDiffFilePaths(diff)
+  const pairs = await Promise.all(
+    entries.map(async (entry) => {
+      const oldPath = entry.oldPath || entry.filePath
+      const [oldContent, newContent] = await Promise.all([
+        entry.status === 'added' ? Promise.resolve('') : readGitText(oldPath, 'HEAD'),
+        Promise.resolve('')
+      ])
+      return [entry.filePath, { oldContent, newContent }] as const
+    })
+  )
+
+  return Object.fromEntries(pairs)
+}
+
 /**
  * 智能提交分析入口：读取当前 diff，并交给 SmartCommitProvider 进行意图分组。
  * Provider 内部会优先使用 AI；未配置或调用失败时自动使用本地 fallback，保证流程闭环可用。
@@ -115,7 +171,8 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
 
   const diff = workdirDiff.diff || stagedDiff.diff
   const files = getChangedFiles()
-  const astContext = renderAstContext(files, diff)
+  const astContentMap = await buildAstContentMap(diff)
+  const astContext = renderAstContext(files, diff, astContentMap)
 
   if (!diff.trim()) {
     return {
@@ -147,7 +204,12 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
         return { success: false, error: '当前没有可用于生成提交信息的暂存变更' }
       }
 
-      const astContext = renderAstContext(useGitStatusStore.getState().fileStatuses.map((file) => file.path), stagedDiff.diff)
+      const astContentMap = await buildAstContentMap(stagedDiff.diff)
+      const astContext = renderAstContext(
+        useGitStatusStore.getState().fileStatuses.map((file) => file.path),
+        stagedDiff.diff,
+        astContentMap
+      )
       return smartCommitProvider.generateMessage({
         diff: stagedDiff.diff,
         stagedFileCount: getStagedFileCount(),
@@ -202,11 +264,12 @@ export async function stageGroupAndGenerateMessage(
         return { success: false, error: '该分组暂存后没有可用于生成提交信息的 diff' }
       }
 
+      const astContentMap = await buildAstContentMap(groupDiff)
       const result = await smartCommitProvider.generateMessage({
         diff: groupDiff,
         stagedFileCount: files.length,
         groupContext: buildGroupContext(group),
-        astContext: renderAstContext(files, groupDiff)
+        astContext: renderAstContext(files, groupDiff, astContentMap)
       })
 
       if (!result.success || !result.data) {
