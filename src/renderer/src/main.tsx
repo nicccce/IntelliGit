@@ -1,3 +1,4 @@
+import './polyfills/process'
 import 'antd/dist/reset.css'
 import './assets/styles/index.css'
 
