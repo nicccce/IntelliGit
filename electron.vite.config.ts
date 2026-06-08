@@ -6,6 +6,9 @@ export default defineConfig({
   main: {},
   preload: {},
   renderer: {
+    define: {
+      'process.env': {}
+    },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src')

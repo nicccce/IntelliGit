@@ -3,7 +3,7 @@
  * @description 负责应用生命周期管理、窗口创建、Sidecar 进程启动与 IPC 注册。
  */
 
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, dialog } from 'electron'
 import { existsSync } from 'fs'
 import { dirname, join, parse } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -66,6 +66,28 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[Main] 渲染进程异常退出:', details)
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.show()
+    }
+  })
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('[Main] 渲染页面加载失败:', { errorCode, errorDescription, validatedURL })
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.show()
+    }
+  })
+
+  mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    console.error('[Main] Preload 加载失败:', preloadPath, error)
+    void dialog.showErrorBox(
+      'IntelliGit 启动失败',
+      `预加载脚本加载失败：\n${preloadPath}\n\n${error.message}`
+    )
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
