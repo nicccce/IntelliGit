@@ -1,7 +1,9 @@
 import { useState, useCallback, useMemo, type JSX } from 'react'
+import { Button, Tooltip } from 'antd'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
+import { addFile, removeFile } from '../../services/gitWorkflowService'
 import styles from './DiffView.module.css'
 
 /** 生成行级唯一 key */
@@ -131,6 +133,22 @@ function DiffChunks({
   const handleChunkToggle = useCallback(
     (chunkIndex: number) => {
       onToggleChunk(filePatchIndex, chunkIndex)
+    },
+    [filePatchIndex, onToggleChunk]
+  )
+
+  const handleStageChunk = useCallback(
+    async (chunkIndex: number) => {
+      onToggleChunk(filePatchIndex, chunkIndex)
+      await addFile(String(filePatchIndex))
+    },
+    [filePatchIndex, onToggleChunk]
+  )
+
+  const handleUnstageChunk = useCallback(
+    async (chunkIndex: number) => {
+      onToggleChunk(filePatchIndex, chunkIndex)
+      await removeFile(String(filePatchIndex))
     },
     [filePatchIndex, onToggleChunk]
   )
