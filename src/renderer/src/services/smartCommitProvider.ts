@@ -17,6 +17,8 @@ export interface CommitIntentGroup {
   scope?: string
   summary: string
   files: string[]
+  /** 可选的 raw diff hunk 标识，格式为 `${filePath}@@${hunkHeader}`，用于细粒度暂存。 */
+  hunks?: string[]
 }
 
 export interface SmartCommitAnalysisResult {
@@ -27,11 +29,13 @@ export interface SmartCommitMessageInput {
   diff: string
   stagedFileCount: number
   groupContext?: string
+  astContext?: string
 }
 
 export interface SmartCommitAnalyzeInput {
   diff: string
   files: string[]
+  astContext?: string
 }
 
 /**
@@ -133,7 +137,7 @@ export class LlmSmartCommitProvider implements SmartCommitProvider {
         taskType: 'commit.groupByIntent',
         systemPrompt: '你是一位专业的 Git 提交助手，请将变更按提交意图进行分组。',
         userMessage: renderCommitAnalyzePrompt(truncateDiffForPrompt(input.diff)),
-        context: { files: input.files }
+        context: { files: input.files, astContext: input.astContext }
       },
       (rawOutput) => parseStructured<SmartCommitAnalysisResult>(rawOutput, COMMIT_GROUPS_SCHEMA)
     )
@@ -176,7 +180,7 @@ export class LlmSmartCommitProvider implements SmartCommitProvider {
           ? '你是一位专业的 Git 提交助手，请为指定变更分组生成提交信息。'
           : '你是一位专业的 Git 提交助手，请生成符合 Conventional Commits 的提交信息。',
         userMessage: renderCommitMessagePrompt(truncateDiffForPrompt(input.diff), input.groupContext),
-        context: { stagedFileCount: input.stagedFileCount }
+        context: { stagedFileCount: input.stagedFileCount, astContext: input.astContext }
       },
       (rawOutput) => parseStructured<CommitMessageResult>(rawOutput, COMMIT_MESSAGE_SCHEMA)
     )

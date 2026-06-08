@@ -8,6 +8,7 @@ import {
   type CommitIntentGroup,
   type SmartCommitAnalysisResult
 } from './smartCommitProvider'
+import { renderAstContext } from '../utils/astChangeAnalyzer'
 
 export type { CommitIntentGroup, SmartCommitAnalysisResult }
 
@@ -24,7 +25,72 @@ function normalizeFiles(files: string[]): string[] {
 
 function buildGroupContext(group: CommitIntentGroup): string {
   const scope = group.scope ? `\n作用域：${group.scope}` : ''
-  return `提交意图：${group.type}${scope}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}`
+  const hunkText = group.hunks?.length ? `\n关联 Hunk：\n${group.hunks.map((hunk) => `- ${hunk}`).join('\n')}` : ''
+  return `提交意图：${group.type}${scope}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}${hunkText}`
+}
+
+interface RawHunk {
+  filePath: string
+  header: string
+  patch: string
+}
+
+function parseRawDiffHunks(diff: string): RawHunk[] {
+  const hunks: RawHunk[] = []
+  const fileChunks = diff.split(/^diff --git /m).filter(Boolean)
+
+  for (const fileChunk of fileChunks) {
+    const lines = fileChunk.split('\n')
+    const header = lines[0] || ''
+    const pathMatch = header.match(/a\/(.+?)\s+b\/(.+?)$/)
+    const filePath = pathMatch?.[2] || pathMatch?.[1]
+    if (!filePath) continue
+
+    const fileHeader: string[] = [`diff --git ${header}`]
+    let index = 1
+    while (index < lines.length && !lines[index].startsWith('@@')) {
+      fileHeader.push(lines[index])
+      index++
+    }
+
+    while (index < lines.length) {
+      const hunkStart = index
+      const hunkHeader = lines[index]
+      if (!hunkHeader.startsWith('@@')) {
+        index++
+        continue
+      }
+      index++
+      while (index < lines.length && !lines[index].startsWith('@@')) index++
+      const hunkLines = lines.slice(hunkStart, index)
+      hunks.push({
+        filePath,
+        header: hunkHeader,
+        patch: [...fileHeader, ...hunkLines, ''].join('\n')
+      })
+    }
+  }
+
+  return hunks
+}
+
+function matchGroupHunks(group: CommitIntentGroup, diff: string): RawHunk[] {
+  const files = new Set(normalizeFiles(group.files))
+  const wantedHunks = new Set(group.hunks || [])
+  return parseRawDiffHunks(diff).filter((hunk) => {
+    if (!files.has(hunk.filePath)) return false
+    if (wantedHunks.size === 0) return true
+    return wantedHunks.has(`${hunk.filePath}@@${hunk.header}`) || wantedHunks.has(hunk.header)
+  })
+}
+
+async function applyGroupHunks(group: CommitIntentGroup, diff: string): Promise<string | null> {
+  const hunks = matchGroupHunks(group, diff)
+  if (hunks.length === 0) return null
+
+  const patch = hunks.map((hunk) => hunk.patch).join('\n')
+  await invokeGit('staging.applyPatch', { patch })
+  return patch
 }
 
 function getChangedFiles(): string[] {
@@ -49,6 +115,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
 
   const diff = workdirDiff.diff || stagedDiff.diff
   const files = getChangedFiles()
+  const astContext = renderAstContext(files, diff)
 
   if (!diff.trim()) {
     return {
@@ -57,7 +124,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
     }
   }
 
-  return smartCommitProvider.analyzeChanges({ diff, files })
+  return smartCommitProvider.analyzeChanges({ diff, files, astContext })
 }
 
 /**
@@ -80,9 +147,11 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
         return { success: false, error: '当前没有可用于生成提交信息的暂存变更' }
       }
 
+      const astContext = renderAstContext(useGitStatusStore.getState().fileStatuses.map((file) => file.path), stagedDiff.diff)
       return smartCommitProvider.generateMessage({
         diff: stagedDiff.diff,
-        stagedFileCount: getStagedFileCount()
+        stagedFileCount: getStagedFileCount(),
+        astContext
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -93,8 +162,8 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
 }
 
 /**
- * 按用户选择的意图分组暂存文件，并只基于该分组的暂存 diff 生成提交信息。
- * 当前阶段使用文件级暂存；hunk / AST 级语义分组会在底层能力完善后继续演进。
+ * 按用户选择的意图分组暂存变更，并只基于该分组的 diff 生成提交信息。
+ * 优先使用 hunk 级 patch 暂存，无法匹配 hunk 时回退到文件级暂存，避免阻塞工作流。
  */
 export async function stageGroupAndGenerateMessage(
   group: CommitIntentGroup
@@ -104,9 +173,19 @@ export async function stageGroupAndGenerateMessage(
       const files = normalizeFiles(group.files)
       if (files.length === 0) return { success: false, error: '该分组没有可暂存的文件' }
 
-      // 文件级分组暂存：逐个暂存分组中的文件，避免影响其它未选择分组。
-      for (const filePath of files) {
-        await invokeGit('staging.add', { path: filePath })
+      const workdirDiffParts = await Promise.all(
+        files.map(async (filePath) => {
+          const result = await invokeGit('diff.workdirRaw', { path: filePath })
+          return result.diff
+        })
+      )
+      const workdirGroupDiff = workdirDiffParts.filter(Boolean).join('\n')
+      const appliedPatch = workdirGroupDiff.trim() ? await applyGroupHunks(group, workdirGroupDiff) : null
+
+      if (!appliedPatch) {
+        for (const filePath of files) {
+          await invokeGit('staging.add', { path: filePath })
+        }
       }
       await useGitStatusStore.getState().refreshStatus()
 
@@ -116,7 +195,8 @@ export async function stageGroupAndGenerateMessage(
           return result.diff
         })
       )
-      const groupDiff = groupDiffParts.filter(Boolean).join('\n')
+      const stagedGroupDiff = groupDiffParts.filter(Boolean).join('\n')
+      const groupDiff = appliedPatch || stagedGroupDiff
 
       if (!groupDiff.trim()) {
         return { success: false, error: '该分组暂存后没有可用于生成提交信息的 diff' }
@@ -125,7 +205,8 @@ export async function stageGroupAndGenerateMessage(
       const result = await smartCommitProvider.generateMessage({
         diff: groupDiff,
         stagedFileCount: files.length,
-        groupContext: buildGroupContext(group)
+        groupContext: buildGroupContext(group),
+        astContext: renderAstContext(files, groupDiff)
       })
 
       if (!result.success || !result.data) {
