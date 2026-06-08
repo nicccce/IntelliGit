@@ -100,6 +100,38 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
     }
   }, [setError, showSuccess])
 
+  const handleAnalyzeAndStage = useCallback(async () => {
+    setIsAnalyzingGroups(true)
+    setIsAiGenerating(true)
+    try {
+      const result = await analyzeSmartCommitChanges()
+      if (!result.success || !result.data || result.data.groups.length === 0) {
+        setSmartCommitNotice(null)
+        setError(result.error || '变更分组失败')
+        return
+      }
+
+      setGroups(result.data.groups)
+      const nextGroup = result.data.groups[0]
+      setSelectedGroupIndex(0)
+      setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
+
+      const stagedResult = await stageGroupAndGenerateMessage(nextGroup)
+      if (stagedResult.success && stagedResult.data) {
+        setCommitMsg(stagedResult.data.message)
+        setSmartCommitNotice(
+          stagedResult.data.fallback ? stagedResult.data.fallbackReason || 'AI 未启用，已使用本地模板生成提交信息' : null
+        )
+        showSuccess(stagedResult.data.fallback ? '已使用本地模板完成分组提交信息生成' : '已完成分组分析并生成提交信息')
+      } else {
+        setError(stagedResult.error || '按分组生成提交信息失败')
+      }
+    } finally {
+      setIsAnalyzingGroups(false)
+      setIsAiGenerating(false)
+    }
+  }, [setError, showSuccess])
+
   const handleStageSelectedGroup = useCallback(async () => {
     if (selectedGroupIndex === null) return
     const group = groups[selectedGroupIndex]
@@ -129,7 +161,9 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         <div className={styles['ig-toolbar-copy']}>
           <div className={styles['ig-toolbar-title']}>智能提交</div>
           <div className={styles['ig-toolbar-subtitle']}>
-            {groups.length > 0 ? `已生成 ${groups.length} 个变更分组` : '先分析变更，再选择分组暂存'}
+            {groups.length > 0
+              ? `已生成 ${groups.length} 个变更分组`
+              : '先分析变更，或直接智能暂存并生成提交信息'}
           </div>
         </div>
         <div className={styles['ig-toolbar-actions']}>
@@ -141,6 +175,15 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
             onClick={handleAnalyzeGroups}
           >
             分析分组
+          </Button>
+          <Button
+            size="small"
+            type="primary"
+            loading={isAnalyzingGroups || isAiGenerating}
+            disabled={isBusy || isCommitRunning}
+            onClick={handleAnalyzeAndStage}
+          >
+            智能暂存并生成
           </Button>
           {groups.length > 0 && (
             <Button
