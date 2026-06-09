@@ -221,6 +221,63 @@
   background: var(--bg-primary);
 }
 
+.ig-diff-aggregate-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-secondary));
+}
+
+.ig-diff-aggregate-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ig-diff-aggregate-summary {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ig-diff-aggregate-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ig-diff-aggregate-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  font-size: 11px;
+}
+
+.ig-diff-aggregate-tag-high {
+  color: var(--accent-green);
+  border-color: color-mix(in srgb, var(--accent-green) 35%, var(--border-secondary));
+}
+
+.ig-diff-aggregate-tag-medium {
+  color: var(--accent-blue);
+  border-color: color-mix(in srgb, var(--accent-blue) 35%, var(--border-secondary));
+}
+
+.ig-diff-aggregate-tag-low {
+  color: #b7791f;
+  border-color: color-mix(in srgb, #b7791f 35%, var(--border-secondary));
+}
+
 .ig-diff-line.added {
   background: var(--diff-add-bg);
 }

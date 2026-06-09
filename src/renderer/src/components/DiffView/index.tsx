@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo, type JSX } from 'react'
+import { useState, useCallback, useMemo, useEffect, type JSX } from 'react'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
+import { analyzeAstChanges, type AstChangeInsight } from '../../utils/astChangeAnalyzer'
 import type { ChunkInfo } from '../../../../shared/types'
 import styles from './DiffView.module.css'
 
@@ -14,6 +15,13 @@ interface HunkOwnerInsight {
   ownerLabel?: string
   oldOwner?: { startLine: number; endLine: number }
   newOwner?: { startLine: number; endLine: number }
+  confidence?: 'high' | 'medium' | 'low'
+}
+
+interface AggregatedDiffSummary {
+  confidence?: 'high' | 'medium' | 'low'
+  summary: string
+  changeKinds: string[]
 }
 
 function hunkLabel(insight: HunkOwnerInsight | undefined): string | undefined {
@@ -31,9 +39,40 @@ interface DiffViewProps {
 }
 
 function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): JSX.Element {
-  const { workdirDiff, stagedDiff, selectedFilePath, diffSource } = useDiffViewModel()
+  const { workdirDiff, stagedDiff, selectedFilePath, diffSource, fetchRawDiff } = useDiffViewModel()
 
   const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
+  const [aggregatedSummary, setAggregatedSummary] = useState<AggregatedDiffSummary | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadSummary() {
+      if (!selectedFilePath) {
+        setAggregatedSummary(null)
+        return
+      }
+      const rawDiff = await fetchRawDiff(selectedFilePath)
+      if (cancelled || !rawDiff.trim()) {
+        setAggregatedSummary(null)
+        return
+      }
+      const insights = analyzeAstChanges([selectedFilePath], rawDiff)
+      const summary = insights[0]
+      if (!summary) {
+        setAggregatedSummary(null)
+        return
+      }
+      setAggregatedSummary({
+        confidence: summary.confidence,
+        summary: summary.summary,
+        changeKinds: summary.changeKinds
+      })
+    }
+    void loadSummary()
+    return () => {
+      cancelled = true
+    }
+  }, [fetchRawDiff, selectedFilePath])
 
   if (!selectedFilePath) return <div className={styles['ig-diff-empty']}>← 选择文件查看差异</div>
 
@@ -51,6 +90,31 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
 
   return (
     <div className={styles['ig-diff-scroll']}>
+      {aggregatedSummary && (
+        <div className={styles['ig-diff-aggregate-card']}>
+          <div className={styles['ig-diff-aggregate-head']}>
+            <span className={styles['ig-diff-hunk-owner-label']}>聚合摘要</span>
+            <span className={styles['ig-diff-aggregate-summary']}>{aggregatedSummary.summary}</span>
+          </div>
+          <div className={styles['ig-diff-aggregate-tags']}>
+            <span
+              className={classNames(
+                styles['ig-diff-aggregate-tag'],
+                aggregatedSummary.confidence === 'high' && styles['ig-diff-aggregate-tag-high'],
+                aggregatedSummary.confidence === 'medium' && styles['ig-diff-aggregate-tag-medium'],
+                aggregatedSummary.confidence === 'low' && styles['ig-diff-aggregate-tag-low']
+              )}
+            >
+              {`置信度 ${aggregatedSummary.confidence || 'low'}`}
+            </span>
+            {aggregatedSummary.changeKinds.slice(0, 4).map((kind) => (
+              <span key={kind} className={styles['ig-diff-aggregate-tag']}>
+                {kind}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {diff.filePatches.map((filePatch, filePatchIndex) => (
         <div key={filePatchIndex}>
           {filePatch.isBinary ? (
