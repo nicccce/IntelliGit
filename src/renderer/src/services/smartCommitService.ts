@@ -8,7 +8,7 @@ import {
   type CommitIntentGroup,
   type SmartCommitAnalysisResult
 } from './smartCommitProvider'
-import { renderAstContext, type AstFileContentMap } from '../utils/astChangeAnalyzer'
+import { analyzeAstChanges, renderAstContext, type AstChangeInsight, type AstFileContentMap } from '../utils/astChangeAnalyzer'
 
 export type { CommitIntentGroup, SmartCommitAnalysisResult }
 
@@ -25,8 +25,9 @@ function normalizeFiles(files: string[]): string[] {
 
 function buildGroupContext(group: CommitIntentGroup): string {
   const scope = group.scope ? `\n作用域：${group.scope}` : ''
+  const confidence = group.confidence ? `\n置信度：${group.confidence}` : ''
   const hunkText = group.hunks?.length ? `\n关联 Hunk：\n${group.hunks.map((hunk) => `- ${hunk}`).join('\n')}` : ''
-  return `提交意图：${group.type}${scope}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}${hunkText}`
+  return `提交意图：${group.type}${scope}${confidence}\n分组摘要：${group.summary}\n分组文件：\n${group.files.map((file) => `- ${file}`).join('\n')}${hunkText}`
 }
 
 interface RawHunk {
@@ -103,6 +104,53 @@ function getStagedFileCount(): number {
     .fileStatuses.filter((file) => file.staging && file.staging !== 'unmodified').length
 }
 
+type Confidence = NonNullable<AstChangeInsight['confidence']>
+
+const CONFIDENCE_SCORE: Record<Confidence, number> = {
+  low: 1,
+  medium: 2,
+  high: 3
+}
+
+function mergeConfidence(values: Array<Confidence | undefined>): Confidence {
+  const score = Math.max(1, ...values.map((value) => CONFIDENCE_SCORE[value || 'low']))
+  return score >= 3 ? 'high' : score >= 2 ? 'medium' : 'low'
+}
+
+function buildAnalysisSummary(insights: AstChangeInsight[]): Pick<SmartCommitAnalysisResult, 'analysisSummary' | 'confidence' | 'changeKinds'> {
+  const changeKinds = [...new Set(insights.flatMap((insight) => insight.changeKinds))].slice(0, 6)
+  const confidence = mergeConfidence(insights.map((insight) => insight.confidence))
+  const files = insights.length
+  return {
+    analysisSummary: files > 0 ? `识别到 ${files} 个文件的 ${changeKinds.slice(0, 3).join('、') || '代码'} 变更` : '已完成智能分组分析',
+    confidence,
+    changeKinds
+  }
+}
+
+function enrichGroupsWithAst(
+  result: SmartCommitAnalysisResult,
+  insights: AstChangeInsight[]
+): SmartCommitAnalysisResult {
+  const insightMap = new Map(insights.map((insight) => [insight.filePath, insight]))
+  const fallback = buildAnalysisSummary(insights)
+  const groups = result.groups.map((group) => {
+    const groupInsights = group.files.map((file) => insightMap.get(file)).filter((insight): insight is AstChangeInsight => Boolean(insight))
+    return {
+      ...group,
+      confidence: group.confidence || mergeConfidence(groupInsights.map((insight) => insight.confidence))
+    }
+  })
+
+  return {
+    ...result,
+    groups,
+    analysisSummary: result.analysisSummary || fallback.analysisSummary,
+    confidence: result.confidence || fallback.confidence,
+    changeKinds: result.changeKinds?.length ? result.changeKinds : fallback.changeKinds
+  }
+}
+
 type DiffFileStatus = 'added' | 'deleted' | 'modified' | 'renamed'
 
 function parseDiffFilePaths(diff: string): Array<{ oldPath?: string; filePath: string; status: DiffFileStatus }> {
@@ -172,6 +220,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
   const diff = workdirDiff.diff || stagedDiff.diff
   const files = getChangedFiles()
   const astContentMap = await buildAstContentMap(diff)
+  const astInsights = analyzeAstChanges(files, diff, astContentMap)
   const astContext = renderAstContext(files, diff, astContentMap)
 
   if (!diff.trim()) {
@@ -181,7 +230,14 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
     }
   }
 
-  return smartCommitProvider.analyzeChanges({ diff, files, astContext })
+  const result = await smartCommitProvider.analyzeChanges({ diff, files, astContext })
+  if (result.success && result.data) {
+    return {
+      ...result,
+      data: enrichGroupsWithAst(result.data, astInsights)
+    }
+  }
+  return result
 }
 
 /**

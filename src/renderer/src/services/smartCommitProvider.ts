@@ -17,6 +17,7 @@ export interface CommitIntentGroup {
   scope?: string
   summary: string
   files: string[]
+  confidence?: 'high' | 'medium' | 'low'
   /** 可选的 raw diff hunk 标识，格式为 `${filePath}@@${hunkHeader}`，用于细粒度暂存。 */
   hunks?: string[]
 }
@@ -99,6 +100,7 @@ function sanitizeGroups(
       type: sanitizeType(group.type),
       scope: sanitizeScope(group.scope),
       summary: limitText(group.summary, MAX_GROUP_SUMMARY_LENGTH),
+      confidence: group.confidence,
       files: group.files
         .map((file) => file.trim())
         .filter((file) => allowedFiles.has(file) && !usedFiles.has(file))
@@ -109,7 +111,14 @@ function sanitizeGroups(
     })
     .slice(0, 5)
 
-  return groups.length > 0 ? { groups } : null
+  return groups.length > 0
+    ? {
+        groups,
+        analysisSummary: result.analysisSummary,
+        confidence: result.confidence,
+        changeKinds: result.changeKinds
+      }
+    : null
 }
 
 function hasUsableLlmConfig(config: LlmConfig | undefined): config is LlmConfig {
