@@ -8,7 +8,8 @@ import {
   analyzeSmartCommitChanges,
   generateSmartCommitMessage,
   stageGroupAndGenerateMessage,
-  type CommitIntentGroup
+  type CommitIntentGroup,
+  type SmartCommitAnalysisResult
 } from '../../services/smartCommitService'
 import { useCommitPanelModel } from '../../viewModels'
 import styles from './CommitPanel.module.css'
@@ -26,6 +27,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const [isAiGenerating, setIsAiGenerating] = useState(false)
   const [isAnalyzingGroups, setIsAnalyzingGroups] = useState(false)
   const [groups, setGroups] = useState<CommitIntentGroup[]>([])
+  const [analysisSummary, setAnalysisSummary] = useState<SmartCommitAnalysisResult | null>(null)
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null)
   const [smartCommitNotice, setSmartCommitNotice] = useState<string | null>(null)
   const [commitFeedback, setCommitFeedback] = useState<{
@@ -36,6 +38,9 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const normalizedCommitMsg = useMemo(() => commitMsg.trim(), [commitMsg])
   const selectedGroup = selectedGroupIndex === null ? null : groups[selectedGroupIndex]
   const canCommit = normalizedCommitMsg.length > 0 && stagedCount > 0 && !isBusy && !isCommitRunning
+  const analysisConfidence = analysisSummary?.confidence || 'low'
+  const analysisHeadline = analysisSummary?.analysisSummary || '已完成智能分组分析'
+  const analysisKinds = analysisSummary?.changeKinds?.slice(0, 4) || []
 
   const handleCommit = useCallback(async () => {
     if (!normalizedCommitMsg) {
@@ -88,6 +93,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       const result = await analyzeSmartCommitChanges()
       if (result.success && result.data && result.data.groups.length > 0) {
         setGroups(result.data.groups)
+        setAnalysisSummary(result.data)
         setSelectedGroupIndex(0)
         setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
         showSuccess(result.fallback ? '已使用本地模板生成变更分组' : 'AI 变更分组已生成')
@@ -112,6 +118,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       }
 
       setGroups(result.data.groups)
+      setAnalysisSummary(result.data)
       const nextGroup = result.data.groups[0]
       setSelectedGroupIndex(0)
       setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
@@ -244,6 +251,27 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         </Button>
       </div>
 
+      {analysisSummary && (
+        <Alert
+          className={styles['ig-commit-feedback']}
+          type={analysisConfidence === 'high' ? 'success' : analysisConfidence === 'medium' ? 'info' : 'warning'}
+          message={analysisHeadline}
+          description={
+            <div>
+              <div>{`置信度：${analysisConfidence}`}</div>
+              {analysisKinds.length > 0 && <div>{`变更类型：${analysisKinds.join('、')}`}</div>}
+              <div>
+                {analysisSummary.groups
+                  .slice(0, 4)
+                  .map((group) => `${group.type}｜${group.summary}`)
+                  .join('；')}
+              </div>
+            </div>
+          }
+          showIcon
+        />
+      )}
+
       {commitFeedback && (
         <Alert
           className={styles['ig-commit-feedback']}
@@ -282,9 +310,22 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
                             <div className={styles['ig-group-item']}>
                               <div className={styles['ig-group-title']}>
                                 <Tag color="blue">{group.type}</Tag>
+                                <Tag
+                                  color={
+                                    analysisConfidence === 'high'
+                                      ? 'green'
+                                      : analysisConfidence === 'medium'
+                                        ? 'blue'
+                                        : 'gold'
+                                  }
+                                >
+                                  {analysisConfidence}
+                                </Tag>
                                 <span>{group.summary}</span>
                               </div>
-                              <div className={styles['ig-group-files']}>{group.files.join('、')}</div>
+                              <div className={styles['ig-group-files']}>
+                                {group.files.join('、')}
+                              </div>
                             </div>
                           </Radio>
                         ))}

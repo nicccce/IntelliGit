@@ -23,6 +23,9 @@ export interface CommitIntentGroup {
 
 export interface SmartCommitAnalysisResult {
   groups: CommitIntentGroup[]
+  analysisSummary?: string
+  confidence?: 'high' | 'medium' | 'low'
+  changeKinds?: string[]
 }
 
 export interface SmartCommitMessageInput {
