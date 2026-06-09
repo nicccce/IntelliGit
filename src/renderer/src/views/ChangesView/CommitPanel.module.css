@@ -50,8 +50,8 @@
 
 .ig-group-collapse:global(.ant-collapse) {
   flex: 0 0 auto;
-  max-height: 170px;
-  overflow: auto;
+  max-height: none;
+  overflow: hidden;
   border-color: var(--border-secondary);
   background: var(--bg-primary);
 }
@@ -73,13 +73,51 @@
   padding: 6px !important;
 }
 
-.ig-commit-scroll-area {
+.ig-analysis-card {
   display: flex;
-  max-height: 120px;
+  flex: 0 0 auto;
   min-height: 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.ig-analysis-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ig-analysis-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.ig-analysis-title {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ig-analysis-subtitle {
   overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ig-analysis-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .ig-smart-notice {
@@ -94,7 +132,8 @@
 }
 
 .ig-group-list {
-  flex: 1;
+  display: block;
+  max-height: 180px;
   min-height: 0;
   overflow: auto;
   padding: 6px;
@@ -103,18 +142,28 @@
   background: var(--bg-primary);
 }
 
+.ig-group-list :global(.ant-radio) {
+  flex-shrink: 0;
+}
+
 .ig-group-space {
   width: 100%;
 }
 
 .ig-group-radio:global(.ant-radio-wrapper) {
+  display: flex;
   width: 100%;
+  min-width: 0;
   margin-inline-end: 0;
   align-items: flex-start;
-  padding: 6px;
+  padding: 8px;
   border: 1px solid transparent;
   border-radius: 7px;
   transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ig-group-radio:global(.ant-radio-wrapper) :global(.ant-radio) {
+  margin-top: 2px;
 }
 
 .ig-group-radio:global(.ant-radio-wrapper):hover {
@@ -146,7 +195,9 @@
   flex-wrap: wrap;
 }
 
-.ig-group-title span {
+.ig-group-title span:last-child {
+  flex-basis: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -247,10 +298,23 @@
 }
 
 .ig-commit-feedback:global(.ant-alert) {
+  flex: 0 0 auto;
   min-height: 0;
-  padding: 5px 8px;
+  margin-bottom: 2px;
+  padding: 6px 8px;
   border-radius: 8px;
   font-size: 12px;
+  line-height: 1.35;
+}
+
+.ig-commit-feedback:global(.ant-alert) :global(.ant-alert-message),
+.ig-commit-feedback:global(.ant-alert) :global(.ant-alert-description) {
+  min-width: 0;
+  white-space: normal;
+}
+
+.ig-commit-feedback:global(.ant-alert) :global(.ant-alert-description) {
+  margin-top: 4px;
 }
 
 .ig-commit-input::-webkit-scrollbar,

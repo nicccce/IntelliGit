@@ -658,12 +658,13 @@ export function analyzeAstChanges(files: string[], diff: string, contentMap?: As
     const hunks = hunkInsights.map((hunk) => `${section.filePath}@@${hunk.header}`)
     const symbolText = symbols.length ? `，涉及 ${symbols.join('、')}` : ''
     const hunkText = hunkInsights.length ? `，${hunkInsights.length} 个 Hunk` : ''
-    const confidence =
-      symbolChanges.length > 0 && hunkInsights.some((hunk) => hunk.confidence === 'high')
-        ? 'high'
-        : symbolChanges.length > 0 || hunkInsights.length > 0
-          ? 'medium'
-          : 'low'
+    const hasAstSignal = symbolChanges.length > 0 || astSymbols.length > 0
+    const hasHunkSignal = hunkInsights.length > 0
+    const confidence = hasAstSignal && hasHunkSignal
+      ? 'high'
+      : hasAstSignal || hasHunkSignal
+        ? 'medium'
+        : 'low'
     const summary = `${section.filePath}：${changeKinds.join('、')}${symbolText}${hunkText}（置信度 ${confidence}）`
     return {
       filePath: section.filePath,

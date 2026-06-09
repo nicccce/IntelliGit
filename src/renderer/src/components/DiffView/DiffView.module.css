@@ -224,9 +224,9 @@
 .ig-diff-aggregate-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 8px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid var(--border-secondary);
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-secondary));

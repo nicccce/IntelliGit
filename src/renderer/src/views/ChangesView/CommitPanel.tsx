@@ -41,6 +41,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const analysisConfidence = analysisSummary?.confidence || 'low'
   const analysisHeadline = analysisSummary?.analysisSummary || '已完成智能分组分析'
   const analysisKinds = analysisSummary?.changeKinds?.slice(0, 4) || []
+  const selectedGroupConfidence = selectedGroup?.confidence || analysisConfidence
 
   const handleCommit = useCallback(async () => {
     if (!normalizedCommitMsg) {
@@ -251,27 +252,6 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         </Button>
       </div>
 
-      {analysisSummary && (
-        <Alert
-          className={styles['ig-commit-feedback']}
-          type={analysisConfidence === 'high' ? 'success' : analysisConfidence === 'medium' ? 'info' : 'warning'}
-          message={analysisHeadline}
-          description={
-            <div>
-              <div>{`置信度：${analysisConfidence}`}</div>
-              {analysisKinds.length > 0 && <div>{`变更类型：${analysisKinds.join('、')}`}</div>}
-              <div>
-                {analysisSummary.groups
-                  .slice(0, 4)
-                  .map((group) => `${group.type}｜${group.summary}`)
-                  .join('；')}
-              </div>
-            </div>
-          }
-          showIcon
-        />
-      )}
-
       {commitFeedback && (
         <Alert
           className={styles['ig-commit-feedback']}
@@ -281,62 +261,97 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         />
       )}
 
-      {(smartCommitNotice || groups.length > 0) && (
-        <Collapse
-          className={styles['ig-group-collapse']}
-          size="small"
-          defaultActiveKey={groups.length > 0 ? ['groups'] : []}
-          items={[
-            {
-              key: 'groups',
-              label: groups.length > 0 ? `分析结果：${groups.length} 个分组` : '智能提交提示',
-              children: (
-                <div className={styles['ig-commit-scroll-area']}>
-                  {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
+      {(analysisSummary || smartCommitNotice || groups.length > 0) && (
+        <div className={styles['ig-analysis-card']}>
+          <div className={styles['ig-analysis-header']}>
+            <div className={styles['ig-analysis-title-block']}>
+              <div className={styles['ig-analysis-title']}>智能分析</div>
+              <div className={styles['ig-analysis-subtitle']}>
+                {analysisSummary ? analysisHeadline : smartCommitNotice || '等待分析结果'}
+              </div>
+            </div>
+            {analysisSummary && (
+              <Tag
+                color={
+                  analysisConfidence === 'high'
+                    ? 'green'
+                    : analysisConfidence === 'medium'
+                      ? 'blue'
+                      : 'gold'
+                }
+              >
+                {analysisConfidence}
+              </Tag>
+            )}
+          </div>
 
-                  {groups.length > 0 && (
+          {analysisKinds.length > 0 && (
+            <div className={styles['ig-analysis-tags']}>
+              {analysisKinds.map((kind) => (
+                <Tag key={kind} color="geekblue">
+                  {kind}
+                </Tag>
+              ))}
+            </div>
+          )}
+
+          {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
+
+          {groups.length > 0 && (
+            <Collapse
+              className={styles['ig-group-collapse']}
+              size="small"
+              defaultActiveKey={[]}
+              items={[
+                {
+                  key: 'groups',
+                  label: `查看 ${groups.length} 个分组`,
+                  children: (
                     <Radio.Group
                       className={styles['ig-group-list']}
                       value={selectedGroupIndex}
                       onChange={(event) => setSelectedGroupIndex(event.target.value)}
                     >
                       <Space direction="vertical" size={6} className={styles['ig-group-space']}>
-                        {groups.map((group, index) => (
-                          <Radio
-                            key={`${group.type}-${group.summary}-${index}`}
-                            className={styles['ig-group-radio']}
-                            value={index}
-                          >
-                            <div className={styles['ig-group-item']}>
-                              <div className={styles['ig-group-title']}>
-                                <Tag color="blue">{group.type}</Tag>
-                                <Tag
-                                  color={
-                                    analysisConfidence === 'high'
-                                      ? 'green'
-                                      : analysisConfidence === 'medium'
-                                        ? 'blue'
-                                        : 'gold'
-                                  }
-                                >
-                                  {analysisConfidence}
-                                </Tag>
-                                <span>{group.summary}</span>
+                        {groups.map((group, index) => {
+                          const groupConfidence = group.confidence || analysisConfidence
+                          return (
+                            <Radio
+                              key={`${group.type}-${group.summary}-${index}`}
+                              className={styles['ig-group-radio']}
+                              value={index}
+                            >
+                              <div className={styles['ig-group-item']}>
+                                <div className={styles['ig-group-title']}>
+                                  <Tag color="blue">{group.type}</Tag>
+                                  <Tag
+                                    color={
+                                      groupConfidence === 'high'
+                                        ? 'green'
+                                        : groupConfidence === 'medium'
+                                          ? 'blue'
+                                          : 'gold'
+                                    }
+                                  >
+                                    {groupConfidence}
+                                  </Tag>
+                                  <span>{group.summary}</span>
+                                </div>
+                                <div className={styles['ig-group-files']}>
+                                  {group.files.join('、')}
+                                </div>
                               </div>
-                              <div className={styles['ig-group-files']}>
-                                {group.files.join('、')}
-                              </div>
-                            </div>
-                          </Radio>
-                        ))}
+                            </Radio>
+                          )
+                        })}
                       </Space>
                     </Radio.Group>
-                  )}
-                </div>
-              )
-            }
-          ]}
-        />
+                  )
+                }
+              ]}
+            />
+          )}
+        </div>
       )}
     </div>
   )
