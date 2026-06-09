@@ -13,6 +13,8 @@ export interface AstSymbolInfo {
   params?: string
   returnType?: string
   fields?: string[]
+  confidence?: 'high' | 'medium' | 'low'
+  key?: string
 }
 
 export interface AstSymbolChange {
@@ -40,6 +42,7 @@ export interface AstHunkInsight {
   oldOwner?: AstSymbolInfo
   newOwner?: AstSymbolInfo
   ownerLabel?: string
+  confidence?: 'high' | 'medium' | 'low'
   summary: string
 }
 
@@ -56,6 +59,7 @@ export interface AstChangeInsight {
   symbolChanges: AstSymbolChange[]
   hunks: string[]
   hunkInsights: AstHunkInsight[]
+  confidence?: 'high' | 'medium' | 'low'
   summary: string
 }
 
@@ -229,12 +233,30 @@ function codeOf(node: Node | null | undefined): string {
   }
 }
 
+function normalizeForHash(value: string): string {
+  return value
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function hashText(value: string): string {
+  const normalized = normalizeForHash(value)
   let hash = 0
-  for (let index = 0; index < value.length; index++) {
-    hash = (hash * 31 + value.charCodeAt(index)) | 0
+  for (let index = 0; index < normalized.length; index++) {
+    hash = (hash * 31 + normalized.charCodeAt(index)) | 0
   }
   return String(hash)
+}
+
+function buildSymbolKey(
+  name: string,
+  kind: string,
+  range: Pick<AstSymbolInfo, 'startLine' | 'endLine'>,
+  signature?: string
+): string {
+  return `${kind}:${name}:${range.startLine}-${range.endLine}:${signature || ''}`
 }
 
 function pushAstSymbol(
@@ -247,11 +269,21 @@ function pushAstSymbol(
   if (!name) return
   const range = getNodeLineRange(node)
   if (!range) return
-  symbols.push({ name, kind, ...range, ...details })
+  const key = buildSymbolKey(name, kind, range, details.signature)
+  symbols.push({ name, kind, ...range, ...details, key })
 }
 
 function paramText(params: Node[] | undefined): string {
   return (params || []).map((param) => codeOf(param)).join(',')
+}
+
+function getSymbolConfidence(kind: string, details: Partial<AstSymbolInfo>): AstSymbolInfo['confidence'] {
+  if (kind === 'interface' || kind === 'type') return 'high'
+  if (kind === 'class') return 'high'
+  if (kind === 'function' && (details.signature || details.params)) return 'high'
+  if (kind === 'method' && (details.signature || details.params)) return 'high'
+  if (kind === 'variable' && details.bodyHash) return 'medium'
+  return 'low'
 }
 
 function returnTypeText(node: { returnType?: Node | null; typeAnnotation?: Node | null }): string {
@@ -284,30 +316,44 @@ function extractAstSymbols(filePath: string, source: string): AstSymbolInfo[] {
     traverse(ast, {
       FunctionDeclaration(path) {
         const returnType = returnTypeText(path.node)
-        pushAstSymbol(symbols, path.node.id?.name, 'function', path.node, {
+        const details = {
           params: paramText(path.node.params),
           returnType,
           bodyHash: hashText(codeOf(path.node.body)),
           signature: functionSignature(path.node.id?.name, path.node.params, returnType)
+        }
+        pushAstSymbol(symbols, path.node.id?.name, 'function', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('function', details)
         })
       },
       ClassDeclaration(path) {
+        const details = { bodyHash: hashText(codeOf(path.node.body)) }
         pushAstSymbol(symbols, path.node.id?.name, 'class', path.node, {
-          bodyHash: hashText(codeOf(path.node.body))
+          ...details,
+          confidence: getSymbolConfidence('class', details)
         })
       },
       TSInterfaceDeclaration(path) {
-        pushAstSymbol(symbols, path.node.id.name, 'interface', path.node, {
+        const details = {
           fields: interfaceFields(path.node.body.body as unknown as Node[]),
           bodyHash: hashText(codeOf(path.node.body))
+        }
+        pushAstSymbol(symbols, path.node.id.name, 'interface', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('interface', details)
         })
       },
       TSTypeAliasDeclaration(path) {
         const annotation = path.node.typeAnnotation
         const fields = annotation.type === 'TSTypeLiteral' ? interfaceFields(annotation.members as unknown as Node[]) : undefined
-        pushAstSymbol(symbols, path.node.id.name, 'type', path.node, {
+        const details = {
           fields,
           bodyHash: hashText(codeOf(annotation))
+        }
+        pushAstSymbol(symbols, path.node.id.name, 'type', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('type', details)
         })
       },
       VariableDeclarator(path) {
@@ -323,30 +369,84 @@ function extractAstSymbols(filePath: string, source: string): AstSymbolInfo[] {
               signature: `${path.node.id.name}(${paramText(init.params)}):${returnTypeText(init)}`
             }
           : { bodyHash: hashText(codeOf(init)) }
-        pushAstSymbol(symbols, path.node.id.name, kind, path.node, details)
+        pushAstSymbol(symbols, path.node.id.name, kind, path.node, {
+          ...details,
+          confidence: getSymbolConfidence(kind, details)
+        })
       },
       ObjectMethod(path) {
         const key = path.node.key
         const name = key.type === 'Identifier' ? key.name : key.type === 'StringLiteral' ? key.value : undefined
-        pushAstSymbol(symbols, name, 'method', path.node, {
+        const details = {
           params: paramText(path.node.params),
           returnType: returnTypeText(path.node),
-          bodyHash: hashText(codeOf(path.node.body))
+          bodyHash: hashText(codeOf(path.node.body)),
+          signature: functionSignature(name, path.node.params, returnTypeText(path.node))
+        }
+        pushAstSymbol(symbols, name, 'method', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('method', details)
         })
       },
       ClassMethod(path) {
         const key = path.node.key
         const name = key.type === 'Identifier' ? key.name : key.type === 'StringLiteral' ? key.value : undefined
-        pushAstSymbol(symbols, name, 'method', path.node, {
+        const details = {
           params: paramText(path.node.params),
           returnType: returnTypeText(path.node),
-          bodyHash: hashText(codeOf(path.node.body))
+          bodyHash: hashText(codeOf(path.node.body)),
+          signature: functionSignature(name, path.node.params, returnTypeText(path.node))
+        }
+        pushAstSymbol(symbols, name, 'method', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('method', details)
         })
       },
       TSDeclareFunction(path) {
-        pushAstSymbol(symbols, path.node.id?.name, 'function', path.node, {
+        const details = {
           params: paramText(path.node.params),
-          returnType: returnTypeText(path.node)
+          returnType: returnTypeText(path.node),
+          signature: functionSignature(path.node.id?.name, path.node.params, returnTypeText(path.node))
+        }
+        pushAstSymbol(symbols, path.node.id?.name, 'function', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('function', details)
+        })
+      },
+      ArrowFunctionExpression(path) {
+        if (path.parent.type !== 'VariableDeclarator' && path.parent.type !== 'AssignmentExpression') return
+        const name = path.parent.type === 'VariableDeclarator' && path.parent.id.type === 'Identifier'
+          ? path.parent.id.name
+          : path.parent.type === 'AssignmentExpression' && path.parent.left.type === 'Identifier'
+            ? path.parent.left.name
+            : undefined
+        if (!name) return
+        const details = {
+          params: paramText(path.node.params),
+          returnType: returnTypeText(path.node),
+          bodyHash: hashText(codeOf(path.node.body)),
+          signature: functionSignature(name, path.node.params, returnTypeText(path.node))
+        }
+        pushAstSymbol(symbols, name, 'function', path.node, {
+          ...details,
+          confidence: getSymbolConfidence('function', details)
+        })
+      },
+      CallExpression(path) {
+        const callee = path.node.callee
+        if (callee.type !== 'Identifier') return
+        if (!['memo', 'forwardRef'].includes(callee.name)) return
+        const firstArg = path.node.arguments[0]
+        if (!firstArg || firstArg.type !== 'ArrowFunctionExpression' && firstArg.type !== 'FunctionExpression') return
+        const details = {
+          params: paramText(firstArg.params),
+          returnType: returnTypeText(firstArg),
+          bodyHash: hashText(codeOf(firstArg.body)),
+          signature: `${callee.name}(${paramText(firstArg.params)}):${returnTypeText(firstArg)}`
+        }
+        pushAstSymbol(symbols, callee.name, 'component', path.node, {
+          ...details,
+          confidence: 'medium'
         })
       }
     })
@@ -364,11 +464,11 @@ function extractAstSymbols(filePath: string, source: string): AstSymbolInfo[] {
 }
 
 function symbolKey(symbol: AstSymbolInfo): string {
-  return `${symbol.kind}:${symbol.name}`
+  return symbol.key || `${symbol.kind}:${symbol.name}:${symbol.startLine}-${symbol.endLine}:${symbol.signature || ''}`
 }
 
 function sameFields(a?: string[], b?: string[]): boolean {
-  return JSON.stringify(a || []) === JSON.stringify(b || [])
+  return JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort())
 }
 
 function diffAstSymbols(oldSymbols: AstSymbolInfo[], newSymbols: AstSymbolInfo[]): AstSymbolChange[] {
@@ -408,24 +508,38 @@ function diffAstSymbols(oldSymbols: AstSymbolInfo[], newSymbols: AstSymbolInfo[]
   return changes
 }
 
+function overlapCount(symbol: AstSymbolInfo, startLine: number, lineCount: number): number {
+  const endLine = startLine + Math.max(0, lineCount - 1)
+  const overlapStart = Math.max(symbol.startLine, startLine)
+  const overlapEnd = Math.min(symbol.endLine, endLine)
+  return Math.max(0, overlapEnd - overlapStart + 1)
+}
+
+function centerDistance(symbol: AstSymbolInfo, startLine: number, lineCount: number): number {
+  const center = startLine + Math.max(0, lineCount - 1) / 2
+  const symbolCenter = (symbol.startLine + symbol.endLine) / 2
+  return Math.abs(symbolCenter - center)
+}
+
+function rankHunkSymbols(astSymbols: AstSymbolInfo[], startLine: number, lineCount: number): AstSymbolInfo[] {
+  return astSymbols
+    .map((symbol) => ({ symbol, overlap: overlapCount(symbol, startLine, lineCount), distance: centerDistance(symbol, startLine, lineCount) }))
+    .filter((entry) => entry.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap || a.distance - b.distance || a.symbol.startLine - b.symbol.startLine)
+    .map((entry) => entry.symbol)
+}
+
 function findAstSymbolsInRange(
   astSymbols: AstSymbolInfo[],
   startLine: number,
   lineCount: number,
   limit = MAX_SYMBOLS_PER_HUNK
 ): AstSymbolInfo[] {
-  const endLine = startLine + Math.max(0, lineCount - 1)
-  return astSymbols
-    .filter((symbol) => symbol.startLine <= endLine && symbol.endLine >= startLine)
-    .sort((a, b) => a.startLine - b.startLine || a.endLine - b.endLine)
-    .slice(0, limit)
+  return rankHunkSymbols(astSymbols, startLine, lineCount).slice(0, limit)
 }
 
 function findOwner(astSymbols: AstSymbolInfo[], startLine: number, lineCount: number): AstSymbolInfo | undefined {
-  const endLine = startLine + Math.max(0, lineCount - 1)
-  return astSymbols
-    .filter((symbol) => symbol.startLine <= endLine && symbol.endLine >= startLine)
-    .sort((a, b) => (a.endLine - a.startLine) - (b.endLine - b.startLine) || b.startLine - a.startLine)[0]
+  return rankHunkSymbols(astSymbols, startLine, lineCount)[0]
 }
 
 function parseHunkRange(header: string): Pick<AstHunkInsight, 'oldStart' | 'oldLines' | 'newStart' | 'newLines'> {
@@ -450,17 +564,21 @@ function analyzeHunks(section: FileDiffSection, oldAstSymbols: AstSymbolInfo[], 
     const contextLines = lines.filter((line) => line.startsWith(' ')).length
     const fallbackSymbols = extractSymbols(section.filePath, hunk.body, MAX_SYMBOLS_PER_HUNK)
     const range = parseHunkRange(hunk.header)
-    const oldAstSymbolsInHunk = findAstSymbolsInRange(oldAstSymbols, range.oldStart, Math.max(range.oldLines, 1))
-    const newAstSymbolsInHunk = findAstSymbolsInRange(newAstSymbols, range.newStart, Math.max(range.newLines, 1))
+    const oldLineCount = Math.max(range.oldLines, 1)
+    const newLineCount = Math.max(range.newLines, 1)
+    const oldAstSymbolsInHunk = findAstSymbolsInRange(oldAstSymbols, range.oldStart, oldLineCount)
+    const newAstSymbolsInHunk = findAstSymbolsInRange(newAstSymbols, range.newStart, newLineCount)
     const astSymbolsInHunk = [...newAstSymbolsInHunk, ...oldAstSymbolsInHunk].filter(
       (symbol, index, array) => array.findIndex((item) => symbolKey(item) === symbolKey(symbol)) === index
     )
-    const oldOwner = findOwner(oldAstSymbols, range.oldStart, Math.max(range.oldLines, 1))
-    const newOwner = findOwner(newAstSymbols, range.newStart, Math.max(range.newLines, 1))
+    const oldOwner = findOwner(oldAstSymbols, range.oldStart, oldLineCount)
+    const newOwner = findOwner(newAstSymbols, range.newStart, newLineCount)
     const owner = newOwner || oldOwner
     const ownerLabel = formatOwner(owner)
     const symbols = astSymbolsInHunk.length ? astSymbolsInHunk.map((symbol) => symbol.name) : fallbackSymbols
-    const summaryParts = [`+${addedLines}`, `-${deletedLines}`]
+    const confidence: NonNullable<AstHunkInsight['confidence']> =
+      owner && astSymbolsInHunk.length ? 'high' : owner || astSymbolsInHunk.length ? 'medium' : 'low'
+    const summaryParts = [`+${addedLines}`, `-${deletedLines}`, `置信度 ${confidence}`]
     if (ownerLabel) summaryParts.push(`所属 ${ownerLabel}`)
     if (astSymbolsInHunk.length) {
       summaryParts.push(`AST ${astSymbolsInHunk.map((symbol) => `${symbol.kind}:${symbol.name}`).join('、')}`)
@@ -540,7 +658,13 @@ export function analyzeAstChanges(files: string[], diff: string, contentMap?: As
     const hunks = hunkInsights.map((hunk) => `${section.filePath}@@${hunk.header}`)
     const symbolText = symbols.length ? `，涉及 ${symbols.join('、')}` : ''
     const hunkText = hunkInsights.length ? `，${hunkInsights.length} 个 Hunk` : ''
-    const summary = `${section.filePath}：${changeKinds.join('、')}${symbolText}${hunkText}`
+    const confidence =
+      symbolChanges.length > 0 && hunkInsights.some((hunk) => hunk.confidence === 'high')
+        ? 'high'
+        : symbolChanges.length > 0 || hunkInsights.length > 0
+          ? 'medium'
+          : 'low'
+    const summary = `${section.filePath}：${changeKinds.join('、')}${symbolText}${hunkText}（置信度 ${confidence}）`
     return {
       filePath: section.filePath,
       oldPath: section.oldPath,
@@ -554,7 +678,8 @@ export function analyzeAstChanges(files: string[], diff: string, contentMap?: As
       symbolChanges: symbolChanges.slice(0, MAX_SYMBOLS_PER_FILE),
       hunks,
       hunkInsights,
-      summary
+      summary,
+      confidence
     }
   })
 }
