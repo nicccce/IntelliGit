@@ -16,6 +16,7 @@ interface DiffViewModel {
   diffSource: DiffSource | null
   workdirDiff: PatchDetail | null
   stagedDiff: PatchDetail | null
+  fetchRawDiff: (path: string) => Promise<string>
 }
 
 export function useDiffViewModel(): DiffViewModel {
@@ -28,6 +29,7 @@ export function useDiffViewModel(): DiffViewModel {
     selectedFilePath,
     diffSource,
     workdirDiff,
-    stagedDiff
+    stagedDiff,
+    fetchRawDiff: useDiffStore.getState().fetchRawDiff
   }
 }
