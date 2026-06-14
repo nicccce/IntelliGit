@@ -100,6 +100,7 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
   const [activeBlockIndex, setActiveBlockIndex] = useState(0)
 
   const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
+  const diffText = diff?.diff ?? ''
   const hasConflictFile = useMemo(() => conflictedFiles.includes(selectedFilePath || ''), [conflictedFiles, selectedFilePath])
   const selectedFileSummary = useMemo(() => {
     if (!selectedFilePath) return SAMPLE_HINT
@@ -107,7 +108,7 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
   }, [selectedFilePath, diff])
 
   const currentBlock = blocks[activeBlockIndex]
-  const astContext = useMemo(() => selectedFilePath && diff ? renderAstContext([selectedFilePath], diff) : undefined, [diff, selectedFilePath])
+  const astContext = useMemo(() => selectedFilePath && diffText ? renderAstContext([selectedFilePath], diffText) : undefined, [diffText, selectedFilePath])
   const handleSelectRiskFile = useCallback(async (filePath: string) => {
     await useDiffStore.getState().selectFile(filePath, 'unstaged')
   }, [])
