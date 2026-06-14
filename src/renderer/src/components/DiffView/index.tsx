@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, type JSX } from 'react'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
-import { analyzeAstChanges, type AstChangeInsight } from '../../utils/astChangeAnalyzer'
+import { analyzeAstChanges, renderAstContext, type AstChangeInsight } from '../../utils/astChangeAnalyzer'
 import type { ChunkInfo } from '../../../../shared/types'
 import styles from './DiffView.module.css'
 
@@ -22,6 +22,7 @@ interface AggregatedDiffSummary {
   confidence?: 'high' | 'medium' | 'low'
   summary: string
   changeKinds: string[]
+  astContext?: string
 }
 
 function hunkLabel(insight: HunkOwnerInsight | undefined): string | undefined {
@@ -65,7 +66,8 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
       setAggregatedSummary({
         confidence: summary.confidence,
         summary: summary.summary,
-        changeKinds: summary.changeKinds
+        changeKinds: summary.changeKinds,
+        astContext: renderAstContext([selectedFilePath], rawDiff)
       })
     }
     void loadSummary()
@@ -113,6 +115,9 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
               </span>
             ))}
           </div>
+          {aggregatedSummary.astContext && (
+            <pre className={styles['ig-diff-ast-context']}>{aggregatedSummary.astContext}</pre>
+          )}
         </div>
       )}
       {diff.filePatches.map((filePatch, filePatchIndex) => (

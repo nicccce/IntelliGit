@@ -278,6 +278,41 @@
   border-color: color-mix(in srgb, #b7791f 35%, var(--border-secondary));
 }
 
+.ig-diff-ast-context {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent-blue) 20%, var(--border-secondary));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-primary) 86%, var(--accent-blue));
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 180px;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.ig-diff-ast-context::-webkit-scrollbar {
+  height: 6px;
+}
+
+.ig-diff-ast-context::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+}
+
+.ig-diff-ast-context::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-diff-ast-context {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
 .ig-diff-line.added {
   background: var(--diff-add-bg);
 }
