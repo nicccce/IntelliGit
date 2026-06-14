@@ -63,6 +63,15 @@ export interface AstChangeInsight {
   summary: string
 }
 
+export interface SemanticConflictRisk {
+  level: 'low' | 'medium' | 'high'
+  type: '调用-删除冲突' | '签名变更冲突' | '语义覆盖冲突' | '类型不兼容冲突' | '范围调整'
+  description: string
+  files: string[]
+  symbols: string[]
+  evidence: string[]
+}
+
 interface FileDiffSection {
   filePath: string
   oldPath?: string
@@ -683,6 +692,114 @@ export function analyzeAstChanges(files: string[], diff: string, contentMap?: As
       confidence
     }
   })
+}
+
+function uniqueByKey<T>(items: T[], getKey: (item: T) => string): T[] {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = getKey(item)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function extractTypeNames(text?: string): string[] {
+  if (!text) return []
+  return Array.from(text.matchAll(/\b[A-Z][A-Za-z0-9_$]*/g)).map((match) => match[0])
+}
+
+export function detectSemanticConflictRisks(
+  oursFiles: string[],
+  oursDiff: string,
+  theirsFiles: string[],
+  theirsDiff: string,
+  oursContentMap?: AstFileContentMap,
+  theirsContentMap?: AstFileContentMap
+): SemanticConflictRisk[] {
+  const oursInsights = analyzeAstChanges(oursFiles, oursDiff, oursContentMap)
+  const theirsInsights = analyzeAstChanges(theirsFiles, theirsDiff, theirsContentMap)
+  const risks: SemanticConflictRisk[] = []
+
+  const oursDeleted = oursInsights.flatMap((insight) =>
+    insight.symbolChanges.filter((change) => change.kind === 'deleted-symbol').map((change) => ({ insight, change }))
+  )
+  const theirsAdded = theirsInsights.flatMap((insight) =>
+    insight.symbolChanges.filter((change) => change.kind === 'added-symbol').map((change) => ({ insight, change }))
+  )
+
+  for (const deleted of oursDeleted) {
+    const match = theirsAdded.find((item) => item.change.symbol.name === deleted.change.symbol.name)
+    if (match) {
+      risks.push({
+        level: 'high',
+        type: '调用-删除冲突',
+        description: `${deleted.change.symbol.kind}:${deleted.change.symbol.name} 在一侧被删除，但另一侧仍存在新增/调用相关修改。`,
+        files: uniqueByKey([deleted.insight.filePath, match.insight.filePath], (item) => item),
+        symbols: [deleted.change.symbol.name],
+        evidence: [deleted.change.summary, match.change.summary]
+      })
+    }
+  }
+
+  const oursSignatureChanges = oursInsights.flatMap((insight) =>
+    insight.symbolChanges
+      .filter((change) => change.kind === 'modified-params' || change.kind === 'modified-return-type')
+      .map((change) => ({ insight, change }))
+  )
+
+  for (const symbol of oursSignatureChanges) {
+    const match = theirsAdded.find((item) => item.change.symbol.name === symbol.change.symbol.name)
+    if (match) {
+      risks.push({
+        level: 'medium',
+        type: '签名变更冲突',
+        description: `${symbol.change.symbol.kind}:${symbol.change.symbol.name} 的签名发生变化，需检查另一侧调用点是否仍匹配。`,
+        files: uniqueByKey([symbol.insight.filePath, match.insight.filePath], (item) => item),
+        symbols: [symbol.change.symbol.name],
+        evidence: [symbol.change.summary, match.change.summary]
+      })
+    }
+  }
+
+  for (const ours of oursInsights) {
+    const theirs = theirsInsights.find(
+      (item) =>
+        item.filePath === ours.filePath &&
+        item.symbolChanges.some((change) => change.kind === 'modified-body') &&
+        ours.symbolChanges.some((change) => change.kind === 'modified-body')
+    )
+    if (theirs) {
+      risks.push({
+        level: 'medium',
+        type: '语义覆盖冲突',
+        description: `文件 ${ours.filePath} 的核心逻辑在双方都发生了修改，建议人工审查合并语义。`,
+        files: [ours.filePath],
+        symbols: ours.symbols.slice(0, 3),
+        evidence: [ours.summary, theirs.summary]
+      })
+    }
+  }
+
+  for (const insight of [...oursInsights, ...theirsInsights]) {
+    for (const change of insight.symbolChanges) {
+      if (change.kind === 'modified-fields') {
+        const typeNames = extractTypeNames(change.symbol.fields?.join(' ') || change.symbol.signature)
+        if (typeNames.length > 0) {
+          risks.push({
+            level: 'medium',
+            type: '类型不兼容冲突',
+            description: `类型/接口 ${change.symbol.name} 的字段发生变化，可能影响另一侧实现或调用。`,
+            files: [insight.filePath],
+            symbols: [change.symbol.name, ...typeNames.slice(0, 2)],
+            evidence: [change.summary]
+          })
+        }
+      }
+    }
+  }
+
+  return uniqueByKey(risks, (risk) => `${risk.type}:${risk.files.join('|')}:${risk.symbols.join('|')}`)
 }
 
 export function renderAstContext(files: string[], diff: string, contentMap?: AstFileContentMap): string | undefined {
