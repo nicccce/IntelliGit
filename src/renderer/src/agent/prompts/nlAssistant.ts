@@ -44,10 +44,40 @@ export const NL_INTENT_PROMPT = `用户输入：{{userInput}}
 
 注意：
 - requiresWorkflow 可为 "commit"（需要提交工作流）或 "conflict"（需要冲突解决工作流）或 null
-- 如果用户意图需要提交工作流或冲突解决工作流，operations 可以为空`
+- 如果用户意图需要提交工作流或冲突解决工作流，operations 可以为空
+- 当 requiresWorkflow 为 "conflict" 时，不要直接编造合并结果；只输出工作流触发意图与安全的下一步建议`
+
+export const NL_FALLBACK_PROMPT = `用户输入：{{userInput}}
+
+当前仓库状态：
+{{repoContext}}
+
+由于上下文不足、意图不明确或模型输出不符合 JSON 约束，请使用保守解析策略，输出最小可执行计划：
+
+返回格式：
+\`\`\`json
+{
+  "intent": "无法精确识别时的保守意图（中文）",
+  "operations": [],
+  "requiresWorkflow": null,
+  "summary": "简短说明为什么需要人工确认（中文）"
+}
+\`\`\`
+
+规则：
+- 不要猜测用户未明确要求的 Git 操作。
+- 若可能涉及冲突或提交，但缺少关键上下文，优先返回空 operations。
+- 仅在完全明确时才设置 requiresWorkflow。`
 
 export function renderNlIntentPrompt(userInput: string, repoContext: string): string {
   return NL_INTENT_PROMPT.replace('{{userInput}}', userInput).replace(
+    '{{repoContext}}',
+    repoContext
+  )
+}
+
+export function renderNlFallbackPrompt(userInput: string, repoContext: string): string {
+  return NL_FALLBACK_PROMPT.replace('{{userInput}}', userInput).replace(
     '{{repoContext}}',
     repoContext
   )
