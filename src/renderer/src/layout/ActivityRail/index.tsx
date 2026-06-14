@@ -5,7 +5,8 @@ import {
   MessageOutlined,
   MoonOutlined,
   SettingOutlined,
-  SunOutlined
+  SunOutlined,
+  WarningOutlined
 } from '@ant-design/icons'
 import type { AppThemeMode, SidePanel } from '../../app/types'
 import { VIEW_OPTIONS } from '../../app/viewOptions'
@@ -76,6 +77,12 @@ function ActivityRail({
         label="对话"
         isActive={activeSidePanel === 'chat'}
         onClick={() => onToggleSidePanel('chat')}
+      />
+      <RailButton
+        icon={<WarningOutlined />}
+        label="冲突"
+        isActive={activeSidePanel === 'conflict'}
+        onClick={() => onToggleSidePanel('conflict')}
       />
       {/* 全局设置面板 */}
       <RailButton

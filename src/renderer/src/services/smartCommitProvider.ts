@@ -27,6 +27,14 @@ export interface SmartCommitAnalysisResult {
   analysisSummary?: string
   confidence?: 'high' | 'medium' | 'low'
   changeKinds?: string[]
+  semanticRisks?: Array<{
+    level: 'low' | 'medium' | 'high'
+    type: string
+    description: string
+    files: string[]
+    symbols: string[]
+    evidence: string[]
+  }>
 }
 
 export interface SmartCommitMessageInput {
@@ -34,6 +42,14 @@ export interface SmartCommitMessageInput {
   stagedFileCount: number
   groupContext?: string
   astContext?: string
+  semanticRisks?: Array<{
+    level: 'low' | 'medium' | 'high'
+    type: string
+    description: string
+    files: string[]
+    symbols: string[]
+    evidence: string[]
+  }>
 }
 
 export interface SmartCommitAnalyzeInput {
@@ -192,7 +208,11 @@ export class LlmSmartCommitProvider implements SmartCommitProvider {
           ? '你是一位专业的 Git 提交助手，请为指定变更分组生成提交信息。'
           : '你是一位专业的 Git 提交助手，请生成符合 Conventional Commits 的提交信息。',
         userMessage: renderCommitMessagePrompt(truncateDiffForPrompt(input.diff), input.groupContext),
-        context: { stagedFileCount: input.stagedFileCount, astContext: input.astContext }
+        context: {
+          stagedFileCount: input.stagedFileCount,
+          astContext: input.astContext,
+          semanticRisks: input.semanticRisks
+        }
       },
       (rawOutput) => parseStructured<CommitMessageResult>(rawOutput, COMMIT_MESSAGE_SCHEMA)
     )

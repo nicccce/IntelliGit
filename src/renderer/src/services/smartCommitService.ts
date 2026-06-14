@@ -8,9 +8,17 @@ import {
   type CommitIntentGroup,
   type SmartCommitAnalysisResult
 } from './smartCommitProvider'
-import { analyzeAstChanges, renderAstContext, type AstChangeInsight, type AstFileContentMap } from '../utils/astChangeAnalyzer'
+import {
+  analyzeAstChanges,
+  detectSemanticConflictRisks,
+  renderAstContext,
+  type AstChangeInsight,
+  type AstFileContentMap,
+  type SemanticConflictRisk
+} from '../utils/astChangeAnalyzer'
 
 export type { CommitIntentGroup, SmartCommitAnalysisResult }
+export type { SemanticConflictRisk }
 
 export interface SmartCommitGroupWorkflowResult {
   group: CommitIntentGroup
@@ -130,7 +138,8 @@ function buildAnalysisSummary(insights: AstChangeInsight[]): Pick<SmartCommitAna
 
 function enrichGroupsWithAst(
   result: SmartCommitAnalysisResult,
-  insights: AstChangeInsight[]
+  insights: AstChangeInsight[],
+  semanticRisks: SemanticConflictRisk[]
 ): SmartCommitAnalysisResult {
   const insightMap = new Map(insights.map((insight) => [insight.filePath, insight]))
   const fallback = buildAnalysisSummary(insights)
@@ -145,6 +154,7 @@ function enrichGroupsWithAst(
   return {
     ...result,
     groups,
+    semanticRisks: result.semanticRisks?.length ? result.semanticRisks : semanticRisks,
     analysisSummary: result.analysisSummary || fallback.analysisSummary,
     confidence: result.confidence || fallback.confidence,
     changeKinds: result.changeKinds?.length ? result.changeKinds : fallback.changeKinds
@@ -221,6 +231,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
   const files = getChangedFiles()
   const astContentMap = await buildAstContentMap(diff)
   const astInsights = analyzeAstChanges(files, diff, astContentMap)
+  const semanticRisks = detectSemanticConflictRisks(files, diff, files, diff, astContentMap, astContentMap)
   const astContext = renderAstContext(files, diff, astContentMap)
 
   if (!diff.trim()) {
@@ -234,7 +245,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
   if (result.success && result.data) {
     return {
       ...result,
-      data: enrichGroupsWithAst(result.data, astInsights)
+      data: enrichGroupsWithAst(result.data, astInsights, semanticRisks)
     }
   }
   return result
@@ -261,15 +272,14 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
       }
 
       const astContentMap = await buildAstContentMap(stagedDiff.diff)
-      const astContext = renderAstContext(
-        useGitStatusStore.getState().fileStatuses.map((file) => file.path),
-        stagedDiff.diff,
-        astContentMap
-      )
+      const astFiles = useGitStatusStore.getState().fileStatuses.map((file) => file.path)
+      const astContext = renderAstContext(astFiles, stagedDiff.diff, astContentMap)
+      const semanticRisks = detectSemanticConflictRisks(astFiles, stagedDiff.diff, astFiles, stagedDiff.diff, astContentMap, astContentMap)
       return smartCommitProvider.generateMessage({
         diff: stagedDiff.diff,
         stagedFileCount: getStagedFileCount(),
-        astContext
+        astContext,
+        semanticRisks
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

@@ -3,6 +3,7 @@ import type { JSX } from 'react'
 import type { AppThemeMode, AppView, SidePanel } from '../../app/types'
 import ActivityRail from '../ActivityRail'
 import ChatPanel from '../ChatPanel'
+import ConflictPanel from '../ConflictPanel'
 import GlobalSettingsPanel from '../GlobalSettingsPanel'
 import NotificationBar from '../NotificationBar'
 import RepoPanel from '../RepoPanel'
@@ -53,6 +54,9 @@ function AppShell({
         )}
         {activeSidePanel === 'chat' && (
           <ChatPanel isOpen={true} onClose={() => onToggleSidePanel('chat')} />
+        )}
+        {activeSidePanel === 'conflict' && (
+          <ConflictPanel isOpen={true} onClose={() => onToggleSidePanel('conflict')} />
         )}
         {activeSidePanel === 'settings' && (
           <GlobalSettingsPanel isOpen={true} onClose={() => onToggleSidePanel('settings')} />
