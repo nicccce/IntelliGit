@@ -41,7 +41,15 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const analysisConfidence = analysisSummary?.confidence || 'low'
   const analysisHeadline = analysisSummary?.analysisSummary || '已完成智能分组分析'
   const analysisKinds = analysisSummary?.changeKinds?.slice(0, 4) || []
+  const semanticRisks = analysisSummary?.semanticRisks || []
   const selectedGroupConfidence = selectedGroup?.confidence || analysisConfidence
+  const highestRiskLevel = semanticRisks.some((risk) => risk.level === 'high')
+    ? 'high'
+    : semanticRisks.some((risk) => risk.level === 'medium')
+      ? 'medium'
+      : semanticRisks.length > 0
+        ? 'low'
+        : null
 
   const handleCommit = useCallback(async () => {
     if (!normalizedCommitMsg) {
@@ -284,6 +292,15 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
               </Tag>
             )}
           </div>
+          {highestRiskLevel && (
+            <div className={styles['ig-smart-notice']}>
+              {highestRiskLevel === 'high'
+                ? '检测到高风险语义冲突，请重点审查分组与提交内容'
+                : highestRiskLevel === 'medium'
+                  ? '检测到中风险语义冲突，建议在提交前确认接口与逻辑同步'
+                  : '检测到少量语义风险，建议人工复核'}
+            </div>
+          )}
 
           {analysisKinds.length > 0 && (
             <div className={styles['ig-analysis-tags']}>
@@ -296,6 +313,95 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           )}
 
           {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
+
+          {semanticRisks.length > 0 && (
+            <Collapse
+              className={styles['ig-group-collapse']}
+              size="small"
+              defaultActiveKey={[]}
+              items={[
+                {
+                  key: 'risks',
+                  label: `语义风险 ${semanticRisks.length} 项`,
+                  children: (
+                    <Space direction="vertical" size={8} className={styles['ig-risk-list']}>
+                      {semanticRisks.map((risk, index) => (
+                        <div key={`${risk.type}-${risk.files.join(',')}-${index}`} className={styles['ig-risk-item']}>
+                          <div className={styles['ig-risk-head']}>
+                            <Tag
+                              color={
+                                risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'gold' : 'blue'
+                              }
+                            >
+                              {risk.level}
+                            </Tag>
+                            <Tag color="geekblue">{risk.type}</Tag>
+                            <span className={styles['ig-risk-desc']}>{risk.description}</span>
+                          </div>
+                          <div className={styles['ig-risk-meta']}>
+                            <span>文件：{risk.files.join('、')}</span>
+                            <span>符号：{risk.symbols.length > 0 ? risk.symbols.join('、') : '无'}</span>
+                          </div>
+                          {risk.evidence.length > 0 && (
+                            <div className={styles['ig-risk-evidence']}>
+                              {risk.evidence.join(' ｜ ')}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </Space>
+                  )
+                }
+              ]}
+            />
+          )}
+
+          {semanticRisks.length > 0 && (
+            <Collapse
+              className={styles['ig-group-collapse']}
+              size="small"
+              defaultActiveKey={[]}
+              items={[
+                {
+                  key: 'risks',
+                  label: `语义风险 ${semanticRisks.length} 项`,
+                  children: (
+                    <div className={styles['ig-risk-list']}>
+                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                        {semanticRisks.map((risk, index) => (
+                          <div key={`${risk.type}-${risk.files.join('-')}-${index}`} className={styles['ig-risk-item']}>
+                            <div className={styles['ig-risk-head']}>
+                              <Tag
+                                color={
+                                  risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'gold' : 'blue'
+                                }
+                              >
+                                {risk.level}
+                              </Tag>
+                              <Tag color="geekblue">{risk.type}</Tag>
+                              {risk.files.slice(0, 3).map((file) => (
+                                <Tag key={file}>{file}</Tag>
+                              ))}
+                            </div>
+                            <div className={styles['ig-risk-desc']}>{risk.description}</div>
+                            <div className={styles['ig-risk-meta']}>
+                              {risk.symbols.length > 0 && <span>符号：{risk.symbols.join('、')}</span>}
+                              {risk.files.length > 0 && <span>文件：{risk.files.join('、')}</span>}
+                            </div>
+                            {risk.evidence.length > 0 && (
+                              <div className={styles['ig-risk-evidence']}>
+                                证据：{risk.evidence.join(' ｜ ')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </Space>
+                    </div>
+                  )
+                }
+              ]}
+            />
+          )}
 
           {groups.length > 0 && (
             <Collapse

@@ -213,6 +213,47 @@
   text-overflow: ellipsis;
 }
 
+.ig-risk-list {
+  width: 100%;
+}
+
+.ig-risk-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.ig-risk-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ig-risk-desc {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ig-risk-meta,
+.ig-risk-evidence {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ig-risk-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ig-input-wrapper {
   position: relative;
   min-height: 88px;
