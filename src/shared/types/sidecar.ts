@@ -191,6 +191,8 @@ export interface NlCommandPlan {
 export const IPC_CHANNELS = {
   /** 渲染进程 -> 主进程：执行 Git 命令 */
   GIT_COMMAND: 'git:command',
+  /** 渲染进程 -> 主进程：直接写入文件 */
+  FS_WRITE_FILE: 'fs:writeFile',
   /** 主进程 -> 渲染进程：Sidecar 通知转发 */
   SIDECAR_NOTIFICATION: 'sidecar:notification',
   /** 读取应用配置 */
@@ -222,6 +224,8 @@ export type ElectronMode = 'main' | 'test'
 export interface ElectronAPI {
   /** 调用 Git 命令并等待结果 */
   invokeGit: (command: string, payload?: Record<string, unknown>) => Promise<SidecarResponse>
+  /** 直接写入文件 */
+  writeFile: (payload: { filePath: string; content: string }) => Promise<{ success: boolean; error?: string }>
   /** 监听 Sidecar 通知事件 */
   onSidecarNotification: (callback: (notification: SidecarNotification) => void) => () => void
   /** 读取持久化配置 */

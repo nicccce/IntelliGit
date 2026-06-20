@@ -181,6 +181,10 @@ export type GitCommandMap = {
     payload: { path: string; content: string }
     result: void
   }
+  'fs.writeFile': {
+    payload: { filePath: string; content: string }
+    result: void
+  }
   'diff.commits': {
     payload: { hashA: string; hashB: string }
     result: PatchDetail
