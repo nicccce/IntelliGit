@@ -77,6 +77,20 @@
   white-space: nowrap;
 }
 
+.ig-toolbar-center {
+  display: flex;
+  min-width: 220px;
+  max-width: 380px;
+  flex: 0 1 360px;
+  justify-content: center;
+}
+
+.ig-nlp-box:global(.ant-input-affix-wrapper) {
+  height: 30px;
+  border-radius: 999px;
+  background: var(--bg-primary);
+}
+
 .ig-toolbar-actions {
   display: flex;
   flex-shrink: 0;

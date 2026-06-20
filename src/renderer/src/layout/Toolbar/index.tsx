@@ -1,19 +1,23 @@
 import type { JSX } from 'react'
-import { Button, Dropdown, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   BranchesOutlined,
   CheckOutlined,
   CloudDownloadOutlined,
-  CloudUploadOutlined
+  CloudUploadOutlined,
+  MessageFilled
 } from '@ant-design/icons'
 
 import { refreshAll, refreshAllLocal } from '../../services/refreshCoordinator'
 import { checkoutBranch, pull, push } from '../../services/gitWorkflowService'
 import { useToolbarModel } from '../../viewModels'
+import { useUiStore } from '../../store'
+import { selectTriggerNlpRun } from '../../store/selectors/uiSelectors'
 import styles from './Toolbar.module.css'
 
 function Toolbar(): JSX.Element {
+  const triggerNlpRun = useUiStore(selectTriggerNlpRun)
   const {
     currentRepo,
     currentBranch,
@@ -66,6 +70,18 @@ function Toolbar(): JSX.Element {
             </Button>
           </Dropdown>
         )}
+      </div>
+      <div className={styles['ig-toolbar-center']}>
+        <Input
+          className={styles['ig-nlp-box']}
+          prefix={<MessageFilled />}
+          placeholder="用自然语言描述 Git 操作…"
+          onPressEnter={(e) => {
+            const value = (e.target as HTMLInputElement).value.trim()
+            if (!value) return
+            triggerNlpRun(value)
+          }}
+        />
       </div>
       <div className={styles['ig-toolbar-actions']}>
         <Button
