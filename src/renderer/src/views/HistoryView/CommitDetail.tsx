@@ -4,7 +4,7 @@ import { BranchesOutlined } from '@ant-design/icons'
 import { Button, Select } from 'antd'
 
 import type { CommitRecord, DiffEntry, ResetMode } from '../../../../shared/types'
-import { checkoutCommit, resetToCommit } from '../../services/gitWorkflowService'
+import { checkoutBranch, checkoutCommit, resetToCommit } from '../../services/gitWorkflowService'
 import styles from './CommitDetail.module.css'
 
 interface CommitDetailProps {
@@ -71,11 +71,23 @@ function CommitDetail({
         )}
         <div className={styles['ig-detail-actions']}>
           <Button
-            onClick={() => checkoutCommit(selectedCommit.hash)}
+            onClick={() => {
+              // 优先 checkout 本地分支（避免 detached HEAD）
+              const localBranch = selectedCommit.refs?.find(
+                (r) => !r.startsWith('origin/') && r !== 'HEAD'
+              )
+              if (localBranch) {
+                checkoutBranch(localBranch)
+              } else {
+                checkoutCommit(selectedCommit.hash)
+              }
+            }}
             disabled={isBusy}
             icon={<BranchesOutlined />}
           >
-            Checkout 到此 Commit
+            {selectedCommit.refs?.some((r) => !r.startsWith('origin/') && r !== 'HEAD')
+              ? `Checkout 到 ${selectedCommit.refs.find((r) => !r.startsWith('origin/') && r !== 'HEAD')}`
+              : 'Checkout 到此 Commit'}
           </Button>
           <Button danger onClick={() => setShowResetConfirm(true)} disabled={isBusy}>
             Reset 到此 Commit

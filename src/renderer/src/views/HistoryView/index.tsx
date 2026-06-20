@@ -1,8 +1,9 @@
 import type { JSX } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Empty } from 'antd'
 
 import { useHistoryViewModel } from '../../viewModels'
+import { useShadowMergeStore } from '../../store/shadowMergeStore'
 import BranchPanel from './BranchPanel'
 import CommitDetail from './CommitDetail'
 import CommitGraph from './CommitGraph'
@@ -22,20 +23,53 @@ function HistoryView(): JSX.Element {
     isBusy
   } = useHistoryViewModel()
 
+  const checkAllBranches = useShadowMergeStore((s) => s.checkAllBranches)
+  const clearResults = useShadowMergeStore((s) => s.clearResults)
+
   useEffect(() => {
     if (currentRepo) fetchAllHistory()
   }, [currentRepo, fetchAllHistory])
 
+  // 切换仓库时清空上一次的预检缓存
+  useEffect(() => {
+    if (!currentRepo) clearResults()
+  }, [currentRepo, clearResults])
+
+  // 分支列表就绪后，在后台逐一执行影子合并预检
+  useEffect(() => {
+    if (!currentRepo || allBranches.length === 0) return
+    const localBranches = allBranches
+      .filter((b) => !b.isRemote && !b.isHead)
+      .map((b) => b.name)
+    if (localBranches.length === 0) return
+    // 非阻塞：结果逐个写入 store，UI 会随之更新
+    checkAllBranches(localBranches).catch((err) =>
+      console.warn('[HistoryView] 影子合并预检失败:', err)
+    )
+  }, [currentRepo, allBranches, checkAllBranches])
+
   useEffect(() => {
     if (!currentRepo || allCommitHistory.length === 0) return
+    // 仅在没有选中项时自动选中 HEAD commit，不覆盖用户的主动选择
+    if (selectedCommit) return
 
     const headCommit = allCommitHistory.find(
       (commit) => commit.refs && commit.refs.includes(currentBranch)
     )
-    if (headCommit && (!selectedCommit || headCommit.hash !== selectedCommit.hash)) {
-      selectCommit(headCommit)
-    }
-  }, [allCommitHistory, currentBranch, currentRepo, selectCommit, selectedCommit])
+    if (headCommit) selectCommit(headCommit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allCommitHistory, currentBranch, currentRepo])
+
+  // Hooks 必须在所有 return 之前调用
+  const handleSelectBranch = useCallback(
+    (branchName: string) => {
+      const match = allCommitHistory.find(
+        (c) => c.refs && c.refs.some((r) => r === branchName)
+      )
+      if (match) selectCommit(match)
+    },
+    [allCommitHistory, selectCommit]
+  )
 
   if (!currentRepo) {
     return (
@@ -47,7 +81,11 @@ function HistoryView(): JSX.Element {
 
   return (
     <div className={styles['ig-history-view']} id="history-view">
-      <BranchPanel branches={allBranches} />
+      <BranchPanel
+        branches={allBranches}
+        currentBranch={currentBranch}
+        onSelectBranch={handleSelectBranch}
+      />
       <CommitGraph
         commits={allCommitHistory}
         laneMap={laneMap}
