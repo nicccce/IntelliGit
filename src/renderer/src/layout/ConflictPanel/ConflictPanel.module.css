@@ -131,3 +131,131 @@
 .ig-conflict-resolved {
   font-family: var(--font-mono);
 }
+
+/* 冲突文件列表 */
+.ig-conflict-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.ig-conflict-file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.ig-conflict-file-item:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.ig-conflict-file-item-active {
+  background: var(--surface-active);
+  color: var(--text-primary);
+  border-left-color: var(--accent-red, #ff4d4f);
+}
+
+.ig-conflict-file-icon {
+  color: var(--accent-red, #ff4d4f);
+  flex-shrink: 0;
+}
+
+.ig-conflict-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+/* 二进制冲突卡片 */
+.ig-conflict-binary-card {
+  border-color: var(--accent-red, #ff4d4f) !important;
+  background: var(--bg-secondary);
+}
+
+.ig-conflict-binary-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.ig-conflict-binary-desc p {
+  margin: 0 0 6px;
+}
+
+.ig-conflict-binary-desc code {
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.ig-conflict-binary-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* 发起合并栏（未处于合并状态时显示） */
+.ig-conflict-start-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  flex-wrap: wrap;
+}
+
+.ig-conflict-start-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ig-conflict-branch-select {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* 完成合并提交提示栏 */
+.ig-conflict-finish-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-green, #52c41a) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-green, #52c41a) 40%, transparent);
+}
+
+.ig-conflict-finish-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+/* 解决操作按钮组 */
+.ig-conflict-resolve-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-secondary);
+  margin-top: 4px;
+}
