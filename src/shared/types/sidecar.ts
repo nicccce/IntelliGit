@@ -147,6 +147,11 @@ export interface RepoConfig {
 }
 
 /** 全局应用配置 */
+export interface SafetyPolicyConfig {
+  allowForcePush: boolean
+  allowResetHard: boolean
+}
+
 export interface AppConfig {
   /** 已添加的仓库列表 */
   repos: RepoConfig[]
@@ -154,6 +159,8 @@ export interface AppConfig {
   currentRepoPath: string | null
   /** LLM Provider 配置（可选，未配置时 AI 功能不可用） */
   llmConfig?: LlmConfig
+  /** NLP 高危操作安全策略 */
+  safetyPolicy?: SafetyPolicyConfig
 }
 
 // ─── NLP Git 助手类型 ─────────────────────────────────────────────────────────
@@ -185,6 +192,29 @@ export interface NlCommandPlan {
   summary: string
 }
 
+export interface NlpHistoryOperation {
+  command: string
+  args?: string[]
+  description?: string
+  riskLevel?: 'safe' | 'high' | 'extreme'
+  riskReason?: string
+}
+
+export interface NlpHistoryExecutionResult {
+  command: string
+  success: boolean
+  output?: string
+}
+
+export interface NlpHistoryRecord {
+  timestamp: string
+  userInput: string
+  summary: string
+  operations: NlpHistoryOperation[]
+  executionResults: NlpHistoryExecutionResult[]
+  blocked: boolean
+}
+
 // ─── IPC 通道常量 ─────────────────────────────────────────────────────────────
 
 /** IPC 通道名称集中管理 */
@@ -212,7 +242,13 @@ export const IPC_CHANNELS = {
   /** 渲染进程 -> 主进程：检测 LLM 连通性 */
   AGENT_PING_LLM: 'agent:pingLlm',
   /** 渲染进程 -> 主进程：在仓库目录执行 git CLI 命令 */
-  GIT_EXEC: 'git:exec'
+  GIT_EXEC: 'git:exec',
+  /** NLP 操作历史读取 */
+  NLP_GET_HISTORY: 'nlp:getHistory',
+  /** NLP 操作历史追加 */
+  NLP_APPEND_HISTORY: 'nlp:appendHistory',
+  /** NLP 操作历史清空 */
+  NLP_CLEAR_HISTORY: 'nlp:clearHistory'
 } as const
 
 // ─── Renderer 侧暴露的 API 类型 ──────────────────────────────────────────────
@@ -246,6 +282,12 @@ export interface ElectronAPI {
   pingLlmConfig: (config: LlmConfig) => Promise<AgentPingResponse>
   /** 在仓库目录执行 git CLI 命令（供 NLP 助手使用） */
   executeGitCommand: (request: GitExecRequest) => Promise<GitExecResponse>
+  /** NLP 操作历史 */
+  nlp: {
+    getHistory: () => Promise<NlpHistoryRecord[]>
+    appendHistory: (record: NlpHistoryRecord) => Promise<void>
+    clearHistory: () => Promise<void>
+  }
   /** 当前运行模式（test 或 main） */
   mode: ElectronMode
 }
