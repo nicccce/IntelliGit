@@ -1,8 +1,8 @@
-import { useState, useCallback, useMemo, useEffect, type JSX } from 'react'
+import { useState, useCallback, useEffect, useMemo, type JSX } from 'react'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
-import { analyzeAstChanges, renderAstContext, type AstChangeInsight } from '../../utils/astChangeAnalyzer'
+import { analyzeAstChanges, renderAstContext } from '../../utils/astChangeAnalyzer'
 import type { ChunkInfo } from '../../../../shared/types'
 import styles from './DiffView.module.css'
 
