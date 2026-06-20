@@ -24,8 +24,13 @@ export const COMMIT_ANALYZE_PROMPT = `请分析以下代码变更，返回 JSON 
 - scope 使用英文小写短词，只允许字母、数字和连字符，例如 commit/settings/git/diff/renderer。
 - summary 使用中文短句，描述“为什么值得单独提交”，不要超过 30 个中文字符。
 - files 必须来自 diff 中出现的文件路径，不要编造不存在的文件。
-- 每个文件只放入一个最合适的分组。
-- 如果多个文件属于同一提交意图，应合并到同一组。
+- 优先按 hunk 级语义分组，而不是只按文件名分组。
+- 如果上下文提供 ownerLabel（例如「在 AuthService.validateToken 内」），请将其作为判断改动意图的首要线索。
+- hunks 可选但建议输出，格式必须使用 filePath@@hunkHeader，用于细粒度暂存。
+- 每个文件可出现在多个分组中，但同一个 hunk 只能放入一个最合适的分组。
+- 如果多个 hunk 属于同一提交意图，应合并到同一组。
+- 每个分组优先用 hunk + ownerLabel 描述语义边界，例如「在 AuthService.validateToken 内修复令牌校验」。
+- 如果某个 hunk 明确属于类方法、函数内部或接口实现变更，请尽量把它与对应的 ownerLabel 一起作为分组依据。
 
 \`\`\`diff
 {{diff}}
@@ -38,7 +43,8 @@ export const COMMIT_ANALYZE_PROMPT = `请分析以下代码变更，返回 JSON 
       "type": "feat|fix|refactor|style|docs|test|chore|perf|build|ci",
       "scope": "可选的作用域",
       "summary": "一行描述（中文）",
-      "files": ["受影响的文件路径列表"]
+      "files": ["受影响的文件路径列表"],
+      "hunks": ["可选，格式为 filePath@@hunkHeader"]
     }
   ]
 }`

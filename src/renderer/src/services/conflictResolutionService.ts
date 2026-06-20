@@ -2,6 +2,7 @@ import { runAgentWithFallback } from '../agent/agentRuntime'
 import { CONFLICT_SYSTEM_PROMPT, renderConflictResolvePrompt } from '../agent/prompts/conflict'
 import { CONFLICT_RESOLVE_SCHEMA, parseStructured } from '../agent/outputParser'
 import type { LlmConfig } from '../agent/types'
+import { buildConflictAnalysisContext } from '../utils/astChangeAnalyzer'
 
 export interface ConflictResolutionInput {
   filePath: string
@@ -120,14 +121,15 @@ export async function suggestConflictResolution(
   input: ConflictResolutionInput
 ): Promise<ConflictResolutionSuggestion> {
   const ruleBased = buildRuleBasedConflictSuggestion(input)
+  const astContext = input.context || await buildConflictAnalysisContext([input.filePath], [input.ancestor, input.ours, input.theirs].filter(Boolean).join('\n')) || ''
 
   const result = await runAgentWithFallback<ConflictResolutionSuggestion>(
     config,
     {
       taskType: 'conflict.suggestResolution',
       systemPrompt: CONFLICT_SYSTEM_PROMPT,
-      userMessage: renderConflictResolvePrompt(input.filePath, input.ancestor, input.ours, input.theirs, input.context || ''),
-      context: input
+      userMessage: renderConflictResolvePrompt(input.filePath, input.ancestor, input.ours, input.theirs, astContext),
+      context: { ...input, context: astContext }
     },
     (rawOutput) => parseStructured<ConflictResolutionSuggestion>(rawOutput, CONFLICT_RESOLVE_SCHEMA)
   )
