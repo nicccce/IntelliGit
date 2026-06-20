@@ -36,12 +36,12 @@ function levelLabel(level: SemanticConflictRisk['level']): string {
   return '低风险'
 }
 
-export function buildConflictRiskReport(
+export async function buildConflictRiskReport(
   files: string[],
   oursDiff: string,
   theirsDiff: string = oursDiff
-): ConflictRiskReport {
-  const risks = detectSemanticConflictRisks(files, oursDiff, files, theirsDiff)
+): Promise<ConflictRiskReport> {
+  const risks = await detectSemanticConflictRisks(files, oursDiff, files, theirsDiff)
   const fileMap = new Map<string, ConflictRiskFileSummary>()
 
   for (const risk of risks) {
