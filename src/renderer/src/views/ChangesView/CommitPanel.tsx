@@ -42,7 +42,6 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const analysisHeadline = analysisSummary?.analysisSummary || '已完成智能分组分析'
   const analysisKinds = analysisSummary?.changeKinds?.slice(0, 4) || []
   const semanticRisks = analysisSummary?.semanticRisks || []
-  const selectedGroupConfidence = selectedGroup?.confidence || analysisConfidence
   const highestRiskLevel = semanticRisks.some((risk) => risk.level === 'high')
     ? 'high'
     : semanticRisks.some((risk) => risk.level === 'medium')
