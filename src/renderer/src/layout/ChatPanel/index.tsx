@@ -26,7 +26,7 @@ import { selectAllCommitHistory } from '../../store/selectors/historySelectors'
 import { nextMsgId } from '../../store/chatStore'
 import type { NlCommandPlan, ConversationMessage } from '../../../../shared/types'
 import type { NlExecutionResult, RepoContext } from '../../services/nlCommandService'
-import { executeNlOperation, interpretGitOutput, parseNlCommand } from '../../services/nlCommandService'
+import { applyNlSafetyPolicy, executeNlOperation, interpretGitOutput, loadSafetyPolicy, parseNlCommand } from '../../services/nlCommandService'
 import styles from './ChatPanel.module.css'
 
 // 稳定的空数组引用，避免 Zustand selector 每次返回新 [] 导致无限循环
@@ -122,12 +122,14 @@ function ChatPanel({ isOpen, onClose }: ChatPanelProps): JSX.Element | null {
           content: m.role === 'assistant' && m.plan ? JSON.stringify(m.plan) : m.text
         }))
 
-      const plan = await parseNlCommand(text, repoPath, currentBranch, llmConfig, history, repoCtx)
+      const parsedPlan = await parseNlCommand(text, repoPath, currentBranch, llmConfig, history, repoCtx)
 
-      if (!plan) {
+      if (!parsedPlan) {
         updateMessage(repoPath, assistantId, { isLoading: false, error: '解析失败，请重新描述您的需求' })
         return
       }
+
+      const plan = applyNlSafetyPolicy(parsedPlan, await loadSafetyPolicy())
 
       // 全部为安全操作且无需工作流时，自动执行并用 LLM 解读结果
       const allSafe =

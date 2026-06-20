@@ -1,4 +1,5 @@
-import type { LlmConfig, NlCommandPlan, NlOperation, ConversationMessage } from '../../../shared/types'
+import type { LlmConfig, NlCommandPlan, NlOperation, ConversationMessage, SafetyPolicyConfig } from '../../../shared/types'
+import { loadConfig } from '../api/configClient'
 import { runAgent } from '../agent'
 import { NL_ASSISTANT_SYSTEM_PROMPT, renderNlIntentPrompt } from '../agent/prompts/nlAssistant'
 import { parseStructured, NL_INTENT_SCHEMA } from '../agent/outputParser'
@@ -73,6 +74,41 @@ export interface NlExecutionResult {
   command: string
   success: boolean
   output: string
+}
+
+const DEFAULT_SAFETY_POLICY: SafetyPolicyConfig = {
+  allowForcePush: false,
+  allowResetHard: false
+}
+
+function isForcePush(op: NlOperation): boolean {
+  return op.command === 'push' && (op.args ?? []).some((arg) => arg === '--force' || arg === '-f' || arg.startsWith('--force-'))
+}
+
+function isResetHard(op: NlOperation): boolean {
+  return op.command === 'reset' && (op.args ?? []).includes('--hard')
+}
+
+export function applyNlSafetyPolicy(plan: NlCommandPlan, policy: SafetyPolicyConfig): NlCommandPlan {
+  return {
+    ...plan,
+    operations: plan.operations.map((op) => {
+      if (op.riskLevel !== 'extreme') return op
+      if ((isForcePush(op) && policy.allowForcePush) || (isResetHard(op) && policy.allowResetHard)) {
+        return {
+          ...op,
+          riskLevel: 'high',
+          riskReason: `${op.riskReason ?? '高风险操作'}（已在安全策略中解锁，仍需二次确认）`
+        }
+      }
+      return op
+    })
+  }
+}
+
+export async function loadSafetyPolicy(): Promise<SafetyPolicyConfig> {
+  const appConfig = await loadConfig()
+  return { ...DEFAULT_SAFETY_POLICY, ...appConfig.safetyPolicy }
 }
 
 /** 将执行结果交给 LLM 解读，返回自然语言答复 */

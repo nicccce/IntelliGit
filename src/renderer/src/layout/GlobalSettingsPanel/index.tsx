@@ -1,12 +1,13 @@
 import type { JSX } from 'react'
-import { useCallback, useMemo, useState } from 'react'
-import { Alert, Button, Empty, Input, Segmented, Slider, Tooltip } from 'antd'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Empty, Input, Segmented, Slider, Switch, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 
 import SidePanelShell from '../../components/SidePanelShell'
 import { saveLlmConfig, checkLlmConnection } from '../../services/llmConfigService'
 import { useGlobalSettingsPanelModel } from '../../viewModels'
-import type { LlmConfig, LlmProvider } from '../../agent/types'
+import type { LlmConfig, LlmProvider, SafetyPolicyConfig } from '../../../../shared/types'
+import { loadConfig, saveConfig as saveAppConfig } from '../../api/configClient'
 import { classNames } from '../../utils/classNames'
 import styles from './GlobalSettingsPanel.module.css'
 
@@ -32,6 +33,11 @@ const DEFAULT_MODELS: Record<LlmProvider, string> = {
 
 const DEFAULT_BASE_URLS: Partial<Record<LlmProvider, string>> = {
   openai: 'https://api.deepseek.com'
+}
+
+const DEFAULT_SAFETY_POLICY: SafetyPolicyConfig = {
+  allowForcePush: false,
+  allowResetHard: false
 }
 
 function getStatusLabel(status: string): string {
@@ -60,6 +66,7 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
   const [modelName, setModelName] = useState(config?.modelName ?? DEFAULT_MODELS[config?.provider ?? 'openai'])
   const [temperature, setTemperature] = useState(config?.temperature ?? 0.2)
   const [maxTokens, setMaxTokens] = useState(config?.maxTokens ?? 4096)
+  const [safetyPolicy, setSafetyPolicy] = useState<SafetyPolicyConfig>(DEFAULT_SAFETY_POLICY)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
 
@@ -82,6 +89,19 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
     config?.provider,
     config?.temperature
   ])
+
+  useEffect(() => {
+    void loadConfig().then((appConfig) => {
+      setSafetyPolicy({ ...DEFAULT_SAFETY_POLICY, ...appConfig.safetyPolicy })
+    })
+  }, [])
+
+  const updateSafetyPolicy = useCallback(async (patch: Partial<SafetyPolicyConfig>) => {
+    const current = await loadConfig()
+    const nextPolicy = { ...DEFAULT_SAFETY_POLICY, ...current.safetyPolicy, ...patch }
+    setSafetyPolicy(nextPolicy)
+    await saveAppConfig({ ...current, safetyPolicy: nextPolicy })
+  }, [])
 
   const isDirty =
     provider !== initialValues.provider ||
@@ -272,6 +292,29 @@ function GlobalSettingsPanelContent({ onClose }: GlobalSettingsPanelContentProps
                 清除配置
               </Button>
             )}
+          </div>
+        </div>
+
+        <div className={styles['ig-settings-section']}>
+          <div className={styles['ig-section-title']}>
+            <h3>安全策略</h3>
+            <span>默认拦截极高危 Git 操作；开启后降级为高危并要求二次确认</span>
+          </div>
+          <div className={styles['ig-form-group']}>
+            <label>允许执行 force push</label>
+            <Switch
+              checked={safetyPolicy.allowForcePush}
+              onChange={(checked) => updateSafetyPolicy({ allowForcePush: checked })}
+            />
+            <p className={styles['ig-hint']}>解锁 git push --force / --force-with-lease 等操作。</p>
+          </div>
+          <div className={styles['ig-form-group']}>
+            <label>允许执行 reset --hard</label>
+            <Switch
+              checked={safetyPolicy.allowResetHard}
+              onChange={(checked) => updateSafetyPolicy({ allowResetHard: checked })}
+            />
+            <p className={styles['ig-hint']}>解锁 git reset --hard 操作，仍会弹出高危确认。</p>
           </div>
         </div>
       </div>
