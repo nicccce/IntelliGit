@@ -63,3 +63,10 @@ export interface MergeStatusResult {
 }
 
 export type ResetMode = 'soft' | 'mixed' | 'hard'
+
+export interface ShadowMergeResult {
+  targetBranch: string
+  hasConflicts: boolean
+  conflictedFiles: string[]
+  canFastForward: boolean
+}

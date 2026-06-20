@@ -16,6 +16,7 @@ export async function runAgent<T = unknown>(
       config,
       systemPrompt: task.systemPrompt,
       userMessage: task.userMessage,
+      messages: task.messages,
       tools: task.tools,
       maxIterations: task.maxIterations
     })

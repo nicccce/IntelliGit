@@ -59,6 +59,12 @@
   background: var(--surface-active);
 }
 
+.ig-branch-item.selected {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+  outline: 1px solid var(--border-focus);
+}
+
 .ig-branch-dot {
   width: 8px;
   height: 8px;
@@ -71,4 +77,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 影子合并风险指示灯 */
+.ig-shadow-badge {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.ig-shadow-badge.safe {
+  background: var(--accent-green, #52c41a);
+}
+
+.ig-shadow-badge.conflict {
+  background: var(--accent-red, #ff4d4f);
+  box-shadow: 0 0 4px var(--accent-red, #ff4d4f);
+}
+
+.ig-shadow-badge.pending {
+  background: var(--text-muted, #888);
+  animation: shadow-pulse 1.2s ease-in-out infinite;
+}
+
+.ig-shadow-badge.fastforward {
+  background: var(--accent-blue, #1677ff);
+}
+
+@keyframes shadow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }

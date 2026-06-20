@@ -1,4 +1,6 @@
-import type { LlmConfig, LlmProvider } from '../../../shared/types'
+import type { LlmConfig, LlmProvider, ConversationMessage } from '../../../shared/types'
+
+export type { ConversationMessage }
 
 export type { LlmConfig, LlmProvider }
 
@@ -67,6 +69,8 @@ export interface AgentTask {
   taskType: 'commit' | 'conflict' | 'nl_assistant' | string
   systemPrompt: string
   userMessage: string
+  /** 多轮对话历史（不含当前轮） */
+  messages?: ConversationMessage[]
   /** 要启用的 Tool 名称列表（空 = 不使用 Tool） */
   tools?: string[]
   /** 最大工具调用轮次，默认 5 */

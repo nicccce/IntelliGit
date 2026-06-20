@@ -109,3 +109,16 @@ type MergeStatusResult struct {
 	// MergeHead 正在合并的 commit hash（MERGE_HEAD 的内容）
 	MergeHead string `json:"mergeHead,omitempty"`
 }
+
+// ShadowMergeResult 描述影子合并预检的结果。
+// 影子合并在内存/CLI 层完成，不修改工作区、暂存区或任何引用。
+type ShadowMergeResult struct {
+	// TargetBranch 被检测的目标分支（将被合并进来的分支）
+	TargetBranch string `json:"targetBranch"`
+	// HasConflicts 是否存在合并冲突
+	HasConflicts bool `json:"hasConflicts"`
+	// ConflictedFiles 存在冲突的文件列表
+	ConflictedFiles []string `json:"conflictedFiles,omitempty"`
+	// CanFastForward 是否可以快进合并（无需产生 merge commit）
+	CanFastForward bool `json:"canFastForward"`
+}
