@@ -10,6 +10,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 )
 
 // DiffWorkdir 获取工作区未暂存变更的结构化 diff（等价于 git diff）
@@ -555,13 +556,13 @@ func changesToDiffEntries(changes object.Changes) []DiffEntry {
 			continue
 		}
 		switch action {
-		case 0:
+		case merkletrie.Insert:
 			entry.Action = "insert"
 			entry.To = c.To.Name
-		case 1:
+		case merkletrie.Delete:
 			entry.Action = "delete"
 			entry.From = c.From.Name
-		case 2:
+		case merkletrie.Modify:
 			entry.Action = "modify"
 			entry.From = c.From.Name
 			entry.To = c.To.Name
