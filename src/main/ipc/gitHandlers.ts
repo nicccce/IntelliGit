@@ -5,6 +5,7 @@
  */
 
 import { ipcMain, BrowserWindow } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { IPC_CHANNELS, type SidecarResponse, type SidecarNotification } from '../../shared/types'
 import type { SidecarManager } from '../core/SidecarManager'
 
@@ -15,6 +16,16 @@ const SIDECAR_PING_TIMEOUT_MS = 2000
  * @param sidecarManager - SidecarManager 实例
  */
 export function registerGitHandlers(sidecarManager: SidecarManager): void {
+  ipcMain.handle(IPC_CHANNELS.FS_WRITE_FILE, async (_event, payload: { filePath: string; content: string }) => {
+    try {
+      await writeFile(payload.filePath, payload.content, 'utf8')
+      return { success: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return { success: false, error: message }
+    }
+  })
+
   // ── git:command — 渲染进程发起的命令请求 ──────────────────────────────
   ipcMain.handle(
     IPC_CHANNELS.GIT_COMMAND,

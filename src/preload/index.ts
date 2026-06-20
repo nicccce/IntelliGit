@@ -30,6 +30,10 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.GIT_COMMAND, command, payload)
   },
 
+  writeFile: (payload: { filePath: string; content: string }): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FS_WRITE_FILE, payload)
+  },
+
   onSidecarNotification: (callback: (notification: SidecarNotification) => void): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
