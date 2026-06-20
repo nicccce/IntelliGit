@@ -1,5 +1,5 @@
 import type { JSX } from 'react'
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { Alert, Button, Card, Input, List, Select, Tag } from 'antd'
 import {
   CheckOutlined,
@@ -14,9 +14,12 @@ import { invokeGit } from '../../api/gitClient'
 import { useDiffViewModel } from '../../viewModels'
 import { useDiffStore, useLlmConfigStore, useUiStore } from '../../store'
 import { classNames } from '../../utils/classNames'
-import { renderAstContext } from '../../utils/astChangeAnalyzer'
+import { buildConflictAnalysisContext, renderAstContext } from '../../utils/astChangeAnalyzer'
 import { buildConflictRiskReport, formatFileRiskTitle } from '../../services/conflictRiskService'
-import { suggestConflictResolution } from '../../services/conflictResolutionService'
+import {
+  buildRuleBasedConflictSuggestion,
+  suggestConflictResolution
+} from '../../services/conflictResolutionService'
 import type { ConflictRiskReport } from '../../services/conflictRiskService'
 import type { ConflictResolutionSuggestion } from '../../services/conflictResolutionService'
 import styles from './ConflictPanel.module.css'
@@ -34,6 +37,45 @@ type ConflictBlock = {
   ancestor: string
   ours: string
   theirs: string
+}
+
+type ConflictBlockSummary = {
+  index: number
+  label: string
+  description: string
+  riskLevel: 'low' | 'medium' | 'high'
+  recommendedStrategy: 'take_ours' | 'take_theirs' | 'merge_both' | 'manual'
+}
+
+function countNonEmptyLines(value: string): number {
+  return value.split('\n').filter((line) => line.trim()).length
+}
+
+function summarizeConflictBlock(block: ConflictBlock, index: number): ConflictBlockSummary {
+  const oursLines = countNonEmptyLines(block.ours)
+  const theirsLines = countNonEmptyLines(block.theirs)
+  const ancestorLines = countNonEmptyLines(block.ancestor)
+  const suggestion = buildRuleBasedConflictSuggestion({
+    filePath: `conflict-block-${index + 1}`,
+    ancestor: block.ancestor,
+    ours: block.ours,
+    theirs: block.theirs
+  })
+  const maxSideLines = Math.max(oursLines, theirsLines)
+  const riskLevel =
+    suggestion.strategy === 'manual' || maxSideLines >= 24
+      ? 'high'
+      : !ancestorLines || Math.abs(oursLines - theirsLines) >= 8
+        ? 'medium'
+        : 'low'
+
+  return {
+    index,
+    label: `冲突块 ${index + 1}`,
+    description: `ours ${oursLines} 行 / theirs ${theirsLines} 行${ancestorLines ? ` / ancestor ${ancestorLines} 行` : ' / 无 ancestor'}`,
+    riskLevel,
+    recommendedStrategy: suggestion.strategy
+  }
 }
 
 function parseConflictBlocks(text: string): ConflictBlock[] {
@@ -100,7 +142,7 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
   const [activeBlockIndex, setActiveBlockIndex] = useState(0)
 
   const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
-  const diffText = diff?.diff ?? ''
+  const diffText = (diff as { diff?: string } | null)?.diff ?? ''
   const hasConflictFile = useMemo(() => conflictedFiles.includes(selectedFilePath || ''), [conflictedFiles, selectedFilePath])
   const selectedFileSummary = useMemo(() => {
     if (!selectedFilePath) return SAMPLE_HINT
@@ -108,7 +150,32 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
   }, [selectedFilePath, diff])
 
   const currentBlock = blocks[activeBlockIndex]
-  const astContext = useMemo(() => selectedFilePath && diffText ? renderAstContext([selectedFilePath], diffText) : undefined, [diffText, selectedFilePath])
+  const blockSummaries = useMemo(() => blocks.map((block, index) => summarizeConflictBlock(block, index)), [blocks])
+  const activeBlockSummary = blockSummaries[activeBlockIndex]
+  const [astContext, setAstContext] = useState<string | undefined>()
+  const [conflictPromptContext, setConflictPromptContext] = useState<string | undefined>()
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadAstContext() {
+      if (!selectedFilePath || !diffText) {
+        setAstContext(undefined)
+        setConflictPromptContext(undefined)
+        return
+      }
+      const [nextAstContext, nextConflictPromptContext] = await Promise.all([
+        renderAstContext([selectedFilePath], diffText),
+        buildConflictAnalysisContext([selectedFilePath], diffText)
+      ])
+      if (cancelled) return
+      setAstContext(nextAstContext)
+      setConflictPromptContext(nextConflictPromptContext)
+    }
+    void loadAstContext()
+    return () => {
+      cancelled = true
+    }
+  }, [diffText, selectedFilePath])
   const handleSelectRiskFile = useCallback(async (filePath: string) => {
     await useDiffStore.getState().selectFile(filePath, 'unstaged')
   }, [])
@@ -134,7 +201,7 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
         ancestor: source.ancestor,
         ours: source.ours,
         theirs: source.theirs,
-        context: astContext
+        context: conflictPromptContext || astContext
       })
       setSuggestion(nextSuggestion)
       setSelectedStrategy(nextSuggestion.strategy)
@@ -170,15 +237,14 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
     setLoading(true)
     try {
       const status = await invokeGit('merge.status')
-      const data = status.data as { conflictedFiles?: string[] } | undefined
-      const files = data?.conflictedFiles ?? []
+      const files = status.conflictedFiles ?? []
       setConflictedFiles(files)
 
       const raw = await invokeGit('diff.workdirRaw', { path: selectedFilePath })
       const text = raw.diff || ''
       const parsedBlocks = parseConflictBlocks(text)
       setBlocks(parsedBlocks)
-      setRiskReport(buildConflictRiskReport(files.length ? files : [selectedFilePath], text))
+      setRiskReport(await buildConflictRiskReport(files.length ? files : [selectedFilePath], text))
       setActiveBlockIndex(0)
       const first = parsedBlocks[0]
       if (first) {
@@ -265,25 +331,72 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
           </Card>
         )}
 
-        {blocks.length > 1 && (
-          <div className={styles['ig-conflict-blocks']}>
-            <Tag color="geekblue">已识别 {blocks.length} 个冲突块</Tag>
-            <Select
-              value={activeBlockIndex}
-              onChange={(value) => {
-                setActiveBlockIndex(value)
-                const next = blocks[value]
-                if (next) {
-                  setAncestor(next.ancestor)
-                  setOurs(next.ours)
-                  setTheirs(next.theirs)
-                  setSuggestion(null)
-                  setApplied(false)
-                }
-              }}
-              options={blocks.map((_, index) => ({ value: index, label: `冲突块 ${index + 1}` }))}
+        {blocks.length > 0 && (
+          <Card size="small" className={styles['ig-conflict-block-card']} title="冲突块导航">
+            <div className={styles['ig-conflict-block-toolbar']}>
+              <Tag color="geekblue">已识别 {blocks.length} 个冲突块</Tag>
+              {activeBlockSummary && (
+                <>
+                  <Tag color={activeBlockSummary.riskLevel === 'high' ? 'red' : activeBlockSummary.riskLevel === 'medium' ? 'gold' : 'green'}>
+                    {activeBlockSummary.riskLevel} risk
+                  </Tag>
+                  <Tag color="blue">建议：{activeBlockSummary.recommendedStrategy}</Tag>
+                </>
+              )}
+              <Select
+                value={activeBlockIndex}
+                onChange={(value) => {
+                  setActiveBlockIndex(value)
+                  const next = blocks[value]
+                  if (next) {
+                    setAncestor(next.ancestor)
+                    setOurs(next.ours)
+                    setTheirs(next.theirs)
+                    setSuggestion(null)
+                    setApplied(false)
+                  }
+                }}
+                options={blockSummaries.map((summary) => ({
+                  value: summary.index,
+                  label: `${summary.label} · ${summary.riskLevel}`
+                }))}
+              />
+            </div>
+            <List
+              size="small"
+              dataSource={blockSummaries}
+              renderItem={(summary) => (
+                <List.Item
+                  className={classNames(
+                    styles['ig-conflict-block-item'],
+                    summary.index === activeBlockIndex && styles['ig-conflict-block-item-active']
+                  )}
+                  onClick={() => {
+                    setActiveBlockIndex(summary.index)
+                    const next = blocks[summary.index]
+                    if (next) {
+                      setAncestor(next.ancestor)
+                      setOurs(next.ours)
+                      setTheirs(next.theirs)
+                      setSuggestion(null)
+                      setApplied(false)
+                    }
+                  }}
+                >
+                  <List.Item.Meta
+                    title={
+                      <div className={styles['ig-conflict-risk-title']}>
+                        <Tag color={summary.riskLevel === 'high' ? 'red' : summary.riskLevel === 'medium' ? 'gold' : 'green'}>{summary.riskLevel}</Tag>
+                        <span>{summary.label}</span>
+                        <Tag color="blue">{summary.recommendedStrategy}</Tag>
+                      </div>
+                    }
+                    description={summary.description}
+                  />
+                </List.Item>
+              )}
             />
-          </div>
+          </Card>
         )}
 
         <div className={styles['ig-conflict-grid']}>
@@ -298,13 +411,13 @@ function ConflictPanel({ isOpen, onClose }: ConflictPanelProps): JSX.Element | n
             {suggestion?.fallback && <Tag color="gold">规则降级</Tag>}
             {suggestion && <Tag color="blue">{suggestion.strategy}</Tag>}
           </div>
-          {astContext && (
+          {(conflictPromptContext || astContext) && (
             <Alert
               type="info"
               showIcon
               icon={<WarningOutlined />}
               message="已注入 AST 上下文"
-              description={astContext}
+              description={conflictPromptContext || astContext}
               className={styles['ig-conflict-ast-context']}
             />
           )}
