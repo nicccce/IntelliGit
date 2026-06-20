@@ -1,8 +1,9 @@
 import type { JSX, KeyboardEvent } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Input, Popconfirm, Spin, Tag } from 'antd'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Input, Popconfirm, Spin, Tag, Tooltip } from 'antd'
 import {
   CheckCircleOutlined,
+  ClearOutlined,
   CloseCircleOutlined,
   LoadingOutlined,
   SendOutlined,
@@ -10,34 +11,30 @@ import {
 } from '@ant-design/icons'
 
 import SidePanelShell from '../../components/SidePanelShell'
-import { useGitStatusStore, useLlmConfigStore, useRepositoryStore } from '../../store'
+import { useChatStore, useGitStatusStore, useHistoryStore, useLlmConfigStore, useRepositoryStore } from '../../store'
+import type { ChatMessage } from '../../store/chatStore'
 import { selectCurrentRepoPath } from '../../store/selectors/repositorySelectors'
-import { selectCurrentBranch } from '../../store/selectors/gitStatusSelectors'
-import type { NlCommandPlan } from '../../../../shared/types'
-import type { NlExecutionResult } from '../../services/nlCommandService'
-import { executeNlOperation, parseNlCommand } from '../../services/nlCommandService'
+import {
+  selectBranches,
+  selectCommitsAhead,
+  selectCommitsBehind,
+  selectCurrentBranch,
+  selectFileStatuses,
+  selectRemoteBranches
+} from '../../store/selectors/gitStatusSelectors'
+import { selectAllCommitHistory } from '../../store/selectors/historySelectors'
+import { nextMsgId } from '../../store/chatStore'
+import type { NlCommandPlan, ConversationMessage } from '../../../../shared/types'
+import type { NlExecutionResult, RepoContext } from '../../services/nlCommandService'
+import { executeNlOperation, interpretGitOutput, parseNlCommand } from '../../services/nlCommandService'
 import styles from './ChatPanel.module.css'
+
+// 稳定的空数组引用，避免 Zustand selector 每次返回新 [] 导致无限循环
+const EMPTY_MESSAGES: ChatMessage[] = []
 
 interface ChatPanelProps {
   isOpen: boolean
   onClose: () => void
-}
-
-type MessageRole = 'user' | 'assistant'
-
-interface ChatMessage {
-  id: string
-  role: MessageRole
-  text: string
-  plan?: NlCommandPlan
-  executionLog?: NlExecutionResult[]
-  isLoading?: boolean
-  error?: string
-}
-
-let msgIdCounter = 0
-function nextId(): string {
-  return String(++msgIdCounter)
 }
 
 const RISK_TAG: Record<string, { color: string; label: string }> = {
@@ -47,67 +44,122 @@ const RISK_TAG: Record<string, { color: string; label: string }> = {
 }
 
 function ChatPanel({ isOpen, onClose }: ChatPanelProps): JSX.Element | null {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
 
+  const addMessages = useChatStore((s) => s.addMessages)
+  const updateMessage = useChatStore((s) => s.updateMessage)
+  const clearMessages = useChatStore((s) => s.clearMessages)
+
   const repoPath = useRepositoryStore(selectCurrentRepoPath)
   const currentBranch = useGitStatusStore(selectCurrentBranch)
   const llmConfig = useLlmConfigStore((s) => s.config)
+  const localBranchInfos = useGitStatusStore(selectBranches)
+  const remoteBranchInfos = useGitStatusStore(selectRemoteBranches)
+  const commitsAhead = useGitStatusStore(selectCommitsAhead)
+  const commitsBehind = useGitStatusStore(selectCommitsBehind)
+  const fileStatuses = useGitStatusStore(selectFileStatuses)
+  const allCommitHistory = useHistoryStore(selectAllCommitHistory)
 
-  // 滚动到最新消息
+  const repoCtx = useMemo((): RepoContext => {
+    const staged = fileStatuses.filter((f) => f.staging !== ' ' && f.staging !== '?').length
+    return {
+      localBranches: localBranchInfos.map((b) => b.name),
+      remoteBranches: remoteBranchInfos.map((b) => b.name),
+      commitsAhead,
+      commitsBehind,
+      changedFiles: fileStatuses.length,
+      stagedFiles: staged,
+      recentCommits: allCommitHistory.slice(0, 5).map((c) => ({
+        hash: c.hash,
+        message: c.message.split('\n')[0]
+      }))
+    }
+  }, [localBranchInfos, remoteBranchInfos, commitsAhead, commitsBehind, fileStatuses, allCommitHistory])
+
+  // 订阅当前仓库的消息列表，切换仓库时自动更新
+  // 必须用模块级常量做 fallback，避免每次返回新 [] 引发无限渲染循环
+  const messages = useChatStore((s) => s.messagesByRepo[repoPath ?? ''] ?? EMPTY_MESSAGES)
+
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight
     }
   }, [messages])
 
-  const updateMessage = useCallback(
-    (id: string, patch: Partial<ChatMessage>) =>
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m))),
-    []
-  )
-
   const handleSend = useCallback(async () => {
     const text = input.trim()
     if (!text || loading) return
 
-    const userMsg: ChatMessage = { id: nextId(), role: 'user', text }
-    const assistantId = nextId()
-    const assistantMsg: ChatMessage = { id: assistantId, role: 'assistant', text: '', isLoading: true }
+    const userMsgId = nextMsgId()
+    const assistantId = nextMsgId()
 
-    setMessages((prev) => [...prev, userMsg, assistantMsg])
+    if (!repoPath) {
+      // 没有仓库时仅提示，不写入任何消息
+      return
+    }
+
+    addMessages(repoPath, [
+      { id: userMsgId, role: 'user', text },
+      { id: assistantId, role: 'assistant', text: '', isLoading: true }
+    ])
     setInput('')
     setLoading(true)
 
     try {
-      if (!repoPath) {
-        updateMessage(assistantId, { isLoading: false, error: '请先在左侧选择一个仓库' })
-        return
-      }
       if (!llmConfig?.apiKey) {
-        updateMessage(assistantId, { isLoading: false, error: '请先在设置中配置 LLM API Key' })
+        updateMessage(repoPath, assistantId, { isLoading: false, error: '请先在设置中配置 LLM API Key' })
         return
       }
 
-      const plan = await parseNlCommand(text, repoPath, currentBranch, llmConfig)
+      // 构建历史上下文：助手消息用原始 JSON plan（与 LLM 实际输出格式一致），
+      // 用户消息用 text；过滤掉 loading / error 状态的消息
+      const history: ConversationMessage[] = messages
+        .filter((m) => !m.isLoading && !m.error && m.text)
+        .map((m) => ({
+          role: m.role,
+          content: m.role === 'assistant' && m.plan ? JSON.stringify(m.plan) : m.text
+        }))
+
+      const plan = await parseNlCommand(text, repoPath, currentBranch, llmConfig, history, repoCtx)
 
       if (!plan) {
-        updateMessage(assistantId, { isLoading: false, error: '解析失败，请重新描述您的需求' })
+        updateMessage(repoPath, assistantId, { isLoading: false, error: '解析失败，请重新描述您的需求' })
         return
       }
 
-      updateMessage(assistantId, { isLoading: false, text: plan.summary, plan })
+      // 全部为安全操作且无需工作流时，自动执行并用 LLM 解读结果
+      const allSafe =
+        plan.operations.length > 0 &&
+        !plan.requiresWorkflow &&
+        plan.operations.every((op) => op.riskLevel === 'safe')
+
+      if (allSafe) {
+        updateMessage(repoPath, assistantId, { text: '执行中…' })
+        const results: NlExecutionResult[] = []
+        for (const op of plan.operations) {
+          results.push(await executeNlOperation(repoPath, op))
+        }
+        const answer = await interpretGitOutput(text, results, llmConfig)
+        updateMessage(repoPath, assistantId, {
+          isLoading: false,
+          text: answer ?? plan.summary,
+          executionLog: results
+        })
+      } else {
+        // 高危/需确认操作：展示计划，等待用户点击执行
+        updateMessage(repoPath, assistantId, { isLoading: false, text: plan.summary, plan })
+      }
     } catch (err) {
-      updateMessage(assistantId, {
+      updateMessage(repoPath, assistantId, {
         isLoading: false,
         error: `调用失败：${err instanceof Error ? err.message : String(err)}`
       })
     } finally {
       setLoading(false)
     }
-  }, [input, loading, repoPath, currentBranch, llmConfig, updateMessage])
+  }, [input, loading, repoPath, currentBranch, llmConfig, messages, repoCtx, addMessages, updateMessage])
 
   const handleExecute = useCallback(
     async (messageId: string, plan: NlCommandPlan) => {
@@ -115,12 +167,26 @@ function ChatPanel({ isOpen, onClose }: ChatPanelProps): JSX.Element | null {
 
       const results: NlExecutionResult[] = []
       for (const op of plan.operations) {
-        const result = await executeNlOperation(repoPath, op)
-        results.push(result)
+        results.push(await executeNlOperation(repoPath, op))
       }
-      updateMessage(messageId, { executionLog: results })
+      updateMessage(repoPath, messageId, { executionLog: results })
+
+      // 执行完毕后，用 LLM 追加一条自然语言解读消息
+      if (llmConfig?.apiKey) {
+        const msgIndex = messages.findIndex((m) => m.id === messageId)
+        const prevUser = msgIndex > 0 ? messages[msgIndex - 1] : null
+        const originalQuestion = prevUser?.role === 'user' ? prevUser.text : plan.intent ?? ''
+
+        const interpId = nextMsgId()
+        addMessages(repoPath, [{ id: interpId, role: 'assistant', text: '', isLoading: true }])
+        const answer = await interpretGitOutput(originalQuestion, results, llmConfig)
+        updateMessage(repoPath, interpId, {
+          isLoading: false,
+          text: answer ?? '操作已完成'
+        })
+      }
     },
-    [repoPath, updateMessage]
+    [repoPath, llmConfig, messages, addMessages, updateMessage]
   )
 
   const handleKeyDown = useCallback(
@@ -184,6 +250,14 @@ function ChatPanel({ isOpen, onClose }: ChatPanelProps): JSX.Element | null {
 
         {/* 输入区域 */}
         <div className={styles['ig-chat-input-area']}>
+          <Tooltip title="清空对话">
+            <Button
+              icon={<ClearOutlined />}
+              onClick={() => repoPath && clearMessages(repoPath)}
+              disabled={messages.length === 0 || loading}
+              className={styles['ig-chat-clear-btn']}
+            />
+          </Tooltip>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
