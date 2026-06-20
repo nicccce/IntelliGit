@@ -44,31 +44,45 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
 
   const diff = diffSource === 'staged' ? stagedDiff : workdirDiff
   const [aggregatedSummary, setAggregatedSummary] = useState<AggregatedDiffSummary | null>(null)
+  const [hunkInsights, setHunkInsights] = useState<Map<number, HunkOwnerInsight>>(new Map())
 
   useEffect(() => {
     let cancelled = false
     async function loadSummary() {
       if (!selectedFilePath) {
         setAggregatedSummary(null)
+        setHunkInsights(new Map())
         return
       }
       const rawDiff = await fetchRawDiff(selectedFilePath)
       if (cancelled || !rawDiff.trim()) {
         setAggregatedSummary(null)
+        setHunkInsights(new Map())
         return
       }
-      const insights = analyzeAstChanges([selectedFilePath], rawDiff)
+      const insights = await analyzeAstChanges([selectedFilePath], rawDiff)
       const summary = insights[0]
       if (!summary) {
         setAggregatedSummary(null)
+        setHunkInsights(new Map())
         return
       }
       setAggregatedSummary({
         confidence: summary.confidence,
         summary: summary.summary,
         changeKinds: summary.changeKinds,
-        astContext: renderAstContext([selectedFilePath], rawDiff)
+        astContext: await renderAstContext([selectedFilePath], rawDiff)
       })
+      setHunkInsights(
+        new Map(
+          summary.hunkInsights.map((hunk, index) => [index, {
+            ownerLabel: hunk.ownerLabel,
+            oldOwner: hunk.oldOwner,
+            newOwner: hunk.newOwner,
+            confidence: hunk.confidence
+          }])
+        )
+      )
     }
     void loadSummary()
     return () => {
@@ -128,6 +142,7 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
             <DiffChunks
               filePatchIndex={filePatchIndex}
               chunks={filePatch.chunks}
+              hunkInsights={hunkInsights}
               selectedSet={selectedSet}
               onToggleLine={onToggleLine}
               onToggleChunk={onToggleChunk}
@@ -142,6 +157,7 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
 interface DiffChunksProps {
   filePatchIndex: number
   chunks: ChunkInfo[]
+  hunkInsights: Map<number, HunkOwnerInsight>
   selectedSet: Set<string>
   onToggleLine: (key: string) => void
   onToggleChunk: (filePatchIndex: number, chunkIndex: number) => void
@@ -153,6 +169,7 @@ interface DiffChunksProps {
 function DiffChunks({
   filePatchIndex,
   chunks,
+  hunkInsights,
   selectedSet,
   onToggleLine,
   onToggleChunk
@@ -218,7 +235,7 @@ function DiffChunks({
     [filePatchIndex, onToggleChunk]
   )
 
-  const chunkHunkInsights = useMemo(() => new Map<number, HunkOwnerInsight>(), [])
+  const chunkHunkInsights = hunkInsights
 
   let oldLineNum = 1
   let newLineNum = 1
