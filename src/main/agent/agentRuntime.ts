@@ -57,7 +57,7 @@ export async function runAgentTask(
   request: AgentRunRequest,
   sidecarManager: SidecarManager
 ): Promise<AgentRunResponse> {
-  const { config, systemPrompt, userMessage, tools: toolNames, maxIterations } = request
+  const { config, systemPrompt, userMessage, messages: history, tools: toolNames, maxIterations } = request
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
@@ -67,17 +67,32 @@ export async function runAgentTask(
     const tools =
       toolNames?.length ? getGitToolsForTask(sidecarManager, toolNames) : undefined
 
-    const result = await generateText({
+    const toolOptions = tools && Object.keys(tools).length
+      ? { tools, maxSteps: maxIterations ?? 5 }
+      : {}
+
+    const commonOptions = {
       model,
       system: systemPrompt,
-      prompt: userMessage,
-      ...(tools && Object.keys(tools).length
-        ? { tools, maxSteps: maxIterations ?? 5 }
-        : {}),
       temperature: config.temperature ?? 0.2,
       maxOutputTokens: config.maxTokens ?? 4096,
-      abortSignal: controller.signal
-    })
+      abortSignal: controller.signal,
+      ...toolOptions
+    }
+
+    // 有历史消息时走多轮 messages 接口，否则走单轮 prompt 接口
+    const result = history?.length
+      ? await generateText({
+          ...commonOptions,
+          messages: [
+            ...history.map((m) => ({ role: m.role, content: m.content } as const)),
+            { role: 'user' as const, content: userMessage }
+          ]
+        })
+      : await generateText({
+          ...commonOptions,
+          prompt: userMessage
+        })
 
     return { success: true, rawOutput: result.text }
   } catch (err) {

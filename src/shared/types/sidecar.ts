@@ -89,10 +89,18 @@ export interface LlmProxyResponse {
 
 // ─── Agent IPC 请求 / 响应 ────────────────────────────────────────────────────
 
+/** 多轮对话中的历史消息（不含当前轮） */
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface AgentRunRequest {
   config: LlmConfig
   systemPrompt: string
   userMessage: string
+  /** 历史对话消息（多轮时传入，不含当前轮的 userMessage） */
+  messages?: ConversationMessage[]
   /** 要启用的 Tool 名称列表（空或不传 = 不使用 Tool） */
   tools?: string[]
   /** 最大工具调用轮次，默认 5 */
