@@ -67,6 +67,7 @@ const MAX_COMMIT_SUBJECT_LENGTH = 72
 const MAX_GROUP_SUMMARY_LENGTH = 60
 const COMMIT_TYPES = new Set(['feat', 'fix', 'refactor', 'style', 'docs', 'test', 'chore', 'perf', 'build', 'ci'])
 const SCOPE_PATTERN = /^[a-z][a-z0-9-]*$/
+const HUNK_PATTERN = /@@.+@@/
 
 function truncateDiffForPrompt(diff: string): string {
   if (diff.length <= MAX_DIFF_CONTEXT_LENGTH) return diff
@@ -110,21 +111,28 @@ function sanitizeGroups(
   inputFiles: string[]
 ): SmartCommitAnalysisResult | null {
   const allowedFiles = new Set(inputFiles)
-  const usedFiles = new Set<string>()
+  const usedHunks = new Set<string>()
   const groups = result.groups
-    .map((group) => ({
-      type: sanitizeType(group.type),
-      scope: sanitizeScope(group.scope),
-      summary: limitText(group.summary, MAX_GROUP_SUMMARY_LENGTH),
-      confidence: group.confidence,
-      files: group.files
-        .map((file) => file.trim())
-        .filter((file) => allowedFiles.has(file) && !usedFiles.has(file))
-    }))
-    .filter((group) => {
-      group.files.forEach((file) => usedFiles.add(file))
-      return group.summary && group.files.length > 0
+    .map((group) => {
+      const files = [...new Set(group.files.map((file) => file.trim()).filter((file) => allowedFiles.has(file)))]
+      const hunks = (group.hunks || [])
+        .map((hunk) => hunk.trim())
+        .filter((hunk) => {
+          const filePath = hunk.split('@@')[0]
+          if (!allowedFiles.has(filePath) || !HUNK_PATTERN.test(hunk) || usedHunks.has(hunk)) return false
+          usedHunks.add(hunk)
+          return true
+        })
+      return {
+        type: sanitizeType(group.type),
+        scope: sanitizeScope(group.scope),
+        summary: limitText(group.summary, MAX_GROUP_SUMMARY_LENGTH),
+        confidence: group.confidence,
+        files,
+        hunks
+      }
     })
+    .filter((group) => group.summary && group.files.length > 0)
     .slice(0, 5)
 
   return groups.length > 0
@@ -163,7 +171,7 @@ export class LlmSmartCommitProvider implements SmartCommitProvider {
       config,
       {
         taskType: 'commit.groupByIntent',
-        systemPrompt: '你是一位专业的 Git 提交助手，请将变更按提交意图进行分组。',
+        systemPrompt: '你是一位专业的 Git 提交助手，请将变更按提交意图进行分组，优先按 hunk 与 ownerLabel 识别边界。',
         userMessage: renderCommitAnalyzePrompt(truncateDiffForPrompt(input.diff)),
         context: { files: input.files, astContext: input.astContext }
       },

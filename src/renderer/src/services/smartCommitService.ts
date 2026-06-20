@@ -44,6 +44,19 @@ interface RawHunk {
   patch: string
 }
 
+function normalizeHunkKey(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+function parseGroupHunkKey(value: string): { filePath?: string; header: string } {
+  const marker = '@@'
+  const markerIndex = value.indexOf(marker)
+  if (markerIndex <= 0) return { header: normalizeHunkKey(value) }
+  const filePath = value.slice(0, markerIndex)
+  const header = value.slice(markerIndex)
+  return { filePath, header: normalizeHunkKey(header) }
+}
+
 function parseRawDiffHunks(diff: string): RawHunk[] {
   const hunks: RawHunk[] = []
   const fileChunks = diff.split(/^diff --git /m).filter(Boolean)
@@ -85,15 +98,25 @@ function parseRawDiffHunks(diff: string): RawHunk[] {
 
 function matchGroupHunks(group: CommitIntentGroup, diff: string): RawHunk[] {
   const files = new Set(normalizeFiles(group.files))
-  const wantedHunks = new Set(group.hunks || [])
-  return parseRawDiffHunks(diff).filter((hunk) => {
+  const wantedHunks = (group.hunks || []).map(parseGroupHunkKey)
+  const rawHunks = parseRawDiffHunks(diff)
+
+  if (wantedHunks.length === 0) {
+    return rawHunks.filter((hunk) => files.has(hunk.filePath))
+  }
+
+  return rawHunks.filter((hunk) => {
     if (!files.has(hunk.filePath)) return false
-    if (wantedHunks.size === 0) return true
-    return wantedHunks.has(`${hunk.filePath}@@${hunk.header}`) || wantedHunks.has(hunk.header)
+    const normalizedHeader = normalizeHunkKey(hunk.header)
+    return wantedHunks.some((wanted) => {
+      if (wanted.filePath && wanted.filePath !== hunk.filePath) return false
+      return wanted.header === normalizedHeader || normalizedHeader.includes(wanted.header) || wanted.header.includes(normalizedHeader)
+    })
   })
 }
 
 async function applyGroupHunks(group: CommitIntentGroup, diff: string): Promise<string | null> {
+  if (!group.hunks?.length) return null
   const hunks = matchGroupHunks(group, diff)
   if (hunks.length === 0) return null
 
@@ -123,6 +146,17 @@ const CONFIDENCE_SCORE: Record<Confidence, number> = {
 function mergeConfidence(values: Array<Confidence | undefined>): Confidence {
   const score = Math.max(1, ...values.map((value) => CONFIDENCE_SCORE[value || 'low']))
   return score >= 3 ? 'high' : score >= 2 ? 'medium' : 'low'
+}
+
+function buildHunkAstContext(insights: AstChangeInsight[]): string | undefined {
+  const lines = insights.flatMap((insight) =>
+    insight.hunkInsights.map((hunk) => {
+      const owner = hunk.ownerLabel ? `在 ${hunk.ownerLabel} 内` : '无明确 owner'
+      const symbols = hunk.symbols.length ? hunk.symbols.join('、') : '无明确符号'
+      return `- ${insight.filePath}@@${hunk.header}：${owner}，+${hunk.addedLines}/-${hunk.deletedLines}，符号：${symbols}，类型：${insight.changeKinds.join('、')}`
+    })
+  )
+  return lines.length ? lines.join('\n') : undefined
 }
 
 function buildAnalysisSummary(insights: AstChangeInsight[]): Pick<SmartCommitAnalysisResult, 'analysisSummary' | 'confidence' | 'changeKinds'> {
@@ -188,17 +222,68 @@ function parseDiffFilePaths(diff: string): Array<{ oldPath?: string; filePath: s
     .filter((file) => file.filePath)
 }
 
-async function readGitText(path: string, ref: 'HEAD' | 'WORKTREE' | 'INDEX'): Promise<string> {
+async function readGitText(path: string, hash = 'HEAD'): Promise<string> {
   try {
-    if (ref === 'WORKTREE') {
-      return await Promise.resolve('')
-    }
-
-    const result = await invokeGit('diff.fileContent', { hash: 'HEAD', path })
+    const result = await invokeGit('diff.fileContent', { hash, path })
     return result.content
   } catch {
     return ''
   }
+}
+
+function extractFilePatch(diff: string, filePath: string): string {
+  const chunk = diff
+    .split(/^diff --git /m)
+    .filter(Boolean)
+    .find((part) => {
+      const header = part.split('\n')[0] || ''
+      const pathMatch = header.match(/a\/(.+?)\s+b\/(.+?)$/)
+      return pathMatch?.[1] === filePath || pathMatch?.[2] === filePath
+    })
+  return chunk ? `diff --git ${chunk}` : ''
+}
+
+function applyUnifiedPatchToContent(oldContent: string, filePatch: string): string {
+  const oldLines = oldContent.split('\n')
+  const result: string[] = []
+  let oldIndex = 0
+  const lines = filePatch.split('\n')
+  let index = 0
+
+  while (index < lines.length) {
+    const header = lines[index]
+    const range = header.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/)
+    if (!range) {
+      index++
+      continue
+    }
+
+    const oldStart = Math.max(0, Number(range[1]) - 1)
+    while (oldIndex < oldStart && oldIndex < oldLines.length) {
+      result.push(oldLines[oldIndex])
+      oldIndex++
+    }
+
+    index++
+    while (index < lines.length && !lines[index].startsWith('@@')) {
+      const line = lines[index]
+      if (line.startsWith(' ')) {
+        result.push(line.slice(1))
+        oldIndex++
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        oldIndex++
+      } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        result.push(line.slice(1))
+      }
+      index++
+    }
+  }
+
+  while (oldIndex < oldLines.length) {
+    result.push(oldLines[oldIndex])
+    oldIndex++
+  }
+  return result.join('\n')
 }
 
 async function buildAstContentMap(diff: string): Promise<AstFileContentMap> {
@@ -206,10 +291,9 @@ async function buildAstContentMap(diff: string): Promise<AstFileContentMap> {
   const pairs = await Promise.all(
     entries.map(async (entry) => {
       const oldPath = entry.oldPath || entry.filePath
-      const [oldContent, newContent] = await Promise.all([
-        entry.status === 'added' ? Promise.resolve('') : readGitText(oldPath, 'HEAD'),
-        Promise.resolve('')
-      ])
+      const oldContent = entry.status === 'added' ? '' : await readGitText(oldPath)
+      const filePatch = extractFilePatch(diff, entry.filePath)
+      const newContent = entry.status === 'deleted' ? '' : applyUnifiedPatchToContent(oldContent, filePatch)
       return [entry.filePath, { oldContent, newContent }] as const
     })
   )
@@ -230,9 +314,11 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
   const diff = workdirDiff.diff || stagedDiff.diff
   const files = getChangedFiles()
   const astContentMap = await buildAstContentMap(diff)
-  const astInsights = analyzeAstChanges(files, diff, astContentMap)
-  const semanticRisks = detectSemanticConflictRisks(files, diff, files, diff, astContentMap, astContentMap)
-  const astContext = renderAstContext(files, diff, astContentMap)
+  const astInsights = await analyzeAstChanges(files, diff, astContentMap)
+  const semanticRisks = await detectSemanticConflictRisks(files, diff, files, diff, astContentMap, astContentMap)
+  const astContext = [await renderAstContext(files, diff, astContentMap), buildHunkAstContext(astInsights)]
+    .filter(Boolean)
+    .join('\n\nHunk 级上下文：\n')
 
   if (!diff.trim()) {
     return {
@@ -273,8 +359,8 @@ export async function generateSmartCommitMessage(): Promise<AgentResult<string>>
 
       const astContentMap = await buildAstContentMap(stagedDiff.diff)
       const astFiles = useGitStatusStore.getState().fileStatuses.map((file) => file.path)
-      const astContext = renderAstContext(astFiles, stagedDiff.diff, astContentMap)
-      const semanticRisks = detectSemanticConflictRisks(astFiles, stagedDiff.diff, astFiles, stagedDiff.diff, astContentMap, astContentMap)
+      const astContext = await renderAstContext(astFiles, stagedDiff.diff, astContentMap)
+      const semanticRisks = await detectSemanticConflictRisks(astFiles, stagedDiff.diff, astFiles, stagedDiff.diff, astContentMap, astContentMap)
       return smartCommitProvider.generateMessage({
         diff: stagedDiff.diff,
         stagedFileCount: getStagedFileCount(),
@@ -311,6 +397,9 @@ export async function stageGroupAndGenerateMessage(
       const appliedPatch = workdirGroupDiff.trim() ? await applyGroupHunks(group, workdirGroupDiff) : null
 
       if (!appliedPatch) {
+        if (group.hunks?.length) {
+          return { success: false, error: '未能匹配该分组的 hunk，已取消暂存以避免误暂存整个文件' }
+        }
         for (const filePath of files) {
           await invokeGit('staging.add', { path: filePath })
         }
@@ -335,7 +424,7 @@ export async function stageGroupAndGenerateMessage(
         diff: groupDiff,
         stagedFileCount: files.length,
         groupContext: buildGroupContext(group),
-        astContext: renderAstContext(files, groupDiff, astContentMap)
+        astContext: await renderAstContext(files, groupDiff, astContentMap)
       })
 
       if (!result.success || !result.data) {
