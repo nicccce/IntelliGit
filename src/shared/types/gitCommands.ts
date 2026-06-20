@@ -6,7 +6,8 @@ import type {
   MergeStatusResult,
   PatchDetail,
   RemoteInfo,
-  ResetMode
+  ResetMode,
+  ShadowMergeResult
 } from './git'
 import type { SidecarPingResult } from './sidecar'
 
@@ -166,6 +167,18 @@ export type GitCommandMap = {
   }
   'merge.continue': {
     payload: { message?: string }
+    result: void
+  }
+  'merge.shadow': {
+    payload: { targetBranch: string }
+    result: ShadowMergeResult
+  }
+  'merge.stageContent': {
+    payload: { path: string }
+    result: { ancestor: string; ours: string; theirs: string; binary: boolean }
+  }
+  'conflict.resolve': {
+    payload: { path: string; content: string }
     result: void
   }
   'diff.commits': {

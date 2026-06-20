@@ -41,9 +41,12 @@ const (
 	CommandRemotePull   = "remote.pull"
 	CommandRemotePush   = "remote.push"
 
-	CommandMergeStatus   = "merge.status"
-	CommandMergeAbort    = "merge.abort"
-	CommandMergeContinue = "merge.continue"
+	CommandMergeStatus        = "merge.status"
+	CommandMergeAbort         = "merge.abort"
+	CommandMergeContinue      = "merge.continue"
+	CommandMergeShadow        = "merge.shadow"
+	CommandMergeStageContent  = "merge.stageContent"
+	CommandConflictResolve    = "conflict.resolve"
 
 	CommandDiffCommits     = "diff.commits"
 	CommandDiffWithParent  = "diff.withParent"

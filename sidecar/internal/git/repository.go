@@ -327,6 +327,31 @@ func (r *Repository) MergeContinue(message string) error {
 	return r.cli.MergeContinue(message)
 }
 
+// ShadowMerge 在不修改工作区、暂存区或任何引用的前提下，
+// 预检将 targetBranch 合并到当前 HEAD 的结果。
+func (r *Repository) ShadowMerge(targetBranch string) (*ShadowMergeResult, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.cli.ShadowMerge(targetBranch)
+}
+
+// ShowObject 运行 git show <ref> 并返回输出内容（用于读取 index stage）。
+func (r *Repository) ShowObject(ref string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.cli.ShowObject(ref)
+}
+
+// ResolveConflict 将 content 写入工作区文件，然后 git add 标记冲突已解决。
+func (r *Repository) ResolveConflict(filePath, content string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.cli.ResolveConflict(filePath, content)
+}
+
 func (r *Repository) DiffWorkdir(filePath string) (*PatchDetail, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

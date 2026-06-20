@@ -93,3 +93,31 @@ func (r *gitCliBackend) MergeContinue(message string) error {
 	}
 	return nil
 }
+
+// ShowObject 运行 git show <ref>，常用于读取 index stage 内容（如 :1:path, :2:path, :3:path）。
+func (r *gitCliBackend) ShowObject(ref string) (string, error) {
+	output, err := r.runner.run(gitCliRunRequest{
+		Dir:  r.path,
+		Args: []string{"show", ref},
+	})
+	if err != nil {
+		return "", fmt.Errorf("git show %s 失败: %w", ref, err)
+	}
+	return output, nil
+}
+
+// ResolveConflict 将解决后的内容写入工作区文件，然后 git add 标记冲突已解决。
+func (r *gitCliBackend) ResolveConflict(filePath, content string) error {
+	fullPath := filepath.Join(r.path, filepath.FromSlash(filePath))
+	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("写入文件失败: %w", err)
+	}
+	output, err := r.runner.run(gitCliRunRequest{
+		Dir:  r.path,
+		Args: []string{"add", filePath},
+	})
+	if err != nil {
+		return gitCliError("git add 失败", output, err)
+	}
+	return nil
+}
