@@ -8,6 +8,7 @@ import { registerGitHandlers } from './gitHandlers'
 import { registerConfigHandlers } from './configHandlers'
 import { registerLlmHandlers } from './llmHandlers'
 import { registerAgentHandlers } from './agentHandlers'
+import { registerNlpHandlers } from './nlpHandlers'
 
 /** 注册全部 IPC Handlers */
 export function registerAllIpcHandlers(sidecarManager: SidecarManager): void {
@@ -15,4 +16,5 @@ export function registerAllIpcHandlers(sidecarManager: SidecarManager): void {
   registerConfigHandlers()
   registerLlmHandlers()
   registerAgentHandlers(sidecarManager)
+  registerNlpHandlers()
 }

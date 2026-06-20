@@ -12,6 +12,7 @@ import Toolbar from '../Toolbar'
 import ChangesView from '../../views/ChangesView'
 import HistoryView from '../../views/HistoryView'
 import SettingsView from '../../views/SettingsView'
+import NlpView from '../../views/NlpView'
 import styles from './AppShell.module.css'
 
 interface AppShellProps {
@@ -65,6 +66,7 @@ function AppShell({
           {activeView === 'changes' && <ChangesView />}
           {activeView === 'history' && <HistoryView />}
           {activeView === 'settings' && <SettingsView key={currentRepoPath || 'settings'} />}
+          {activeView === 'nlp' && <NlpView />}
         </main>
       </div>
       <StatusBar />

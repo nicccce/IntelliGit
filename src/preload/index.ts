@@ -85,6 +85,12 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.GIT_EXEC, request)
   },
 
+  nlp: {
+    getHistory: () => ipcRenderer.invoke(IPC_CHANNELS.NLP_GET_HISTORY),
+    appendHistory: (record) => ipcRenderer.invoke(IPC_CHANNELS.NLP_APPEND_HISTORY, record),
+    clearHistory: () => ipcRenderer.invoke(IPC_CHANNELS.NLP_CLEAR_HISTORY)
+  },
+
   mode: resolveElectronMode(process.env.ELECTRON_MODE)
 }
 
