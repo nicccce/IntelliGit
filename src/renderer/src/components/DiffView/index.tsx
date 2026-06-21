@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, type JSX } from 'react'
+import { Collapse } from 'antd'
 
 import { classNames } from '../../utils/classNames'
 import { useDiffViewModel } from '../../viewModels'
@@ -107,32 +108,46 @@ function DiffView({ selectedSet, onToggleLine, onToggleChunk }: DiffViewProps): 
   return (
     <div className={styles['ig-diff-scroll']}>
       {aggregatedSummary && (
-        <div className={styles['ig-diff-aggregate-card']}>
-          <div className={styles['ig-diff-aggregate-head']}>
-            <span className={styles['ig-diff-hunk-owner-label']}>聚合摘要</span>
-            <span className={styles['ig-diff-aggregate-summary']}>{aggregatedSummary.summary}</span>
-          </div>
-          <div className={styles['ig-diff-aggregate-tags']}>
-            <span
-              className={classNames(
-                styles['ig-diff-aggregate-tag'],
-                aggregatedSummary.confidence === 'high' && styles['ig-diff-aggregate-tag-high'],
-                aggregatedSummary.confidence === 'medium' && styles['ig-diff-aggregate-tag-medium'],
-                aggregatedSummary.confidence === 'low' && styles['ig-diff-aggregate-tag-low']
-              )}
-            >
-              {`置信度 ${aggregatedSummary.confidence || 'low'}`}
-            </span>
-            {aggregatedSummary.changeKinds.slice(0, 4).map((kind) => (
-              <span key={kind} className={styles['ig-diff-aggregate-tag']}>
-                {kind}
-              </span>
-            ))}
-          </div>
-          {aggregatedSummary.astContext && (
-            <pre className={styles['ig-diff-ast-context']}>{aggregatedSummary.astContext}</pre>
-          )}
-        </div>
+        <Collapse
+          className={styles['ig-diff-aggregate-collapse']}
+          size="small"
+          defaultActiveKey={[]}
+          items={[
+            {
+              key: 'aggregate',
+              label: (
+                <div className={styles['ig-diff-aggregate-head']}>
+                  <span className={styles['ig-diff-hunk-owner-label']}>聚合摘要</span>
+                  <span className={styles['ig-diff-aggregate-summary']}>{aggregatedSummary.summary}</span>
+                </div>
+              ),
+              children: (
+                <>
+                  <div className={styles['ig-diff-aggregate-tags']}>
+                    <span
+                      className={classNames(
+                        styles['ig-diff-aggregate-tag'],
+                        aggregatedSummary.confidence === 'high' && styles['ig-diff-aggregate-tag-high'],
+                        aggregatedSummary.confidence === 'medium' && styles['ig-diff-aggregate-tag-medium'],
+                        aggregatedSummary.confidence === 'low' && styles['ig-diff-aggregate-tag-low']
+                      )}
+                    >
+                      {`置信度 ${aggregatedSummary.confidence || 'low'}`}
+                    </span>
+                    {aggregatedSummary.changeKinds.slice(0, 4).map((kind) => (
+                      <span key={kind} className={styles['ig-diff-aggregate-tag']}>
+                        {kind}
+                      </span>
+                    ))}
+                  </div>
+                  {aggregatedSummary.astContext && (
+                    <pre className={styles['ig-diff-ast-context']}>{aggregatedSummary.astContext}</pre>
+                  )}
+                </>
+              )
+            }
+          ]}
+        />
       )}
       {diff.filePatches.map((filePatch, filePatchIndex) => (
         <div key={filePatchIndex}>

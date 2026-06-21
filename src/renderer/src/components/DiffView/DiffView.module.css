@@ -221,15 +221,32 @@
   background: var(--bg-primary);
 }
 
-.ig-diff-aggregate-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.ig-diff-aggregate-collapse:global(.ant-collapse) {
   margin-bottom: 8px;
-  padding: 6px 10px;
   border: 1px solid var(--border-secondary);
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-secondary));
+  overflow: hidden;
+}
+
+.ig-diff-aggregate-collapse:global(.ant-collapse) > :global(.ant-collapse-item) {
+  border-bottom: none;
+}
+
+.ig-diff-aggregate-collapse :global(.ant-collapse-header) {
+  align-items: center !important;
+  padding: 6px 10px !important;
+  color: var(--text-primary) !important;
+  font-size: 12px;
+}
+
+.ig-diff-aggregate-collapse :global(.ant-collapse-content) {
+  border-top: 1px solid var(--border-secondary);
+  background: transparent;
+}
+
+.ig-diff-aggregate-collapse :global(.ant-collapse-content-box) {
+  padding: 6px 10px !important;
 }
 
 .ig-diff-aggregate-head {

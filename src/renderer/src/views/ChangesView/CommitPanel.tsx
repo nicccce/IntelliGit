@@ -1,6 +1,6 @@
 import type { JSX } from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import { CheckCircleOutlined, ClusterOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, CheckOutlined, CloseOutlined, ClusterOutlined, RocketOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { Alert, Button, Collapse, Input, Radio, Space, Tag, Tooltip } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
@@ -36,7 +36,6 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   } | null>(null)
   const { showSuccess, setError } = useCommitPanelModel()
   const normalizedCommitMsg = useMemo(() => commitMsg.trim(), [commitMsg])
-  const selectedGroup = selectedGroupIndex === null ? null : groups[selectedGroupIndex]
   const canCommit = normalizedCommitMsg.length > 0 && stagedCount > 0 && !isBusy && !isCommitRunning
   const analysisConfidence = analysisSummary?.confidence || 'low'
   const analysisHeadline = analysisSummary?.analysisSummary || '已完成智能分组分析'
@@ -49,6 +48,8 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       : semanticRisks.length > 0
         ? 'low'
         : null
+
+  const hasAnalysis = !!(analysisSummary || smartCommitNotice || groups.length > 0)
 
   const handleCommit = useCallback(async () => {
     if (!normalizedCommitMsg) {
@@ -83,7 +84,10 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       const result = await generateSmartCommitMessage()
       if (result.success && result.data) {
         setCommitMsg(result.data)
-        setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成提交信息' : null)
+        setSmartCommitNotice(null)
+        if (result.fallback) {
+          setCommitFeedback({ type: 'success', message: result.error || 'AI 未启用，已使用本地模板生成提交信息' })
+        }
         showSuccess(result.fallback ? '已使用本地模板生成提交信息' : 'AI 提交信息已生成')
       } else {
         setSmartCommitNotice(null)
@@ -170,103 +174,51 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
     }
   }, [groups, selectedGroupIndex, setError, showSuccess])
 
+  const handleCloseAnalysis = useCallback(() => {
+    setGroups([])
+    setAnalysisSummary(null)
+    setSmartCommitNotice(null)
+    setSelectedGroupIndex(null)
+  }, [])
+
   return (
-    <div className={styles['ig-commit-panel']}>
-      <div className={styles['ig-group-toolbar']}>
-        <div className={styles['ig-toolbar-copy']}>
-          <div className={styles['ig-toolbar-title']}>智能提交</div>
-          <div className={styles['ig-toolbar-subtitle']}>
-            {groups.length > 0
-              ? `已生成 ${groups.length} 个变更分组`
-              : '先分析变更，或直接智能暂存并生成提交信息'}
-          </div>
-        </div>
-        <div className={styles['ig-toolbar-actions']}>
+    <div
+      className={`${styles['ig-commit-panel']} ${hasAnalysis ? styles['ig-commit-panel--expanded'] : ''}`}
+      data-commit-panel-expanded={hasAnalysis ? '' : undefined}
+    >
+      <div className={styles['ig-smart-toolbar']}>
+        <Tooltip title="分析变更分组">
           <Button
             size="small"
             icon={<ClusterOutlined />}
             loading={isAnalyzingGroups}
             disabled={isBusy || isCommitRunning}
             onClick={handleAnalyzeGroups}
-          >
-            分析分组
-          </Button>
+          />
+        </Tooltip>
+        <Tooltip title="智能暂存并生成提交信息">
           <Button
             size="small"
             type="primary"
+            icon={<RocketOutlined />}
             loading={isAnalyzingGroups || isAiGenerating}
             disabled={isBusy || isCommitRunning}
             onClick={handleAnalyzeAndStage}
-          >
-            智能暂存并生成
-          </Button>
-          {groups.length > 0 && (
+          />
+        </Tooltip>
+        {groups.length > 0 && (
+          <Tooltip title="暂存所选分组">
             <Button
               size="small"
               type="primary"
+              icon={<CheckOutlined />}
               loading={isAiGenerating}
               disabled={selectedGroupIndex === null || isBusy || isCommitRunning}
               onClick={handleStageSelectedGroup}
-            >
-              暂存所选
-            </Button>
-          )}
-        </div>
+            />
+          </Tooltip>
+        )}
       </div>
-
-      <div className={styles['ig-input-wrapper']}>
-        <TextArea
-          id="commit-message"
-          className={styles['ig-commit-input']}
-          placeholder="输入提交信息…"
-          value={commitMsg}
-          onChange={(event) => {
-            setCommitMsg(event.target.value)
-            setCommitFeedback(null)
-          }}
-          rows={3}
-          showCount
-          maxLength={500}
-          disabled={isCommitRunning}
-        />
-        <Tooltip title="AI 生成提交信息">
-          <Button
-            className={styles['ig-ai-btn']}
-            icon={<ThunderboltOutlined />}
-            disabled={isBusy || isCommitRunning}
-            loading={isAiGenerating}
-            onClick={handleGenerateCommitMessage}
-            type="text"
-          />
-        </Tooltip>
-      </div>
-
-      <div className={styles['ig-commit-confirm']}>
-        <div className={styles['ig-commit-summary']}>
-          <span>{normalizedCommitMsg ? '提交信息已就绪' : '请生成或输入 Commit Message'}</span>
-          {selectedGroup && <span>{`当前分组：${selectedGroup.summary}`}</span>}
-        </div>
-        <Button
-          id="btn-commit"
-          className={styles['ig-commit-btn']}
-          type="primary"
-          icon={<CheckCircleOutlined />}
-          onClick={handleCommit}
-          disabled={!canCommit}
-          loading={isCommitRunning}
-        >
-          {`确认创建 Commit (${stagedCount} 个文件已暂存)`}
-        </Button>
-      </div>
-
-      {commitFeedback && (
-        <Alert
-          className={styles['ig-commit-feedback']}
-          type={commitFeedback.type}
-          message={commitFeedback.message}
-          showIcon
-        />
-      )}
 
       {(analysisSummary || smartCommitNotice || groups.length > 0) && (
         <div className={styles['ig-analysis-card']}>
@@ -277,19 +229,28 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
                 {analysisSummary ? analysisHeadline : smartCommitNotice || '等待分析结果'}
               </div>
             </div>
-            {analysisSummary && (
-              <Tag
-                color={
-                  analysisConfidence === 'high'
-                    ? 'green'
-                    : analysisConfidence === 'medium'
-                      ? 'blue'
-                      : 'gold'
-                }
-              >
-                {analysisConfidence}
-              </Tag>
-            )}
+            <div className={styles['ig-analysis-header-right']}>
+              {analysisSummary && (
+                <Tag
+                  color={
+                    analysisConfidence === 'high'
+                      ? 'green'
+                      : analysisConfidence === 'medium'
+                        ? 'blue'
+                        : 'gold'
+                  }
+                >
+                  {analysisConfidence}
+                </Tag>
+              )}
+              <Button
+                size="small"
+                type="text"
+                icon={<CloseOutlined />}
+                onClick={handleCloseAnalysis}
+                className={styles['ig-analysis-close']}
+              />
+            </div>
           </div>
           {highestRiskLevel && (
             <div className={styles['ig-smart-notice']}>
@@ -457,6 +418,56 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
             />
           )}
         </div>
+      )}
+
+      <div className={styles['ig-input-wrapper']}>
+        <TextArea
+          id="commit-message"
+          className={styles['ig-commit-input']}
+          placeholder="输入提交信息…"
+          value={commitMsg}
+          onChange={(event) => {
+            setCommitMsg(event.target.value)
+            setCommitFeedback(null)
+          }}
+          rows={4}
+          showCount
+          maxLength={500}
+          disabled={isCommitRunning}
+        />
+        <Tooltip title="AI 生成提交信息">
+          <Button
+            className={styles['ig-ai-btn']}
+            icon={<ThunderboltOutlined />}
+            disabled={isBusy || isCommitRunning}
+            loading={isAiGenerating}
+            onClick={handleGenerateCommitMessage}
+            type="text"
+          />
+        </Tooltip>
+      </div>
+
+      <div className={styles['ig-commit-confirm']}>
+        <Button
+          id="btn-commit"
+          className={styles['ig-commit-btn']}
+          type="primary"
+          icon={<CheckCircleOutlined />}
+          onClick={handleCommit}
+          disabled={!canCommit}
+          loading={isCommitRunning}
+        >
+          {`确认创建 Commit (${stagedCount} 个文件已暂存)`}
+        </Button>
+      </div>
+
+      {commitFeedback && (
+        <Alert
+          className={styles['ig-commit-feedback']}
+          type={commitFeedback.type}
+          message={commitFeedback.message}
+          showIcon
+        />
       )}
     </div>
   )
