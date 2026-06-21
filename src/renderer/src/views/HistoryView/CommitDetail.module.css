@@ -28,6 +28,26 @@
   gap: 10px;
   overflow-y: auto;
   padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-detail-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-detail-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-detail-body::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-detail-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .ig-detail-hash code {

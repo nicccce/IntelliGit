@@ -1,7 +1,8 @@
 import type { JSX } from 'react'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Empty } from 'antd'
 
+import { useResizable } from '../../hooks'
 import { useHistoryViewModel } from '../../viewModels'
 import { useShadowMergeStore } from '../../store/shadowMergeStore'
 import BranchPanel from './BranchPanel'
@@ -71,6 +72,19 @@ function HistoryView(): JSX.Element {
     [allCommitHistory, selectCommit]
   )
 
+  const graphDetailRef = useRef<HTMLDivElement>(null)
+  const {
+    ratio: graphRatio,
+    handleMouseDown: onGraphResize,
+    isDragging: isGraphResizing
+  } = useResizable({
+    direction: 'horizontal',
+    defaultRatio: 0.65,
+    minRatio: 0.3,
+    maxRatio: 0.8,
+    containerRef: graphDetailRef
+  })
+
   if (!currentRepo) {
     return (
       <div className={styles['ig-empty-view']}>
@@ -86,18 +100,28 @@ function HistoryView(): JSX.Element {
         currentBranch={currentBranch}
         onSelectBranch={handleSelectBranch}
       />
-      <CommitGraph
-        commits={allCommitHistory}
-        laneMap={laneMap}
-        selectedCommitHash={selectedCommit?.hash}
-        onSelectCommit={selectCommit}
-      />
-      <div className={styles['ig-detail-panel']}>
-        <CommitDetail
-          selectedCommit={selectedCommit}
-          selectedCommitFiles={selectedCommitFiles}
-          isBusy={isBusy}
-        />
+      <div
+        ref={graphDetailRef}
+        className={`${styles['ig-graph-detail-area']} ${isGraphResizing ? styles['ig-resizing-h'] : ''}`}
+      >
+        <div className={styles['ig-graph-panel']} style={{ width: `${graphRatio * 100}%` }}>
+          <CommitGraph
+            commits={allCommitHistory}
+            laneMap={laneMap}
+            selectedCommitHash={selectedCommit?.hash}
+            onSelectCommit={selectCommit}
+          />
+        </div>
+        <div className={styles['ig-divider-h']} onMouseDown={onGraphResize}>
+          <div className={styles['ig-divider-h-handle']} />
+        </div>
+        <div className={styles['ig-detail-panel']}>
+          <CommitDetail
+            selectedCommit={selectedCommit}
+            selectedCommitFiles={selectedCommitFiles}
+            isBusy={isBusy}
+          />
+        </div>
       </div>
     </div>
   )

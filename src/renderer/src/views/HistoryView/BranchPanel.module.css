@@ -34,6 +34,26 @@
 .ig-branch-list {
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-branch-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-branch-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-branch-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-branch-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .ig-branch-item {

@@ -23,6 +23,26 @@
 .ig-graph-list {
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-graph-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-graph-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-graph-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-graph-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .ig-graph-list :global(.ant-empty-description) {
