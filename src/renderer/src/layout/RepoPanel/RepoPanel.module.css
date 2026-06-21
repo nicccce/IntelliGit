@@ -66,6 +66,26 @@
   flex-direction: column;
   gap: var(--space-sm);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-panel-repo-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-panel-repo-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-panel-repo-list::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-panel-repo-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .ig-panel-repo-item {

@@ -50,4 +50,24 @@
   gap: var(--space-md);
   overflow: auto;
   padding: var(--space-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-panel-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-panel-body::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-panel-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

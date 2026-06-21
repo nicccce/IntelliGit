@@ -7,6 +7,26 @@
   gap: var(--space-md);
   color: var(--text-primary);
   background: var(--bg-secondary);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.ig-global-settings::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ig-global-settings::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ig-global-settings::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-primary);
+  min-height: 30px;
+}
+
+.ig-global-settings::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .ig-settings-section {
