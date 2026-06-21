@@ -6,7 +6,6 @@
   flex-direction: column;
   gap: 12px;
   padding: 12px;
-  overflow: auto;
 }
 
 .prompts {
@@ -121,10 +120,4 @@
 
 .historySummary {
   color: var(--text-secondary);
-}
-
-.floatingSpin {
-  position: absolute;
-  top: 72px;
-  right: 32px;
 }

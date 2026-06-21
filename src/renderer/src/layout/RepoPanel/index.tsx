@@ -237,6 +237,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
   return (
     <>
       <SidePanelShell title="仓库列表" isOpen={isOpen} onClose={onClose}>
+        <div className={styles['ig-repo-panel-content']}>
         <Dropdown
           menu={{ items: repoMenuItems, onClick: handleRepoMenuClick }}
           trigger={['click']}
@@ -299,6 +300,7 @@ function RepoPanel({ isOpen, onClose }: RepoPanelProps): JSX.Element {
               </Dropdown>
             ))
           )}
+        </div>
         </div>
       </SidePanelShell>
 

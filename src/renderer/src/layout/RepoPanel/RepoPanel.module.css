@@ -59,6 +59,13 @@
   flex-shrink: 0;
 }
 
+.ig-repo-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
 .ig-panel-repo-list {
   display: flex;
   min-height: 0;

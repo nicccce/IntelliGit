@@ -47,9 +47,8 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: var(--space-md);
   overflow: auto;
-  padding: var(--space-md);
+  padding: 0;
   scrollbar-width: thin;
   scrollbar-color: var(--border-primary) transparent;
 }

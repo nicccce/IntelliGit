@@ -1,12 +1,11 @@
 import type { JSX, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Empty, Input, List, Popconfirm, Spin, Tag, Typography } from 'antd'
+import { Button, Empty, Input, List, Popconfirm, Tag, Typography } from 'antd'
 import {
   ArrowRightOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   HistoryOutlined,
-  LoadingOutlined,
   StopOutlined
 } from '@ant-design/icons'
 
@@ -308,7 +307,6 @@ function NlpPanel({ isOpen, onClose }: NlpPanelProps): JSX.Element | null {
             )
           }}
         />
-        {loading && <Spin className={styles.floatingSpin} indicator={<LoadingOutlined spin />} />}
       </div>
     </SidePanelShell>
   )
