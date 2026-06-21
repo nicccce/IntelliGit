@@ -27,7 +27,7 @@ const PROVIDER_HINTS: Record<LlmProvider, string> = {
 }
 
 const DEFAULT_MODELS: Record<LlmProvider, string> = {
-  openai: 'deepseek-chat',
+  openai: 'deepseek-v4-pro',
   anthropic: 'claude-3-5-sonnet-20241022'
 }
 
