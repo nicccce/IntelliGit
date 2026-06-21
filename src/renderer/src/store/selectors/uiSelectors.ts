@@ -4,10 +4,6 @@ import type { UiStoreState } from '../uiStore'
 export const selectActiveView = (state: UiStoreState): UiStoreState['activeView'] =>
   state.activeView
 
-export const selectNlpDraft = (state: UiStoreState): string => state.nlpDraft
-
-export const selectNlpRunToken = (state: UiStoreState): number => state.nlpRunToken
-
 export const selectActiveSidePanel = (state: UiStoreState): SidePanel => state.activeSidePanel
 
 export const selectSetActiveSidePanel = (state: UiStoreState): UiStoreState['setActiveSidePanel'] =>
@@ -29,12 +25,6 @@ export const selectShowSuccess = (state: UiStoreState): UiStoreState['showSucces
 
 export const selectSetActiveView = (state: UiStoreState): UiStoreState['setActiveView'] =>
   state.setActiveView
-
-export const selectSetNlpDraft = (state: UiStoreState): UiStoreState['setNlpDraft'] =>
-  state.setNlpDraft
-
-export const selectTriggerNlpRun = (state: UiStoreState): UiStoreState['triggerNlpRun'] =>
-  state.triggerNlpRun
 
 export const selectClearError = (state: UiStoreState): UiStoreState['clearError'] =>
   state.clearError

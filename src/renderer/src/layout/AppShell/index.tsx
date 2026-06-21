@@ -5,6 +5,7 @@ import ActivityRail from '../ActivityRail'
 import ChatPanel from '../ChatPanel'
 import ConflictPanel from '../ConflictPanel'
 import GlobalSettingsPanel from '../GlobalSettingsPanel'
+import NlpPanel from '../../views/NlpView'
 import NotificationBar from '../NotificationBar'
 import RepoPanel from '../RepoPanel'
 import StatusBar from '../StatusBar'
@@ -12,7 +13,6 @@ import Toolbar from '../Toolbar'
 import ChangesView from '../../views/ChangesView'
 import HistoryView from '../../views/HistoryView'
 import SettingsView from '../../views/SettingsView'
-import NlpView from '../../views/NlpView'
 import styles from './AppShell.module.css'
 
 interface AppShellProps {
@@ -59,6 +59,9 @@ function AppShell({
         {activeSidePanel === 'conflict' && (
           <ConflictPanel isOpen={true} onClose={() => onToggleSidePanel('conflict')} />
         )}
+        {activeSidePanel === 'nlp' && (
+          <NlpPanel isOpen={true} onClose={() => onToggleSidePanel('nlp')} />
+        )}
         {activeSidePanel === 'settings' && (
           <GlobalSettingsPanel isOpen={true} onClose={() => onToggleSidePanel('settings')} />
         )}
@@ -66,7 +69,6 @@ function AppShell({
           {activeView === 'changes' && <ChangesView />}
           {activeView === 'history' && <HistoryView />}
           {activeView === 'settings' && <SettingsView key={currentRepoPath || 'settings'} />}
-          {activeView === 'nlp' && <NlpView />}
         </main>
       </div>
       <StatusBar />

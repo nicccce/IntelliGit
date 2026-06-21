@@ -1,18 +1,12 @@
 .wrap {
   position: relative;
   display: flex;
-  height: 100%;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px;
+  gap: 12px;
+  padding: 12px;
   overflow: auto;
-  background: var(--bg-primary);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .prompts {
@@ -24,6 +18,12 @@
 .prompt {
   cursor: pointer;
   user-select: none;
+}
+
+.promptToggle {
+  color: var(--accent-blue);
+  border-color: color-mix(in srgb, var(--accent-blue) 35%, var(--border-secondary));
+  background: color-mix(in srgb, var(--accent-blue) 8%, var(--bg-secondary));
 }
 
 .error {
@@ -93,6 +93,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
   font-weight: 600;
 }
 

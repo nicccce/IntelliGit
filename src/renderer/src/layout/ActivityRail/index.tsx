@@ -1,8 +1,8 @@
 import type { JSX } from 'react'
 import { Badge, Tooltip } from 'antd'
 import {
+  ExperimentOutlined,
   FolderOpenOutlined,
-  MessageFilled,
   MessageOutlined,
   MoonOutlined,
   SettingOutlined,
@@ -86,10 +86,10 @@ function ActivityRail({
         onClick={() => onToggleSidePanel('conflict')}
       />
       <RailButton
-        icon={<MessageFilled />}
+        icon={<ExperimentOutlined />}
         label="NLP"
-        isActive={false}
-        onClick={() => setActiveView('nlp')}
+        isActive={activeSidePanel === 'nlp'}
+        onClick={() => onToggleSidePanel('nlp')}
       />
       {/* 全局设置面板 */}
       <RailButton
