@@ -1,7 +1,15 @@
 import type { JSX } from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import { CheckCircleOutlined, CheckOutlined, CloseOutlined, ClusterOutlined, RocketOutlined, ThunderboltOutlined } from '@ant-design/icons'
-import { Alert, Button, Collapse, Input, Radio, Space, Tag, Tooltip } from 'antd'
+import {
+  CheckCircleOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  ClusterOutlined,
+  FileTextOutlined,
+  RocketOutlined,
+  ThunderboltOutlined
+} from '@ant-design/icons'
+import { Alert, Button, Drawer, Input, Tag, Tooltip } from 'antd'
 
 import { createCommit } from '../../services/gitWorkflowService'
 import {
@@ -15,11 +23,36 @@ import { useCommitPanelModel } from '../../viewModels'
 import styles from './CommitPanel.module.css'
 
 const { TextArea } = Input
+type SemanticRisk = NonNullable<SmartCommitAnalysisResult['semanticRisks']>[number]
 
 interface CommitPanelProps {
   stagedCount: number
   isBusy: boolean
   isCommitRunning: boolean
+}
+
+function getFileName(path: string): string {
+  return path.split(/[\\/]/).pop() || path
+}
+
+function getDirectory(path: string): string {
+  const normalized = path.replace(/\\/g, '/')
+  const lastSlash = normalized.lastIndexOf('/')
+  return lastSlash > -1 ? normalized.slice(0, lastSlash) : ''
+}
+
+function getRiskLevel(risks: SemanticRisk[]): SemanticRisk['level'] | null {
+  if (risks.some((risk) => risk.level === 'high')) return 'high'
+  if (risks.some((risk) => risk.level === 'medium')) return 'medium'
+  return risks.length > 0 ? 'low' : null
+}
+
+function getRiskColor(level: SemanticRisk['level']): string {
+  return level === 'high' ? 'red' : level === 'medium' ? 'gold' : 'blue'
+}
+
+function getConfidenceColor(confidence: CommitIntentGroup['confidence'] | SmartCommitAnalysisResult['confidence']): string {
+  return confidence === 'high' ? 'green' : confidence === 'medium' ? 'blue' : 'gold'
 }
 
 function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps): JSX.Element {
@@ -29,6 +62,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const [groups, setGroups] = useState<CommitIntentGroup[]>([])
   const [analysisSummary, setAnalysisSummary] = useState<SmartCommitAnalysisResult | null>(null)
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null)
+  const [detailGroupIndex, setDetailGroupIndex] = useState<number | null>(null)
   const [smartCommitNotice, setSmartCommitNotice] = useState<string | null>(null)
   const [commitFeedback, setCommitFeedback] = useState<{
     type: 'success' | 'error'
@@ -50,6 +84,10 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         : null
 
   const hasAnalysis = !!(analysisSummary || smartCommitNotice || groups.length > 0)
+  const detailGroup = detailGroupIndex === null ? null : groups[detailGroupIndex] || null
+  const detailGroupRisks = detailGroup
+    ? semanticRisks.filter((risk) => risk.files.some((file) => detailGroup.files.includes(file)))
+    : []
 
   const stageGroup = useCallback(async (group: CommitIntentGroup) => {
     setIsAiGenerating(true)
@@ -95,6 +133,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       const successMessage = `提交成功${result.hash ? `: ${result.hash.slice(0, 8)}` : ''}`
       setCommitMsg('')
       setSmartCommitNotice(null)
+      setDetailGroupIndex(null)
       if (selectedGroupIndex !== null && groups.length > 0) {
         const nextGroups = groups.filter((_, i) => i !== selectedGroupIndex)
         setGroups(nextGroups)
@@ -142,6 +181,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         setGroups(result.data.groups)
         setAnalysisSummary(result.data)
         setSelectedGroupIndex(0)
+        setDetailGroupIndex(null)
         setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
         showSuccess(result.fallback ? '已使用本地模板生成变更分组' : 'AI 变更分组已生成')
       } else {
@@ -168,6 +208,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
       setAnalysisSummary(result.data)
       const nextGroup = result.data.groups[0]
       setSelectedGroupIndex(0)
+      setDetailGroupIndex(null)
       setSmartCommitNotice(result.fallback ? result.error || 'AI 未启用，已使用本地模板生成变更分组' : null)
 
       const stagedResult = await stageGroupAndGenerateMessage(nextGroup)
@@ -197,6 +238,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
     setAnalysisSummary(null)
     setSmartCommitNotice(null)
     setSelectedGroupIndex(null)
+    setDetailGroupIndex(null)
   }, [])
 
   return (
@@ -248,19 +290,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
               </div>
             </div>
             <div className={styles['ig-analysis-header-right']}>
-              {analysisSummary && (
-                <Tag
-                  color={
-                    analysisConfidence === 'high'
-                      ? 'green'
-                      : analysisConfidence === 'medium'
-                        ? 'blue'
-                        : 'gold'
-                  }
-                >
-                  {analysisConfidence}
-                </Tag>
-              )}
+              {analysisSummary && <Tag color={getConfidenceColor(analysisConfidence)}>{analysisConfidence}</Tag>}
               <Button
                 size="small"
                 type="text"
@@ -293,147 +323,80 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           {smartCommitNotice && <div className={styles['ig-smart-notice']}>{smartCommitNotice}</div>}
 
           {semanticRisks.length > 0 && (
-            <Collapse
-              className={styles['ig-group-collapse']}
-              size="small"
-              defaultActiveKey={[]}
-              items={[
-                {
-                  key: 'risks',
-                  label: `语义风险 ${semanticRisks.length} 项`,
-                  children: (
-                    <Space direction="vertical" size={8} className={styles['ig-risk-list']}>
-                      {semanticRisks.map((risk, index) => (
-                        <div key={`${risk.type}-${risk.files.join(',')}-${index}`} className={styles['ig-risk-item']}>
-                          <div className={styles['ig-risk-head']}>
-                            <Tag
-                              color={
-                                risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'gold' : 'blue'
-                              }
-                            >
-                              {risk.level}
-                            </Tag>
-                            <Tag color="geekblue">{risk.type}</Tag>
-                            <span className={styles['ig-risk-desc']}>{risk.description}</span>
-                          </div>
-                          <div className={styles['ig-risk-meta']}>
-                            <span>文件：{risk.files.join('、')}</span>
-                            <span>符号：{risk.symbols.length > 0 ? risk.symbols.join('、') : '无'}</span>
-                          </div>
-                          {risk.evidence.length > 0 && (
-                            <div className={styles['ig-risk-evidence']}>
-                              {risk.evidence.join(' ｜ ')}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </Space>
-                  )
-                }
-              ]}
-            />
-          )}
-
-          {semanticRisks.length > 0 && (
-            <Collapse
-              className={styles['ig-group-collapse']}
-              size="small"
-              defaultActiveKey={[]}
-              items={[
-                {
-                  key: 'risks',
-                  label: `语义风险 ${semanticRisks.length} 项`,
-                  children: (
-                    <div className={styles['ig-risk-list']}>
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {semanticRisks.map((risk, index) => (
-                          <div key={`${risk.type}-${risk.files.join('-')}-${index}`} className={styles['ig-risk-item']}>
-                            <div className={styles['ig-risk-head']}>
-                              <Tag
-                                color={
-                                  risk.level === 'high' ? 'red' : risk.level === 'medium' ? 'gold' : 'blue'
-                                }
-                              >
-                                {risk.level}
-                              </Tag>
-                              <Tag color="geekblue">{risk.type}</Tag>
-                              {risk.files.slice(0, 3).map((file) => (
-                                <Tag key={file}>{file}</Tag>
-                              ))}
-                            </div>
-                            <div className={styles['ig-risk-desc']}>{risk.description}</div>
-                            <div className={styles['ig-risk-meta']}>
-                              {risk.symbols.length > 0 && <span>符号：{risk.symbols.join('、')}</span>}
-                              {risk.files.length > 0 && <span>文件：{risk.files.join('、')}</span>}
-                            </div>
-                            {risk.evidence.length > 0 && (
-                              <div className={styles['ig-risk-evidence']}>
-                                证据：{risk.evidence.join(' ｜ ')}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </Space>
-                    </div>
-                  )
-                }
-              ]}
-            />
+            <div className={styles['ig-risk-summary']}>
+              <span>语义风险</span>
+              <Tag color={highestRiskLevel ? getRiskColor(highestRiskLevel) : 'blue'}>
+                {semanticRisks.length} 项
+              </Tag>
+              <span>详情已收进各分组面板，可按分组查看。</span>
+            </div>
           )}
 
           {groups.length > 0 && (
-            <Collapse
-              className={styles['ig-group-collapse']}
-              size="small"
-              defaultActiveKey={[]}
-              items={[
-                {
-                  key: 'groups',
-                  label: `查看 ${groups.length} 个分组`,
-                  children: (
-                    <Radio.Group
-                      className={styles['ig-group-list']}
-                      value={selectedGroupIndex}
-                      onChange={(event) => handleSelectGroup(event.target.value, groups)}
+            <div className={styles['ig-group-list']} aria-label="智能分组建议">
+              <div className={styles['ig-group-list-header']}>
+                <span>分组建议</span>
+                <span>{groups.length} 组</span>
+              </div>
+              <div className={styles['ig-group-space']}>
+                {groups.map((group, index) => {
+                  const groupConfidence = group.confidence || analysisConfidence
+                  const groupRisks = semanticRisks.filter((risk) => risk.files.some((file) => group.files.includes(file)))
+                  const groupRiskLevel = getRiskLevel(groupRisks)
+                  const previewFiles = group.files.slice(0, 2)
+                  return (
+                    <div
+                      key={`${group.type}-${group.summary}-${index}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`${styles['ig-group-card']} ${
+                        selectedGroupIndex === index ? styles['ig-group-card--selected'] : ''
+                      }`}
+                      onClick={() => {
+                        if (selectedGroupIndex !== index) handleSelectGroup(index, groups)
+                      }}
+                      onKeyDown={(event) => {
+                        if ((event.key === 'Enter' || event.key === ' ') && selectedGroupIndex !== index) {
+                          event.preventDefault()
+                          handleSelectGroup(index, groups)
+                        }
+                      }}
                     >
-                      <Space direction="vertical" size={6} className={styles['ig-group-space']}>
-                        {groups.map((group, index) => {
-                          const groupConfidence = group.confidence || analysisConfidence
-                          return (
-                            <Radio
-                              key={`${group.type}-${group.summary}-${index}`}
-                              className={styles['ig-group-radio']}
-                              value={index}
-                            >
-                              <div className={styles['ig-group-item']}>
-                                <div className={styles['ig-group-title']}>
-                                  <Tag color="blue">{group.type}</Tag>
-                                  <Tag
-                                    color={
-                                      groupConfidence === 'high'
-                                        ? 'green'
-                                        : groupConfidence === 'medium'
-                                          ? 'blue'
-                                          : 'gold'
-                                    }
-                                  >
-                                    {groupConfidence}
-                                  </Tag>
-                                  <span>{group.summary}</span>
-                                </div>
-                                <div className={styles['ig-group-files']}>
-                                  {group.files.join('、')}
-                                </div>
-                              </div>
-                            </Radio>
-                          )
-                        })}
-                      </Space>
-                    </Radio.Group>
+                      <div className={styles['ig-group-card-main']}>
+                        <div className={styles['ig-group-title']}>
+                          <Tag color="blue">{group.type}</Tag>
+                          {group.scope && <Tag>{group.scope}</Tag>}
+                          <span className={styles['ig-group-summary']}>{group.summary}</span>
+                        </div>
+                        <div className={styles['ig-group-meta']}>
+                          <span>{group.files.length} files</span>
+                          {group.hunks && group.hunks.length > 0 && <span>{group.hunks.length} hunks</span>}
+                          <Tag color={getConfidenceColor(groupConfidence)}>{groupConfidence}</Tag>
+                          {groupRiskLevel && <Tag color={getRiskColor(groupRiskLevel)}>{groupRiskLevel} risk</Tag>}
+                        </div>
+                        <div className={styles['ig-group-file-preview']}>
+                          {previewFiles.map((file) => (
+                            <span key={file}>{getFileName(file)}</span>
+                          ))}
+                          {group.files.length > previewFiles.length && <span>+{group.files.length - previewFiles.length}</span>}
+                        </div>
+                      </div>
+                      <Button
+                        size="small"
+                        type="text"
+                        className={styles['ig-group-detail-btn']}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setDetailGroupIndex(index)
+                        }}
+                      >
+                        详情
+                      </Button>
+                    </div>
                   )
-                }
-              ]}
-            />
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -487,6 +450,81 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           showIcon
         />
       )}
+
+      <Drawer
+        title="分组详情"
+        open={!!detailGroup}
+        onClose={() => setDetailGroupIndex(null)}
+        width={520}
+        className={styles['ig-analysis-drawer']}
+      >
+        {detailGroup && (
+          <div className={styles['ig-detail-panel']}>
+            <section className={styles['ig-detail-section']}>
+              <div className={styles['ig-detail-heading']}>
+                <Tag color="blue">{detailGroup.type}</Tag>
+                {detailGroup.scope && <Tag>{detailGroup.scope}</Tag>}
+                <Tag color={getConfidenceColor(detailGroup.confidence || analysisConfidence)}>
+                  {detailGroup.confidence || analysisConfidence}
+                </Tag>
+              </div>
+              <div className={styles['ig-detail-summary']}>{detailGroup.summary}</div>
+            </section>
+
+            <section className={styles['ig-detail-section']}>
+              <div className={styles['ig-detail-title']}>文件</div>
+              <div className={styles['ig-detail-file-list']}>
+                {detailGroup.files.map((file) => (
+                  <div key={file} className={styles['ig-detail-file']}>
+                    <FileTextOutlined />
+                    <div>
+                      <div className={styles['ig-detail-file-name']}>{getFileName(file)}</div>
+                      {getDirectory(file) && <div className={styles['ig-detail-file-path']}>{getDirectory(file)}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {detailGroup.hunks && detailGroup.hunks.length > 0 && (
+              <section className={styles['ig-detail-section']}>
+                <div className={styles['ig-detail-title']}>关联 Hunk</div>
+                <div className={styles['ig-detail-code-list']}>
+                  {detailGroup.hunks.map((hunk) => (
+                    <code key={hunk}>{hunk}</code>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <section className={styles['ig-detail-section']}>
+              <div className={styles['ig-detail-title']}>语义风险</div>
+              {detailGroupRisks.length > 0 ? (
+                <div className={styles['ig-risk-list']}>
+                  {detailGroupRisks.map((risk, index) => (
+                    <div key={`${risk.type}-${risk.files.join(',')}-${index}`} className={styles['ig-risk-item']}>
+                      <div className={styles['ig-risk-head']}>
+                        <Tag color={getRiskColor(risk.level)}>{risk.level}</Tag>
+                        <Tag color="geekblue">{risk.type}</Tag>
+                      </div>
+                      <div className={styles['ig-risk-desc']}>{risk.description}</div>
+                      <div className={styles['ig-risk-meta']}>
+                        {risk.symbols.length > 0 && <span>符号：{risk.symbols.join('、')}</span>}
+                        {risk.files.length > 0 && <span>文件：{risk.files.map(getFileName).join('、')}</span>}
+                      </div>
+                      {risk.evidence.length > 0 && (
+                        <div className={styles['ig-risk-evidence']}>证据：{risk.evidence.join(' ｜ ')}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles['ig-detail-empty']}>这个分组暂未检测到语义风险。</div>
+              )}
+            </section>
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }
