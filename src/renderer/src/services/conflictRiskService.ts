@@ -90,3 +90,23 @@ export function formatFileRiskTitle(file: ConflictRiskFileSummary): string {
   const symbolText = file.symbols.length ? `，符号：${file.symbols.slice(0, 4).join('、')}` : ''
   return `${levelLabel(file.level)} · ${file.riskCount} 个风险${symbolText}`
 }
+
+/**
+ * 从 ancestor/ours/theirs 原始内容构建合成 unified diff，
+ * 供 AST 分析器（parseFileDiffs）解析使用。
+ * 将 oldContent 全行标为 `-`，newContent 全行标为 `+`，
+ * 保证 buildApproximateSourceFromDiff 能准确还原两侧内容。
+ */
+export function buildSyntheticUnifiedDiff(filePath: string, oldContent: string, newContent: string): string {
+  const path = filePath.replace(/\\/g, '/')
+  const oldLines = (oldContent ?? '').split('\n')
+  const newLines = (newContent ?? '').split('\n')
+  return [
+    `diff --git a/${path} b/${path}`,
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    `@@ -1,${oldLines.length} +1,${newLines.length} @@`,
+    ...oldLines.map((l) => `-${l}`),
+    ...newLines.map((l) => `+${l}`)
+  ].join('\n')
+}
