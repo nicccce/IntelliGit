@@ -1,5 +1,6 @@
 .ig-conflict-panel {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 12px;
   padding: 12px;
@@ -17,6 +18,12 @@
 .ig-conflict-meta {
   color: var(--text-secondary);
   font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.ig-conflict-meta > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-strategy {
@@ -65,6 +72,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-risk-summary {
@@ -110,6 +118,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-applied {
@@ -124,6 +133,7 @@
   max-height: 120px;
   overflow: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -190,6 +200,7 @@
   font-size: 12px;
   line-height: 1.7;
   margin-bottom: 12px;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-binary-desc p {
@@ -202,6 +213,7 @@
   padding: 0 4px;
   border-radius: 3px;
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-binary-actions {
@@ -224,7 +236,8 @@
 .ig-conflict-start-hint {
   font-size: 12px;
   color: var(--text-secondary);
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ig-conflict-branch-select {
@@ -248,6 +261,8 @@
   font-size: 12px;
   color: var(--text-secondary);
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* 解决操作按钮组 */
@@ -258,4 +273,21 @@
   padding-top: 4px;
   border-top: 1px solid var(--border-secondary);
   margin-top: 4px;
+}
+
+.ig-conflict-followup {
+  min-width: 0;
+}
+
+.ig-conflict-followup :global(.ant-list-item),
+.ig-conflict-followup :global(.ant-typography),
+.ig-conflict-followup div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ig-conflict-copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

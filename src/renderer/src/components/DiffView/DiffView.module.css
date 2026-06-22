@@ -199,6 +199,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  min-width: 0;
   min-height: 24px;
   padding: 2px 12px 2px 104px;
   border-top: 1px solid var(--border-primary);
@@ -212,6 +213,12 @@
 .ig-diff-hunk-owner-label {
   color: var(--accent-blue);
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ig-diff-hunk-owner span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ig-diff-line {
@@ -257,9 +264,11 @@
 }
 
 .ig-diff-aggregate-summary {
+  min-width: 0;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .ig-diff-aggregate-tags {
@@ -271,6 +280,7 @@
 .ig-diff-aggregate-tag {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   min-height: 20px;
   padding: 0 8px;
   border: 1px solid var(--border-secondary);
@@ -278,6 +288,7 @@
   color: var(--text-secondary);
   background: var(--bg-primary);
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .ig-diff-aggregate-tag-high {

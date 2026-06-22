@@ -23,6 +23,7 @@
 
 .ig-detail-body {
   display: flex;
+  min-width: 0;
   flex: 1;
   flex-direction: column;
   gap: 10px;
@@ -65,6 +66,7 @@
   font-size: 13px;
   line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ig-detail-meta {
@@ -89,6 +91,7 @@
 
 .ig-detail-file {
   display: flex;
+  min-width: 0;
   min-height: 28px;
   align-items: center;
   gap: 6px;
@@ -96,6 +99,12 @@
   color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.ig-detail-file span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ig-file-status {

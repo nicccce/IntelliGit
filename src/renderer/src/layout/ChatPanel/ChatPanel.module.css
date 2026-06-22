@@ -14,6 +14,7 @@
   overflow-y: auto;
   padding: var(--space-sm) var(--space-md);
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: var(--space-sm);
   scrollbar-width: thin;
@@ -66,7 +67,9 @@
   max-width: 85%;
   font-size: 13px;
   line-height: 1.5;
+  min-width: 0;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-msg-assistant {
@@ -78,11 +81,15 @@
   max-width: 95%;
   font-size: 13px;
   line-height: 1.5;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-text {
   margin: 0 0 6px;
   color: var(--text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ─── Markdown 渲染样式 ──────────────────────────────────────────────────────── */
@@ -101,6 +108,8 @@
   background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
   font-family: var(--font-mono);
   font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ig-chat-text pre {
@@ -108,7 +117,10 @@
   padding: 10px 12px;
   border-radius: 6px;
   background: var(--bg-tertiary);
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-text pre code {
@@ -147,6 +159,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border-primary);
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-text th {
@@ -168,6 +181,7 @@
 .ig-chat-text a {
   color: var(--accent-blue);
   text-decoration: underline;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-text h1,
@@ -188,6 +202,7 @@
 .ig-chat-error {
   color: var(--color-error, #ff4d4f);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 /* ─── 操作计划卡片 ─────────────────────────────────────────────────────────── */
@@ -214,36 +229,43 @@
   border-radius: 6px;
   padding: 6px 8px;
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 3px;
 }
 
 .ig-chat-op-header {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 
 .ig-chat-op-cmd {
+  min-width: 0;
   font-size: 12px;
   font-family: var(--font-mono, monospace);
   color: var(--text-primary);
   background: var(--bg-code, rgba(0, 0, 0, 0.04));
   padding: 1px 4px;
   border-radius: 3px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ig-chat-op-desc {
   margin: 0;
   font-size: 12px;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-op-risk {
   margin: 0;
   font-size: 11px;
   color: var(--color-warning, #faad14);
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-op-blocked {
@@ -253,6 +275,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  overflow-wrap: anywhere;
 }
 
 .ig-chat-plan-footer {
@@ -272,15 +295,24 @@
 
 .ig-chat-exec-item {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 2px;
 }
 
 .ig-chat-exec-header {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.ig-chat-exec-header code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ig-chat-exec-ok {

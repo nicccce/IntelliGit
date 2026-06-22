@@ -272,6 +272,7 @@
   color: var(--text-primary);
   font-size: 11px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .ig-risk-meta,
@@ -279,6 +280,7 @@
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .ig-risk-meta {

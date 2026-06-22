@@ -1,6 +1,7 @@
 .wrap {
   position: relative;
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex: 1;
   flex-direction: column;
@@ -31,11 +32,13 @@
   border-radius: var(--radius-sm);
   color: #ff7875;
   background: rgba(255, 77, 79, 0.08);
+  overflow-wrap: anywhere;
 }
 
 .plan,
 .results {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 12px;
   padding: 14px;
@@ -47,6 +50,7 @@
 .operation,
 .resultItem {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 6px;
   padding: 10px;
@@ -56,13 +60,23 @@
 
 .operationHeader {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.operationHeader code,
+.resultItem code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .operation p {
   margin: 0;
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .risk {
@@ -76,8 +90,11 @@
 .resultItem pre {
   max-height: 180px;
   margin: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ok {
@@ -103,6 +120,7 @@
 
 .historyItem {
   display: grid;
+  min-width: 0;
   width: 100%;
   gap: 6px;
 }
@@ -120,4 +138,12 @@
 
 .historySummary {
   color: var(--text-secondary);
+}
+
+.historyInput,
+.historySummary,
+.commands {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

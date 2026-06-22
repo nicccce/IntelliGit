@@ -5,3 +5,10 @@
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
+
+.ig-notification:global(.ant-alert) :global(.ant-alert-content),
+.ig-notification:global(.ant-alert) :global(.ant-alert-message),
+.ig-notification:global(.ant-alert) :global(.ant-alert-description) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
