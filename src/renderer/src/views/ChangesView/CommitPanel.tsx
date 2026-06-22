@@ -83,7 +83,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         ? 'low'
         : null
 
-  const hasAnalysis = !!(analysisSummary || smartCommitNotice || groups.length > 0)
+  const hasAnalysis = groups.length > 0
   const detailGroup = detailGroupIndex === null ? null : groups[detailGroupIndex] || null
   const detailGroupRisks = detailGroup
     ? semanticRisks.filter((risk) => risk.files.some((file) => detailGroup.files.includes(file)))
@@ -280,7 +280,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
         )}
       </div>
 
-      {(analysisSummary || smartCommitNotice || groups.length > 0) && (
+      {groups.length > 0 && (
         <div className={styles['ig-analysis-card']}>
           <div className={styles['ig-analysis-header']}>
             <div className={styles['ig-analysis-title-block']}>
@@ -333,12 +333,13 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
           )}
 
           {groups.length > 0 && (
-            <div className={styles['ig-group-list']} aria-label="智能分组建议">
+            <>
               <div className={styles['ig-group-list-header']}>
                 <span>分组建议</span>
                 <span>{groups.length} 组</span>
               </div>
-              <div className={styles['ig-group-space']}>
+              <div className={styles['ig-group-list']} aria-label="智能分组建议">
+                <div className={styles['ig-group-space']}>
                 {groups.map((group, index) => {
                   const groupConfidence = group.confidence || analysisConfidence
                   const groupRisks = semanticRisks.filter((risk) => risk.files.some((file) => group.files.includes(file)))
@@ -396,7 +397,8 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
                   )
                 })}
               </div>
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}
