@@ -16,6 +16,7 @@ import {
   type AstFileContentMap,
   type SemanticConflictRisk
 } from '../utils/astChangeAnalyzer'
+import { isStagedFile } from '../utils/fileStatus'
 
 export type { CommitIntentGroup, SmartCommitAnalysisResult }
 export type { SemanticConflictRisk }
@@ -29,6 +30,11 @@ export interface SmartCommitGroupWorkflowResult {
 
 function normalizeFiles(files: string[]): string[] {
   return [...new Set(files.map((file) => file.trim()).filter(Boolean))]
+}
+
+function combineDiffs(...diffs: string[]): string {
+  const parts = diffs.map((diff) => diff.trimEnd()).filter((diff) => diff.trim().length > 0)
+  return parts.length > 0 ? `${parts.join('\n')}\n` : ''
 }
 
 function buildGroupContext(group: CommitIntentGroup): string {
@@ -130,9 +136,24 @@ function getChangedFiles(): string[] {
 }
 
 function getStagedFileCount(): number {
-  return useGitStatusStore
-    .getState()
-    .fileStatuses.filter((file) => file.staging && file.staging !== 'unmodified').length
+  return useGitStatusStore.getState().fileStatuses.filter(isStagedFile).length
+}
+
+function getStagedFiles(): string[] {
+  return normalizeFiles(useGitStatusStore.getState().fileStatuses.filter(isStagedFile).map((file) => file.path))
+}
+
+async function unstageCurrentFiles(): Promise<void> {
+  await useGitStatusStore.getState().refreshStatus()
+  const stagedFiles = getStagedFiles()
+
+  for (const filePath of stagedFiles) {
+    await invokeGit('staging.remove', { path: filePath })
+  }
+
+  if (stagedFiles.length > 0) {
+    await useGitStatusStore.getState().refreshStatus()
+  }
 }
 
 type Confidence = NonNullable<AstChangeInsight['confidence']>
@@ -311,7 +332,7 @@ export async function analyzeSmartCommitChanges(): Promise<AgentResult<SmartComm
     invokeGit('diff.stagedRaw', {})
   ])
 
-  const diff = workdirDiff.diff || stagedDiff.diff
+  const diff = combineDiffs(workdirDiff.diff, stagedDiff.diff)
   const files = getChangedFiles()
   const astContentMap = await buildAstContentMap(diff)
   const astInsights = await analyzeAstChanges(files, diff, astContentMap)
@@ -386,6 +407,8 @@ export async function stageGroupAndGenerateMessage(
     try {
       const files = normalizeFiles(group.files)
       if (files.length === 0) return { success: false, error: '该分组没有可暂存的文件' }
+
+      await unstageCurrentFiles()
 
       const workdirDiffParts = await Promise.all(
         files.map(async (filePath) => {

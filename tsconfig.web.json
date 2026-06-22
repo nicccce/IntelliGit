@@ -2,6 +2,8 @@
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": ["src/renderer/**/*", "src/shared/**/*"],
   "compilerOptions": {
-    "composite": true
+    "composite": true,
+    "noUnusedLocals": false,        // 禁用：不允许有未使用的局部变量
+    "noUnusedParameters": false    // 禁用：不允许有未使用的函数参数
   }
 }
