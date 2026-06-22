@@ -51,6 +51,34 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
 
   const hasAnalysis = !!(analysisSummary || smartCommitNotice || groups.length > 0)
 
+  const stageGroup = useCallback(async (group: CommitIntentGroup) => {
+    setIsAiGenerating(true)
+    try {
+      const result = await stageGroupAndGenerateMessage(group)
+      if (result.success && result.data) {
+        setCommitMsg(result.data.message)
+        setSmartCommitNotice(
+          result.data.fallback ? result.data.fallbackReason || 'AI 未启用，已使用本地模板生成提交信息' : null
+        )
+        showSuccess(result.data.fallback ? '已暂存分组并使用本地模板生成提交信息' : '已暂存分组并生成提交信息')
+      } else {
+        setSmartCommitNotice(null)
+        setError(result.error || '按分组生成提交信息失败')
+      }
+    } finally {
+      setIsAiGenerating(false)
+    }
+  }, [setError, showSuccess])
+
+  const handleSelectGroup = useCallback(
+    (index: number, currentGroups: CommitIntentGroup[]) => {
+      setSelectedGroupIndex(index)
+      const group = currentGroups[index]
+      if (group) stageGroup(group)
+    },
+    [stageGroup]
+  )
+
   const handleCommit = useCallback(async () => {
     if (!normalizedCommitMsg) {
       setError('请输入提交信息')
@@ -66,16 +94,23 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
     if (result.success) {
       const successMessage = `提交成功${result.hash ? `: ${result.hash.slice(0, 8)}` : ''}`
       setCommitMsg('')
-      setGroups([])
-      setSelectedGroupIndex(null)
       setSmartCommitNotice(null)
+      if (selectedGroupIndex !== null && groups.length > 0) {
+        const nextGroups = groups.filter((_, i) => i !== selectedGroupIndex)
+        setGroups(nextGroups)
+        if (nextGroups.length > 0) {
+          handleSelectGroup(Math.min(selectedGroupIndex, nextGroups.length - 1), nextGroups)
+        } else {
+          setSelectedGroupIndex(null)
+        }
+      }
       setCommitFeedback({ type: 'success', message: successMessage })
       showSuccess(successMessage)
       return
     }
 
     setCommitFeedback({ type: 'error', message: result.error ? `提交失败: ${result.error}` : '提交失败' })
-  }, [normalizedCommitMsg, setError, showSuccess, stagedCount])
+  }, [normalizedCommitMsg, setError, showSuccess, stagedCount, selectedGroupIndex, groups, handleSelectGroup])
 
   const handleGenerateCommitMessage = useCallback(async () => {
     // P1 智能提交入口：调用 Agent 基于暂存区 diff 生成提交信息。
@@ -154,25 +189,8 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
   const handleStageSelectedGroup = useCallback(async () => {
     if (selectedGroupIndex === null) return
     const group = groups[selectedGroupIndex]
-    if (!group) return
-
-    setIsAiGenerating(true)
-    try {
-      const result = await stageGroupAndGenerateMessage(group)
-      if (result.success && result.data) {
-        setCommitMsg(result.data.message)
-        setSmartCommitNotice(
-          result.data.fallback ? result.data.fallbackReason || 'AI 未启用，已使用本地模板生成提交信息' : null
-        )
-        showSuccess(result.data.fallback ? '已暂存分组并使用本地模板生成提交信息' : '已暂存分组并生成提交信息')
-      } else {
-        setSmartCommitNotice(null)
-        setError(result.error || '按分组生成提交信息失败')
-      }
-    } finally {
-      setIsAiGenerating(false)
-    }
-  }, [groups, selectedGroupIndex, setError, showSuccess])
+    if (group) stageGroup(group)
+  }, [groups, selectedGroupIndex, stageGroup])
 
   const handleCloseAnalysis = useCallback(() => {
     setGroups([])
@@ -376,7 +394,7 @@ function CommitPanel({ stagedCount, isBusy, isCommitRunning }: CommitPanelProps)
                     <Radio.Group
                       className={styles['ig-group-list']}
                       value={selectedGroupIndex}
-                      onChange={(event) => setSelectedGroupIndex(event.target.value)}
+                      onChange={(event) => handleSelectGroup(event.target.value, groups)}
                     >
                       <Space direction="vertical" size={6} className={styles['ig-group-space']}>
                         {groups.map((group, index) => {
