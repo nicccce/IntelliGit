@@ -36,6 +36,8 @@
     "@electron-toolkit/utils": "^4.0.0",
     "ai": "^6.0.197",
     "antd": "^6.3.7",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "web-tree-sitter": "^0.26.9",
     "zod": "^4.4.3",
     "zustand": "^5.0.12"

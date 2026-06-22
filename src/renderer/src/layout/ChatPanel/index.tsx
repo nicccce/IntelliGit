@@ -1,5 +1,7 @@
 import type { JSX, KeyboardEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Button, Input, Popconfirm, Spin, Tag, Tooltip } from 'antd'
 import {
   CheckCircleOutlined,
@@ -231,7 +233,11 @@ function ChatPanel({ isOpen, onClose }: ChatPanelProps): JSX.Element | null {
                 <span className={styles['ig-chat-error']}>{msg.error}</span>
               ) : (
                 <>
-                  {msg.text && <p className={styles['ig-chat-text']}>{msg.text}</p>}
+                  {msg.text && (
+                    <div className={styles['ig-chat-text']}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                    </div>
+                  )}
 
                   {msg.plan && msg.plan.operations.length > 0 && !msg.executionLog && (
                     <OperationPlan
